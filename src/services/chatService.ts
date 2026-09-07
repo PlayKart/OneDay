@@ -181,4 +181,12 @@ export const chatService = {
       return null;
     }
   },
+
+  async saveMessage(sessionId: string, message: { role: string; content: string; id?: string; timestamp?: string }): Promise<void> {
+    try {
+      await apiClient.post(`/api/chats`, { sessionId, ...message });
+    } catch (e) {
+      // Graceful fallback
+    }
+  },
 };

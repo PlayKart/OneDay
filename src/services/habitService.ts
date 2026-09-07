@@ -182,6 +182,42 @@ export const habitService = {
   },
 
   /**
+   * Restores a deleted habit via authoritative backend endpoint or recreation.
+   */
+  async restoreHabit(habitData: any): Promise<Habit> {
+    console.log(`[HABIT SERVICE] Restoring habit ${habitData.id || habitData.name}...`);
+    try {
+      if (habitData.id) {
+        const response = await apiClient.post(`/api/habit/restore`, {
+          id: habitData.id,
+          habitId: habitData.id,
+        });
+        const rawData = response.data || {};
+        const restored = rawData.data || rawData.habit || rawData;
+        if (restored && (restored.name || restored.title || restored.id)) {
+          return {
+            id: String(restored.id || habitData.id),
+            name: restored.title || restored.name || habitData.name,
+            completedToday: Boolean(restored.completedToday),
+            completedDates: safeArray(restored.completedDates),
+            repeatType: restored.repeatType || habitData.repeatType || "every_day",
+            customDays: safeArray(restored.customDays || habitData.customDays),
+            difficulty: restored.difficulty || habitData.difficulty || "Medium",
+            notes: restored.notes ?? restored.description ?? habitData.notes ?? "",
+            icon: restored.icon || habitData.icon || "dumbbell",
+            category: restored.category || habitData.category || "emerald",
+            reminderTime: restored.reminderTime || habitData.reminderTime || "",
+          };
+        }
+      }
+    } catch (e) {
+      console.log("[HABIT SERVICE] Dedicated restore endpoint not found, creating via authoritative createHabit API:", e);
+    }
+    // Fallback: re-create habit via authoritative backend API
+    return await habitService.createHabit(habitData);
+  },
+
+  /**
    * Completes a habit via authoritative POST /api/complete endpoint.
    */
   async completeHabit(habitId: string, dateStr?: string): Promise<any> {

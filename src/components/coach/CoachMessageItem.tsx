@@ -1,29 +1,43 @@
 // src/components/coach/CoachMessageItem.tsx
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Markdown from "react-markdown";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { ChatMessage } from "../../types";
 import { AICoachAvatar } from "../AICoachIcon";
 import { CoachMessageActions } from "./CoachMessageActions";
+import { parseCoachActionFromMessage } from "./actions/actionParser";
+import { CoachActionCard } from "./actions/CoachActionCard";
+import { useStore } from "../../store/useStore";
 
 interface CoachMessageItemProps {
   message: ChatMessage;
   isLast: boolean;
   onRegenerate?: (messageId: string) => void;
   onEditAndResend?: (messageId: string, newContent: string) => void;
+  onActionComplete?: (resultMessage: string) => void;
 }
 
 export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
   message,
   onRegenerate,
   onEditAndResend,
+  onActionComplete,
 }) => {
+  const { habits } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
 
   const isUser = message.role === "user";
   const isError = !isUser && (message.content.startsWith("⚠️") || (message.content.includes("error") && message.content.length < 120));
+
+  // Parse any action embedded in assistant message
+  const parsedAction = useMemo(() => {
+    if (isUser || isError) return null;
+    return parseCoachActionFromMessage(message.content, habits);
+  }, [message.content, isUser, isError, habits]);
+
+  const displayContent = parsedAction ? parsedAction.cleanedText : message.content;
 
   const handleSaveEdit = () => {
     if (editText.trim() && onEditAndResend) {
@@ -172,10 +186,18 @@ export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
                     ),
                   }}
                 >
-                  {message.content}
+                  {displayContent}
                 </Markdown>
               </div>
             </div>
+
+            {/* ACTION CENTER CARD IF AN ACTION WAS GENERATED */}
+            {parsedAction && (
+              <CoachActionCard
+                action={parsedAction}
+                onActionComplete={onActionComplete}
+              />
+            )}
 
             {/* MESSAGE ACTION ROW DIRECTLY UNDERNEATH COACH RESPONSE */}
             <CoachMessageActions

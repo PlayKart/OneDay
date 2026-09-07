@@ -107,6 +107,28 @@ export const AICoach: React.FC = () => {
     }
   };
 
+  const handleActionComplete = useCallback((resultMessage: string) => {
+    if (!resultMessage) return;
+    const newMsg = {
+      id: `action-res-${Date.now()}`,
+      role: "assistant" as const,
+      content: resultMessage,
+      timestamp: new Date().toISOString(),
+    };
+
+    useStore.setState((state) => ({
+      chatMessages: [...(state.chatMessages || []), newMsg],
+    }));
+
+    if (activeChatId) {
+      chatService.saveMessage(activeChatId, newMsg).catch((e) => {
+        console.warn("[AICoach] Background chatService saveMessage failed:", e);
+      });
+    }
+
+    scrollToBottom(true);
+  }, [activeChatId, scrollToBottom]);
+
   const handleStartNewChat = async () => {
     try {
       await createSession("New Chat");
@@ -223,6 +245,7 @@ export const AICoach: React.FC = () => {
                     isLast={idx === safeMessages.length - 1}
                     onRegenerate={(id) => regenerateMessage(id)}
                     onEditAndResend={(id, newContent) => editPreviousMessage(id, newContent)}
+                    onActionComplete={handleActionComplete}
                   />
                 );
               })}

@@ -266,39 +266,24 @@ export function getFollowUpChips(habits: Habit[]): { label: string; text: string
   const activeHabits = Array.isArray(habits) ? habits.filter((h) => !h.isArchived) : [];
   const hasIncomplete = activeHabits.some((h) => !h.completedToday);
 
-  if (hasIncomplete) {
-    return [
-      {
-        label: "Give me 3 immediate steps",
-        text: "Break this down into 3 concrete, immediate action steps I must take right now.",
-      },
-      {
-        label: "Make it more rigorous",
-        text: "Increase the rigor and eliminate any leeway. Give me the highest-standard version of this protocol.",
-      },
-      {
-        label: "Next habit to tackle",
-        text: "Which of my remaining habits should I knock out first for maximum momentum?",
-      },
-      {
-        label: "Summarize as checklist",
-        text: "Summarize this entire protocol into a clear, concise bulleted checklist.",
-      },
-    ];
-  }
-
   return [
     {
-      label: "Give me 3 concrete steps",
+      label: "Add a workout habit",
+      text: "Add a workout habit",
+    },
+    {
+      label: "Give me 3 immediate steps",
       text: "Break this down into 3 concrete, immediate action steps I must take right now.",
+    },
+    {
+      label: hasIncomplete ? "Next habit to tackle" : "Plan tomorrow's morning",
+      text: hasIncomplete
+        ? "Which of my remaining habits should I knock out first for maximum momentum?"
+        : "Based on this, what exact morning routine should I follow tomorrow?",
     },
     {
       label: "Make it more rigorous",
       text: "Increase the rigor and eliminate any leeway. Give me the highest-standard version of this protocol.",
-    },
-    {
-      label: "Plan tomorrow's morning",
-      text: "Based on this, what exact morning routine should I follow tomorrow?",
     },
     {
       label: "Summarize as checklist",
