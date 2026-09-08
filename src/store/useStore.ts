@@ -972,19 +972,25 @@ export const useStore = create<StoreState>((set, get) => {
             };
           }
 
+          const isHabitCreationResponse =
+            Boolean(res.preview) ||
+            res.intent === "CREATE_HABIT" ||
+            res.status === "AWAITING_CONFIRMATION" ||
+            (typeof reply === "string" && (reply.includes("PLEASE REVIEW THE PREVIEW") || reply.toLowerCase().includes("confirm to add")));
+
           return {
             chatMessages: state.chatMessages.map((m) =>
               m.id === tempAssistantMsgId
                 ? {
                     ...m,
                     sessionId: activeId || "",
-                    content: reply,
+                    content: isHabitCreationResponse ? "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD." : reply,
                     isStreaming: false,
-                    intent: res.intent,
-                    status: res.status,
+                    intent: res.intent || (isHabitCreationResponse ? "CREATE_HABIT" : undefined),
+                    status: res.status || (isHabitCreationResponse ? "AWAITING_CONFIRMATION" : undefined),
                     preview: res.preview,
-                    action: res.action,
-                    actionPayload: res.actionPayload,
+                    action: res.action || (isHabitCreationResponse ? "CREATE_HABIT" : undefined),
+                    actionPayload: res.actionPayload || res.preview,
                     data: res.data,
                   }
                 : m

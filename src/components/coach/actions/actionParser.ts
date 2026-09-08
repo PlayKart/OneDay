@@ -16,7 +16,8 @@ import { Habit } from "../../../types";
  * Strips user conversational prefixes and normalizes into clean Title Case.
  * Example: "I wanna create a habit for watering plants" -> "Water Plants"
  * Example: "watering plants" -> "Water Plants"
- * Example: "add a workout" -> "Workout"
+ * Example: "add a workout habit" -> "Workout"
+ * Example: "add a study habit" -> "Study"
  * Example: "add washing dishes" -> "Wash Dishes"
  * Example: "add making my bed" -> "Make Bed"
  */
@@ -29,6 +30,7 @@ export function cleanHabitName(raw: string = ""): string {
     .replace(/^(?:i\s+wanna|i\s+want\s+to|can\s+you|please|help\s+me)\s+/i, "")
     .replace(/^(?:create|add|set\s+up|start|build|track|log|make)(?:\s+a|\s+an|\s+new|\s+the)?\s+(?:habit\s+(?:for|to|called|named)\s+|routine\s+(?:for|to|called|named)\s+|habit\s+|routine\s+)?/i, "")
     .replace(/^(?:habit\s+for|habit\s+to|routine\s+for|routine\s+to)\s+/i, "")
+    .replace(/\s+habit$/i, "")
     .replace(/[.!?]+$/, "")
     .trim();
 
@@ -46,17 +48,20 @@ export function cleanHabitName(raw: string = ""): string {
   if (lower === "workout" || lower === "working out" || lower === "gym" || lower === "exercise" || lower === "hit the gym") {
     return "Workout";
   }
+  if (lower === "study" || lower === "studying" || lower === "study habit") {
+    return "Study";
+  }
   if (lower === "running" || lower === "run" || lower === "go for a run") {
     return "Running";
   }
   if (lower === "reading" || lower === "read" || lower === "read book" || lower === "read 10 pages") {
-    return "Read Book";
+    return "Reading";
   }
   if (lower === "meditation" || lower === "meditate" || lower === "mindfulness") {
     return "Meditation";
   }
-  if (lower === "drinking water" || lower === "drink water" || lower === "hydrate") {
-    return "Drink Water";
+  if (lower === "drinking water" || lower === "drink water" || lower === "hydrate" || lower === "water") {
+    return "Hydrate";
   }
 
   // General Title Case formatting
@@ -82,7 +87,7 @@ export function cleanHabitName(raw: string = ""): string {
  * Heuristics:
  * Easy (20 XP): Water plants, Make bed, Drink water, Vitamins, Teeth brushing
  * Medium (40 XP): Wash dishes, Reading, Journaling, Walk 20m, Stretching
- * Hard (60 XP): Workout, Running, Deep Work, Coding, Strength Training
+ * Hard (60 XP): Workout, Study, Running, Deep Work, Coding, Strength Training
  * Elite (80 XP): Marathon training, Cold plunge 10m, Fasting 24h
  */
 export function getStandardActionDifficulty(
@@ -128,8 +133,8 @@ export function getStandardActionDifficulty(
     return { displayDifficulty: "Elite", xp: 80 };
   }
 
-  // Default to Hard for workout/fitness or Medium for general habits
-  if (lower.includes("workout") || lower.includes("gym") || lower.includes("lift") || lower.includes("run")) {
+  // Default to Hard for workout/fitness/study
+  if (lower.includes("workout") || lower.includes("gym") || lower.includes("lift") || lower.includes("run") || lower.includes("study")) {
     return { displayDifficulty: "Hard", xp: 60 };
   }
 
@@ -190,6 +195,9 @@ export function normalizeSchedule(
   if (s.includes("weekend") || s.includes("sat-sun") || s.includes("sat and sun")) {
     return { repeatType: "weekends", displaySchedule: "Weekends (Sat-Sun)", customDays: ["Sat", "Sun"] };
   }
+  if (s.includes("weekly") || s.includes("once a week")) {
+    return { repeatType: "weekly", displaySchedule: "Weekly", customDays: [] };
+  }
 
   return { repeatType: "every_day", displaySchedule: "Daily", customDays: [] };
 }
@@ -200,22 +208,31 @@ export function normalizeSchedule(
 export function getDefaultNotesForHabit(habitName: string = ""): string {
   const lower = habitName.toLowerCase();
   if (lower.includes("plant") || lower.includes("garden")) {
-    return "Water your plants and keep the routine consistent.";
+    return "Keep the plants healthy and build a consistent care routine.";
   }
   if (lower.includes("dish") || lower.includes("clean")) {
-    return "Wash all dishes and keep the sink clear.";
+    return "Keep the sink clean and tidy up after meals.";
   }
   if (lower.includes("bed")) {
     return "Make your bed every morning after waking up.";
   }
   if (lower.includes("workout") || lower.includes("gym")) {
-    return "Complete your planned workout and record it in OneDay.";
+    return "Build strength and improve physical fitness.";
+  }
+  if (lower.includes("study")) {
+    return "Improve understanding and work toward better grades.";
   }
   if (lower.includes("read")) {
     return "Read dedicated pages to expand your knowledge.";
   }
   if (lower.includes("water") || lower.includes("hydrate")) {
     return "Stay hydrated throughout the day.";
+  }
+  if (lower.includes("run")) {
+    return "Run consistently to build endurance and stamina.";
+  }
+  if (lower.includes("meditat")) {
+    return "Practice mindfulness and calm your mind.";
   }
   return `Consistent daily execution for ${habitName}.`;
 }
@@ -275,19 +292,22 @@ export function parseCoachActionFromMessage(
       }
 
       // Single Habit Preview
-      const cleanName = cleanHabitName(rawPreview?.name || rawPreview?.title || extractHabitNameFromText(msg.content) || "Water Plants");
+      const cleanName = cleanHabitName(rawPreview?.name || rawPreview?.title || rawPreview?.habit_name || rawPreview?.habitName || extractHabitNameFromText(msg.content) || "Water Plants");
       const { displayDifficulty, xp } = getStandardActionDifficulty(rawPreview?.difficulty, cleanName);
-      const { repeatType, customDays } = normalizeSchedule(rawPreview?.repeatType || rawPreview?.repeat_type || rawPreview?.schedule, rawPreview?.customDays || rawPreview?.custom_days);
-      const notes = rawPreview?.notes || rawPreview?.description || rawPreview?.note || getDefaultNotesForHabit(cleanName);
-      const icon = rawPreview?.icon || (cleanName.toLowerCase().includes("plant") ? "sprout" : "dumbbell");
-      const category = rawPreview?.category || rawPreview?.color || "emerald";
+      const { repeatType, customDays } = normalizeSchedule(
+        rawPreview?.repeat_type || rawPreview?.repeatType || rawPreview?.schedule,
+        rawPreview?.custom_days || rawPreview?.customDays
+      );
+      const notes = rawPreview?.notes || rawPreview?.description || rawPreview?.note || rawPreview?.reason || getDefaultNotesForHabit(cleanName);
+      const icon = rawPreview?.icon || rawPreview?.icon_id || rawPreview?.iconId || (cleanName.toLowerCase().includes("plant") ? "sprout" : "dumbbell");
+      const category = rawPreview?.colour || rawPreview?.color || rawPreview?.category || "emerald";
 
       return {
         type: "CREATE_HABIT",
         payload: {
           name: cleanName,
           difficulty: displayDifficulty,
-          xp: rawPreview?.xp || xp,
+          xp: typeof rawPreview?.xp === "number" ? rawPreview.xp : xp,
           repeatType,
           customDays,
           notes,
@@ -304,7 +324,7 @@ export function parseCoachActionFromMessage(
       return {
         type: "UPDATE_HABIT",
         payload,
-        cleanedText: "Review and update your habit protocol:",
+        cleanedText: "Review and update your habit:",
         rawText: msg.content || "",
       };
     }
@@ -487,7 +507,7 @@ export function parseCoachActionFromMessage(
     return {
       type: "UPDATE_HABIT",
       payload,
-      cleanedText: cleanedText || "Review and update your habit protocol:",
+      cleanedText: cleanedText || "Review and update your habit:",
       rawText: content,
     };
   }

@@ -121,12 +121,27 @@ export const HABIT_ICONS: HabitIconOption[] = [
 
 export const ICON_MAP: Record<string, LucideIcon> = HABIT_ICONS.reduce((acc, curr) => {
   acc[curr.id] = curr.icon;
+  // Also register with underscore version if it contains hyphens
+  if (curr.id.includes("-")) {
+    acc[curr.id.replace(/-/g, "_")] = curr.icon;
+  }
   return acc;
 }, {} as Record<string, LucideIcon>);
 
 export function getHabitIconComponent(iconId?: string, habitName: string = ""): LucideIcon {
-  if (iconId && ICON_MAP[iconId]) {
-    return ICON_MAP[iconId];
+  if (iconId && typeof iconId === "string") {
+    const raw = iconId.trim().toLowerCase();
+    if (ICON_MAP[raw]) {
+      return ICON_MAP[raw];
+    }
+    const hyphenated = raw.replace(/_/g, "-");
+    if (ICON_MAP[hyphenated]) {
+      return ICON_MAP[hyphenated];
+    }
+    const underscored = raw.replace(/-/g, "_");
+    if (ICON_MAP[underscored]) {
+      return ICON_MAP[underscored];
+    }
   }
 
   const nameLower = habitName.toLowerCase();
@@ -148,20 +163,21 @@ export function getHabitIconComponent(iconId?: string, habitName: string = ""): 
   if (nameLower.includes("night") || nameLower.includes("evening")) return Moon;
   if (nameLower.includes("music") || nameLower.includes("instrument") || nameLower.includes("guitar")) return Music;
 
-  return Target;
+  return Dumbbell;
 }
 
 export function getHabitColorTheme(colorId?: string, habitName: string = ""): HabitColorOption {
-  if (colorId) {
-    const matched = HABIT_COLORS.find(c => c.id === colorId);
+  if (colorId && typeof colorId === "string") {
+    const cleanId = colorId.trim().toLowerCase();
+    const matched = HABIT_COLORS.find(c => c.id.toLowerCase() === cleanId || c.name.toLowerCase() === cleanId);
     if (matched) return matched;
   }
 
   const nameLower = habitName.toLowerCase();
-  if (nameLower.includes("gym") || nameLower.includes("workout") || nameLower.includes("run") || nameLower.includes("fit")) return HABIT_COLORS[0]; // emerald
-  if (nameLower.includes("water") || nameLower.includes("drink") || nameLower.includes("hydrate") || nameLower.includes("clean")) return HABIT_COLORS[1]; // cyan
+  if (nameLower.includes("plant") || nameLower.includes("sprout") || nameLower.includes("garden") || nameLower.includes("gym") || nameLower.includes("workout") || nameLower.includes("run") || nameLower.includes("fit")) return HABIT_COLORS[0]; // emerald
+  if (nameLower.includes("water") || nameLower.includes("drink") || nameLower.includes("hydrate") || nameLower.includes("clean") || nameLower.includes("dish")) return HABIT_COLORS[1]; // cyan
   if (nameLower.includes("read") || nameLower.includes("study") || nameLower.includes("learn") || nameLower.includes("code")) return HABIT_COLORS[2]; // blue
-  if (nameLower.includes("meditat") || nameLower.includes("journal") || nameLower.includes("mind") || nameLower.includes("sleep")) return HABIT_COLORS[3]; // purple
+  if (nameLower.includes("meditat") || nameLower.includes("journal") || nameLower.includes("mind") || nameLower.includes("sleep") || nameLower.includes("bed")) return HABIT_COLORS[3]; // purple
   if (nameLower.includes("heart") || nameLower.includes("love") || nameLower.includes("gratitude")) return HABIT_COLORS[4]; // rose
   if (nameLower.includes("sun") || nameLower.includes("morning") || nameLower.includes("eat") || nameLower.includes("food")) return HABIT_COLORS[5]; // amber
   if (nameLower.includes("fire") || nameLower.includes("streak") || nameLower.includes("focus")) return HABIT_COLORS[6]; // orange

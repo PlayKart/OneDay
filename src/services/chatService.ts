@@ -119,9 +119,23 @@ export const chatService = {
       const returnedSessionId = body?.sessionId || body?.session_id || body?.session?.id;
 
       // Extract structured action fields if present
-      const rawIntent = body?.intent || body?.data?.intent || body?.action || body?.data?.action;
-      const rawStatus = body?.status || body?.data?.status;
-      const rawPreview = body?.preview || body?.data?.preview || body?.habit || body?.data?.habit;
+      const rawIntent = body?.intent || body?.data?.intent || body?.action || body?.data?.action || (body?.preview ? "CREATE_HABIT" : undefined);
+      const rawStatus = body?.status || body?.data?.status || (body?.preview ? "AWAITING_CONFIRMATION" : undefined);
+      let rawPreview =
+        body?.preview ||
+        body?.data?.preview ||
+        body?.habit ||
+        body?.data?.habit ||
+        body?.habit_preview ||
+        body?.data?.habit_preview ||
+        body?.actionPayload ||
+        body?.data?.actionPayload;
+
+      // If rawPreview is not found yet, check if body.data has habit fields (name, title, icon, difficulty, etc.)
+      if (!rawPreview && body?.data && typeof body?.data === "object" && (body.data.name || body.data.title || body.data.icon || body.data.difficulty || body.data.repeat_type || body.data.repeatType)) {
+        rawPreview = body.data;
+      }
+
       const rawAction = body?.action || body?.data?.action || rawIntent;
       const rawActionPayload = body?.actionPayload || body?.data?.actionPayload || rawPreview;
 

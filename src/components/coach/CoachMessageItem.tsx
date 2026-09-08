@@ -113,7 +113,7 @@ export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
               <AlertTriangle size={16} className="text-rose-400 shrink-0 mt-0.5" />
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-rose-100 mb-0.5">
-                  Protocol Generation Interrupted
+                  Request Interrupted
                 </p>
                 <p className="text-[11px] text-rose-300/80 leading-relaxed">
                   {message.content.replace(/^⚠️\s*/, "")}
@@ -129,7 +129,7 @@ export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-xs font-semibold transition-colors cursor-pointer"
                 >
                   <RefreshCw size={12} />
-                  <span>Retry Protocol</span>
+                  <span>Retry Request</span>
                 </button>
               </div>
             )}

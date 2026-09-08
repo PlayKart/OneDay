@@ -106,9 +106,9 @@ export const CoachEmptyState: React.FC<CoachEmptyStateProps> = ({
         <div className="flex items-center justify-between px-1 mb-1">
           <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 font-mono flex items-center gap-1.5">
             <Sparkles size={11} className="text-slate-300" />
-            Tactical Protocols
+            Suggested Habits
           </span>
-          <span className="text-[10px] text-slate-400 font-medium">Tap to execute</span>
+          <span className="text-[10px] text-slate-400 font-medium">Tap to start</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">

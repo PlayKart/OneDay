@@ -157,10 +157,10 @@ export const AICoach: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `OneDay_Coach_Protocols_${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `OneDay_Coach_Conversations_${new Date().toISOString().split("T")[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Coaching protocols exported");
+      toast.success("Conversations exported");
     } catch (e) {
       console.error("Export error:", e);
       toast.error("Failed to export chats");
