@@ -881,12 +881,117 @@ export const useStore = create<StoreState>((set, get) => {
           await get().fetchSessions();
         }
 
-        set((state) => ({
-          chatMessages: state.chatMessages.map((m) =>
-            m.id === tempAssistantMsgId ? { ...m, sessionId: activeId || "", content: reply, isStreaming: false } : m
-          ),
-          chatLoading: false,
-        }));
+        set((state) => {
+          // Check if there is an existing pending CREATE_HABIT preview in chatMessages
+          const existingPendingIdx = state.chatMessages.findIndex(
+            (m) => (m.intent === "CREATE_HABIT" || m.preview) && m.status === "AWAITING_CONFIRMATION"
+          );
+
+          const lowerUserPrompt = messageText.toLowerCase();
+          const isScheduleOrParamModification =
+            lowerUserPrompt.includes("mon") ||
+            lowerUserPrompt.includes("tue") ||
+            lowerUserPrompt.includes("wed") ||
+            lowerUserPrompt.includes("thu") ||
+            lowerUserPrompt.includes("fri") ||
+            lowerUserPrompt.includes("sat") ||
+            lowerUserPrompt.includes("sun") ||
+            lowerUserPrompt.includes("weekday") ||
+            lowerUserPrompt.includes("weekend") ||
+            lowerUserPrompt.includes("every day") ||
+            lowerUserPrompt.includes("daily") ||
+            lowerUserPrompt.includes("difficulty") ||
+            lowerUserPrompt.includes("make it");
+
+          // If user modified a pending preview and an older pending preview exists
+          if (existingPendingIdx !== -1 && isScheduleOrParamModification) {
+            const oldPendingMsg = state.chatMessages[existingPendingIdx];
+            const oldPreview = oldPendingMsg.preview || {};
+
+            // Compute updated schedule / days if mentioned
+            const hasMon = lowerUserPrompt.includes("mon");
+            const hasTue = lowerUserPrompt.includes("tue");
+            const hasWed = lowerUserPrompt.includes("wed");
+            const hasThu = lowerUserPrompt.includes("thu");
+            const hasFri = lowerUserPrompt.includes("fri");
+            const hasSat = lowerUserPrompt.includes("sat");
+            const hasSun = lowerUserPrompt.includes("sun");
+
+            const updatedDays: string[] = [];
+            if (hasMon) updatedDays.push("Mon");
+            if (hasTue) updatedDays.push("Tue");
+            if (hasWed) updatedDays.push("Wed");
+            if (hasThu) updatedDays.push("Thu");
+            if (hasFri) updatedDays.push("Fri");
+            if (hasSat) updatedDays.push("Sat");
+            if (hasSun) updatedDays.push("Sun");
+
+            const updatedRepeatType =
+              updatedDays.length > 0
+                ? "custom_days"
+                : lowerUserPrompt.includes("weekday")
+                ? "weekdays"
+                : lowerUserPrompt.includes("weekend")
+                ? "weekends"
+                : lowerUserPrompt.includes("daily") || lowerUserPrompt.includes("every day")
+                ? "every_day"
+                : oldPreview.repeatType || "every_day";
+
+            const updatedPreview = {
+              ...oldPreview,
+              ...(res.preview || {}),
+              repeatType: res.preview?.repeatType || updatedRepeatType,
+              customDays: res.preview?.customDays || (updatedDays.length > 0 ? updatedDays : oldPreview.customDays),
+            };
+
+            return {
+              chatMessages: state.chatMessages.map((m, idx) => {
+                if (idx === existingPendingIdx) {
+                  return {
+                    ...m,
+                    preview: updatedPreview,
+                    status: "AWAITING_CONFIRMATION",
+                    content: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
+                  };
+                }
+                if (m.id === tempAssistantMsgId) {
+                  return {
+                    ...m,
+                    sessionId: activeId || "",
+                    content: "Updated your habit preview schedule. Confirm below to add it:",
+                    isStreaming: false,
+                    // Clear action on new message so card only appears once on the updated preview
+                    intent: undefined,
+                    status: undefined,
+                    preview: undefined,
+                  };
+                }
+                return m;
+              }),
+              chatLoading: false,
+            };
+          }
+
+          return {
+            chatMessages: state.chatMessages.map((m) =>
+              m.id === tempAssistantMsgId
+                ? {
+                    ...m,
+                    sessionId: activeId || "",
+                    content: reply,
+                    isStreaming: false,
+                    intent: res.intent,
+                    status: res.status,
+                    preview: res.preview,
+                    action: res.action,
+                    actionPayload: res.actionPayload,
+                    data: res.data,
+                  }
+                : m
+            ),
+            chatLoading: false,
+          };
+        });
 
         // Title Auto Update logic
         if (activeId) {

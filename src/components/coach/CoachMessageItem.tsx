@@ -34,8 +34,8 @@ export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
   // Parse any action embedded in assistant message
   const parsedAction = useMemo(() => {
     if (isUser || isError) return null;
-    return parseCoachActionFromMessage(message.content, habits);
-  }, [message.content, isUser, isError, habits]);
+    return parseCoachActionFromMessage(message, habits);
+  }, [message, isUser, isError, habits]);
 
   const displayContent = parsedAction ? parsedAction.cleanedText : message.content;
 

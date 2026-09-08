@@ -39,6 +39,7 @@ import {
   Salad, 
   TreePine, 
   SmilePlus,
+  Sprout,
   LucideIcon
 } from "lucide-react";
 
@@ -113,6 +114,7 @@ export const HABIT_ICONS: HabitIconOption[] = [
   { id: "utensils", label: "Cooking", icon: Utensils, category: "Lifestyle" },
   { id: "camera", label: "Photography", icon: Camera, category: "Lifestyle" },
   { id: "tree-pine", label: "Outdoors/Nature", icon: TreePine, category: "Lifestyle" },
+  { id: "sprout", label: "Plants/Growth", icon: Sprout, category: "Lifestyle" },
   { id: "compass", label: "Explore", icon: Compass, category: "Lifestyle" },
   { id: "sparkles", label: "Self Care", icon: Sparkles, category: "Lifestyle" },
 ];
@@ -128,15 +130,17 @@ export function getHabitIconComponent(iconId?: string, habitName: string = ""): 
   }
 
   const nameLower = habitName.toLowerCase();
-  if (nameLower.includes("gym") || nameLower.includes("workout") || nameLower.includes("lift") || nameLower.includes("pushup") || nameLower.includes("weight")) return Dumbbell;
-  if (nameLower.includes("run") || nameLower.includes("walk") || nameLower.includes("step")) return Footprints;
+  if (nameLower.includes("plant") || nameLower.includes("garden") || nameLower.includes("flower") || nameLower.includes("sprout") || (nameLower.includes("water") && nameLower.includes("plant"))) return Sprout;
+  if (nameLower.includes("dish") || nameLower.includes("dishes") || nameLower.includes("clean") || nameLower.includes("tidy") || nameLower.includes("chore")) return Sparkles;
+  if (nameLower.includes("bed") || nameLower.includes("sleep") || nameLower.includes("rest") || nameLower.includes("wake")) return Bed;
+  if (nameLower.includes("gym") || nameLower.includes("workout") || nameLower.includes("lift") || nameLower.includes("pushup") || nameLower.includes("weight") || nameLower.includes("fitness")) return Dumbbell;
+  if (nameLower.includes("run") || nameLower.includes("walk") || nameLower.includes("step") || nameLower.includes("jog")) return Footprints;
   if (nameLower.includes("read") || nameLower.includes("book") || nameLower.includes("page")) return BookOpen;
   if (nameLower.includes("water") || nameLower.includes("drink") || nameLower.includes("hydrate")) return Droplet;
   if (nameLower.includes("meditat") || nameLower.includes("mind") || nameLower.includes("zen") || nameLower.includes("breath")) return Brain;
   if (nameLower.includes("code") || nameLower.includes("programm") || nameLower.includes("dev")) return Code;
-  if (nameLower.includes("sleep") || nameLower.includes("bed") || nameLower.includes("rest")) return Bed;
   if (nameLower.includes("journal") || nameLower.includes("write") || nameLower.includes("diary")) return Feather;
-  if (nameLower.includes("eat") || nameLower.includes("diet") || nameLower.includes("meal") || nameLower.includes("food")) return Salad;
+  if (nameLower.includes("eat") || nameLower.includes("diet") || nameLower.includes("meal") || nameLower.includes("food") || nameLower.includes("cook")) return Salad;
   if (nameLower.includes("study") || nameLower.includes("learn") || nameLower.includes("class")) return GraduationCap;
   if (nameLower.includes("coffee") || nameLower.includes("caffeine")) return Coffee;
   if (nameLower.includes("money") || nameLower.includes("sav") || nameLower.includes("budget") || nameLower.includes("invest")) return DollarSign;

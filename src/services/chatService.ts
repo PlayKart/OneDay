@@ -55,6 +55,12 @@ export const chatService = {
         role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
         content: m.content || m.message || m.text || "",
         createdAt: m.createdAt || m.created_at || new Date().toISOString(),
+        intent: m.intent || m.data?.intent || m.action || m.data?.action,
+        status: m.status || m.data?.status,
+        preview: m.preview || m.data?.preview || m.habit || m.data?.habit,
+        action: m.action || m.data?.action || m.intent || m.data?.intent,
+        actionPayload: m.actionPayload || m.data?.actionPayload || m.preview || m.data?.preview,
+        data: m.data,
       }));
 
       mapped.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
@@ -66,7 +72,18 @@ export const chatService = {
     }
   },
 
-  async sendMessage(sessionId: string | null | undefined, message: string): Promise<{ reply: string; title?: string; messages?: ChatMessage[]; sessionId?: string }> {
+  async sendMessage(sessionId: string | null | undefined, message: string): Promise<{
+    reply: string;
+    title?: string;
+    messages?: ChatMessage[];
+    sessionId?: string;
+    intent?: string;
+    status?: string;
+    preview?: any;
+    action?: string;
+    actionPayload?: any;
+    data?: any;
+  }> {
     const endpoint = "/api/chat";
     const method = "POST";
     const fullUrl = `${BACKEND_URL}${endpoint}`;
@@ -101,11 +118,24 @@ export const chatService = {
       const titleText = body?.title || body?.data?.title || body?.session?.title;
       const returnedSessionId = body?.sessionId || body?.session_id || body?.session?.id;
 
+      // Extract structured action fields if present
+      const rawIntent = body?.intent || body?.data?.intent || body?.action || body?.data?.action;
+      const rawStatus = body?.status || body?.data?.status;
+      const rawPreview = body?.preview || body?.data?.preview || body?.habit || body?.data?.habit;
+      const rawAction = body?.action || body?.data?.action || rawIntent;
+      const rawActionPayload = body?.actionPayload || body?.data?.actionPayload || rawPreview;
+
       return {
         reply: replyText,
         title: titleText,
         messages: body?.messages ? safeArray(body.messages) : undefined,
         sessionId: returnedSessionId,
+        intent: rawIntent,
+        status: rawStatus,
+        preview: rawPreview,
+        action: rawAction,
+        actionPayload: rawActionPayload,
+        data: body?.data,
       };
     } catch (err: any) {
       const errorData = err?.response?.data || err.message;

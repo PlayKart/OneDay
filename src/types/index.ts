@@ -86,6 +86,12 @@ export interface ChatMessage {
   isStreaming?: boolean;
   isRegenerating?: boolean;
   error?: string | null;
+  intent?: string;
+  status?: string;
+  preview?: any;
+  action?: string;
+  actionPayload?: any;
+  data?: any;
 }
 
 export interface Quote {
