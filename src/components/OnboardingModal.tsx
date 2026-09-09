@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowRight, ArrowLeft, Check, Sparkles, User as UserIcon, 
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { User } from '../types';
+import { userService } from '../services/userService';
 import { toast } from 'react-hot-toast';
 import { VALID_GENDERS, normalizeGenderValue, countWords, getOnboardingStatus, resolveOnboardingStatus } from '../utils';
 import { OnboardingTransition, TransitionVariant, TransitionStatus } from './OnboardingTransition';
@@ -105,8 +106,9 @@ function getSavedDraftData(isEditing: boolean) {
 }
 
 export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = false, transitionVariant = "calibrating" }: OnboardingModalProps) {
-  const { user, updateProfile, refreshFromBackend } = useStore();
+  const { user, refreshFromBackend } = useStore();
   const [activeVariant, setActiveVariant] = useState<TransitionVariant>(transitionVariant);
+  const submittingRef = useRef<boolean>(false);
 
   const draftData = useMemo(() => getSavedDraftData(isEditing), [isEditing]);
 
@@ -303,11 +305,6 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
       } catch (e) {
         console.warn("[Onboarding] Failed to save step to localStorage:", e);
       }
-      if (updateProfile) {
-        updateProfile({ onboardingStep: nextStep }).catch((err) => {
-          console.warn("[Onboarding] Error persisting step to backend:", err);
-        });
-      }
     }
   };
 
@@ -368,16 +365,21 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
   };
 
   const executeOnboardingPersistence = async (cleanWhyOneday: string, finalGender: string) => {
-    if (saving) return; // Prevent duplicate onboarding writes (Rule 12)
+    // In-flight guard: prevent multiple concurrent onboarding completion requests
+    if (submittingRef.current || saving) {
+      console.log("[ONBOARDING] submit already in progress");
+      return;
+    }
+
+    submittingRef.current = true;
+    setSaving(true);
+    setTransitionStatus("syncing");
+    setTransitionError(null);
+    setIsCompletedState(true);
+
+    console.log("[ONBOARDING] submit started");
 
     try {
-      setSaving(true);
-      setTransitionStatus("syncing");
-      setTransitionError(null);
-      setIsCompletedState(true);
-
-      console.log("[ONBOARDING] Starting onboarding persistence flow...");
-
       const payload = {
         name: name.trim(),
         full_name: name.trim(),
@@ -398,41 +400,33 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
         onboardingCompleted: true,
         needsOnboarding: false,
         needs_onboarding: false,
-        onboardingStep: totalSteps,
       };
 
-      // 1. Persist user profile to backend database (Rules 1, 3, 4, 6)
-      if (updateProfile) {
-        await updateProfile(payload);
-      }
-      console.log("[PROFILE] Backend updateProfile succeeded.");
+      // 1. Submit final onboarding to backend (calls POST /api/onboarding)
+      const updatedUser = await userService.updateProfile(payload);
 
-      // 2. Perform authoritative synchronization re-fetch (Rules 7, 10)
-      console.log("[SYNC] Re-fetching profile from backend...");
-      if (refreshFromBackend) {
-        await refreshFromBackend();
-      }
-      console.log("[SYNC] Re-fetch completed.");
+      // 2. Authoritatively hydrate Zustand store with backend response
+      useStore.setState({
+        user: updatedUser,
+        profileSynced: true,
+        loading: false,
+        backendError: null,
+      });
 
-      // 3. Confirm authoritative status strictly from refreshed backend profile (Rules 1, 6, 7)
-      const refreshedUser = useStore.getState().user;
-      const resolvedStatus = resolveOnboardingStatus(refreshedUser);
-      console.log(`[ONBOARDING STATUS] Authoritative backend status resolved = ${resolvedStatus}`);
+      console.log("[ONBOARDING] backend success");
 
-      if (resolvedStatus !== "complete") {
-        throw new Error("Backend did not confirm onboarding completion. Please tap retry.");
-      }
-
-      // 4. On successful confirmation: remove local draft keys, mark transition success (Rule 8)
+      // 3. Remove local draft storage keys on success
       if (!isEditing) {
-        localStorage.removeItem("oneday_onboarding_step");
-        localStorage.removeItem("oneday_onboarding_data");
+        try {
+          localStorage.removeItem("oneday_onboarding_step");
+          localStorage.removeItem("oneday_onboarding_data");
+        } catch (_) {}
       }
 
       setTransitionStatus("success");
       setTransitionError(null);
     } catch (e: any) {
-      console.error("[ONBOARDING] Persistence error:", e);
+      console.error("[ONBOARDING] backend failure", e);
       const errorMessage =
         e?.response?.data?.error?.message ||
         e?.response?.data?.error ||
@@ -444,6 +438,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
       setTransitionStatus("error");
       toast.error(errorMessage);
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   };
@@ -564,9 +559,8 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
                   executeOnboardingPersistence(cleanWhy, gender);
                 }}
                 onComplete={() => {
-                  console.log("[NAVIGATION] dashboard");
+                  console.log("[ONBOARDING] navigation to dashboard");
                   onComplete();
-                  refreshFromBackend();
                 }}
               />
             </div>

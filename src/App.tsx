@@ -345,13 +345,11 @@ export default function App() {
         />
         <OnboardingModal 
           isOpen={true} 
-          onComplete={async () => {
+          onComplete={() => {
             console.log("[ONBOARDING] Completion callback triggered.");
             localStorage.removeItem("oneday_onboarding_step");
             localStorage.removeItem("oneday_onboarding_data");
-
             incrementProfileVersion();
-            await refreshFromBackend();
           }} 
         />
       </div>

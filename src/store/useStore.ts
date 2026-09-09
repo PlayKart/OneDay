@@ -652,20 +652,25 @@ export const useStore = create<StoreState>((set, get) => {
         const currentAuthUser = get().firebaseUser || auth.currentUser;
         if (!currentUser && !currentAuthUser) return;
         
-        // Use step API if only updating step
-        if (Object.keys(data).length === 1 && data.onboardingStep !== undefined) {
-          await userService.updateOnboardingStep(data.onboardingStep);
-        } else {
-          const savedUser = await syncService.saveProfile(data);
-          if (savedUser) {
-            set({ user: savedUser });
-          }
+        const savedUser = await syncService.saveProfile(data);
+        if (savedUser) {
+          set({ user: savedUser, profileSynced: true });
         }
         
-        const isCompletingOnboarding = Boolean(data.onboarded || data.hasCompletedOnboarding);
+        const isCompletingOnboarding = Boolean(
+          data.onboarded || 
+          data.hasCompletedOnboarding || 
+          data.onboarding_completed || 
+          data.why_oneday || 
+          data.whyOneday
+        );
         const newVersion = isCompletingOnboarding ? get().profileVersion + 1 : get().profileVersion;
         set({ profileVersion: newVersion });
-        syncService.scheduleBackgroundSync(800);
+
+        // Only schedule background sync for non-onboarding profile mutations
+        if (!isCompletingOnboarding) {
+          syncService.scheduleBackgroundSync(2000);
+        }
       } catch (e) {
         console.error("[useStore] updateProfile error:", e);
         throw e;

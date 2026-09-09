@@ -142,12 +142,18 @@ class SyncService {
         console.warn(`[SYNC] Attempt ${attempt} failed for ${opName}:`, err?.message || err);
 
         // Permanent non-retryable errors
+        const status = err?.status || err?.response?.status;
         const isPermanent =
-          err?.status === 401 ||
-          err?.status === 403 ||
-          err?.status === 400 ||
+          status === 400 ||
+          status === 401 ||
+          status === 403 ||
+          status === 404 ||
+          status === 409 ||
+          status === 422 ||
           err?.isAuthError ||
           err?.message?.includes("Not authenticated") ||
+          err?.message?.includes("duplicate key") ||
+          err?.message?.includes("unique constraint") ||
           err?.message?.includes("Habit name is required");
 
         if (isPermanent || attempt >= maxRetries) {
@@ -172,8 +178,8 @@ class SyncService {
 
     const dedupeKey = `sync_user_${activeFbUser.uid}`;
 
-    if (!force && this.inflightPromises.has(dedupeKey)) {
-      console.log("[SYNC] Deduplicating syncUserData request. Reusing active promise.");
+    if (this.inflightPromises.has(dedupeKey)) {
+      console.log("[SYNC] Deduplicating syncUserData request. Reusing active in-flight promise.");
       return this.inflightPromises.get(dedupeKey)!;
     }
 

@@ -56,6 +56,9 @@ export const userService = {
 
   /**
    * Updates user profile on backend API.
+   * For onboarding completion: calls POST /api/onboarding.
+   * For general profile updates: calls PUT /api/users or POST /api/onboarding.
+   * CRITICAL: Never calls POST /api/users (to prevent duplicate key errors).
    */
   async updateProfile(data: Partial<User> & Record<string, any>): Promise<User> {
     const fbUser = auth.currentUser || useStore.getState().firebaseUser;
@@ -82,53 +85,49 @@ export const userService = {
       updatedAt: new Date().toISOString(),
     };
 
-    // Perform real backend save request
     let responseData: any = null;
-    let saveSuccess = false;
 
-    try {
-      // If updating onboarding step specifically, use dedicated endpoint
-      if (data.onboardingStep !== undefined && Object.keys(data).length <= 2) {
-        try {
-          await apiClient.post("/api/onboarding/step", { step: data.onboardingStep });
-        } catch (e) {
-          console.warn("[USER SERVICE] updateOnboardingStep POST /api/onboarding/step failed:", e);
-        }
-      }
+    const isOnboardingCompletion = Boolean(
+      data.onboarded || 
+      data.hasCompletedOnboarding || 
+      data.onboarding_completed ||
+      data.why_oneday || 
+      data.whyOneday ||
+      data.date_of_birth ||
+      data.dob
+    );
 
-      const response = await apiClient.post("/api/onboarding", payload);
-      responseData = response.data;
-      saveSuccess = true;
-    } catch (primaryErr: any) {
-      console.warn("[USER SERVICE] POST /api/onboarding failed, trying fallback profile endpoints...", primaryErr?.message || primaryErr);
+    if (isOnboardingCompletion) {
+      // Direct authoritative onboarding submission
       try {
-        const fallbackRes = await apiClient.post("/api/users", payload);
-        responseData = fallbackRes.data;
-        saveSuccess = true;
-      } catch (fallbackErr: any) {
+        const response = await apiClient.post("/api/onboarding", payload);
+        responseData = response.data;
+      } catch (err: any) {
+        console.error("[USER SERVICE] POST /api/onboarding failed:", err?.message || err);
+        throw err;
+      }
+    } else {
+      // General profile update
+      try {
+        const putRes = await apiClient.put("/api/users", payload);
+        responseData = putRes.data;
+      } catch (err: any) {
         try {
-          const putRes = await apiClient.put("/api/users", payload);
-          responseData = putRes.data;
-          saveSuccess = true;
-        } catch (putErr: any) {
-          console.error("[USER SERVICE] All backend updateProfile endpoints failed:", primaryErr?.message || putErr?.message);
-          throw new Error(
-            primaryErr?.response?.data?.error?.message ||
-            primaryErr?.response?.data?.error ||
-            primaryErr?.response?.data?.message ||
-            primaryErr?.message ||
-            "Backend write failed. Please check network and retry."
-          );
+          const postRes = await apiClient.post("/api/onboarding", payload);
+          responseData = postRes.data;
+        } catch (fallbackErr: any) {
+          console.error("[USER SERVICE] Profile update failed:", err?.message || fallbackErr?.message);
+          throw (err?.response ? err : fallbackErr);
         }
       }
     }
 
-    if (!saveSuccess || !responseData) {
+    if (!responseData) {
       throw new Error("Backend database did not confirm profile write.");
     }
 
     const rawData = responseData || {};
-    const updatedBackendUser = rawData.user || rawData.profile || rawData.data || rawData;
+    const updatedBackendUser = rawData.user || rawData.profile || rawData.data?.user || rawData.data?.profile || rawData.data || rawData;
 
     const mergedUser = normalizeUser(
       {
@@ -136,6 +135,7 @@ export const userService = {
         ...updatedBackendUser,
         id: fbUser.uid,
         userId: fbUser.uid,
+        email: fbUser.email || updatedBackendUser?.email || currentUser?.email || "",
       },
       currentUser || undefined
     );
