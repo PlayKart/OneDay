@@ -22,7 +22,7 @@ import { Habit } from "../../../types";
  * Example: "add making my bed" -> "Make Bed"
  */
 export function cleanHabitName(raw: string = ""): string {
-  if (!raw || typeof raw !== "string") return "Water Plants";
+  if (!raw || typeof raw !== "string") return "";
 
   let clean = raw
     .trim()
@@ -66,7 +66,7 @@ export function cleanHabitName(raw: string = ""): string {
 
   // General Title Case formatting
   const words = clean.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "Water Plants";
+  if (words.length === 0) return "";
 
   const titleCased = words
     .map((w, idx) => {
@@ -252,52 +252,68 @@ export function parseCoachActionFromMessage(
 ): ParsedCoachAction | null {
   if (!messageOrContent) return null;
 
-  // 1. STRUCTURED OBJECT DETECTION (Backend response intent/preview/status)
+  // 1. STRUCTURED OBJECT DETECTION ONLY (Authoritative backend structured response)
   if (typeof messageOrContent === "object") {
     const msg = messageOrContent;
+    const rawType = (msg.type || msg.data?.type || "").toLowerCase().trim();
+    const rawStatus = (msg.status || msg.data?.status || "").toLowerCase().trim();
     const rawIntent = (msg.intent || msg.action || msg.data?.intent || msg.data?.action || "").toUpperCase().trim();
-    const rawStatus = (msg.status || msg.data?.status || "").toUpperCase().trim();
-    const rawPreview = msg.preview || msg.actionPayload || msg.data?.preview || msg.data?.habit || msg.data;
+    const rawPreview = msg.preview || msg.actionPayload || msg.habit || msg.data?.preview || msg.data?.habit;
     const actionId = msg.actionId || msg.data?.actionId || rawPreview?.actionId;
     const sessionId = msg.sessionId || msg.session_id;
 
     // Completed or cancelled actions must NEVER render an interactive preview card
     if (
-      rawStatus === "COMPLETED" ||
-      rawStatus === "CREATED" ||
-      rawStatus === "CANCELLED" ||
-      rawStatus === "DUPLICATE" ||
-      rawStatus === "DONE"
+      rawStatus === "completed" ||
+      rawStatus === "created" ||
+      rawStatus === "cancelled" ||
+      rawStatus === "duplicate" ||
+      rawStatus === "done" ||
+      rawStatus === "complete"
     ) {
       return null;
     }
 
-    if (rawIntent === "CREATE_HABIT" || rawIntent === "CREATE_HABITS" || rawStatus === "AWAITING_CONFIRMATION" || (msg.preview && typeof msg.preview === "object")) {
+    // Strict validation for habit creation preview:
+    // ONLY render if:
+    // (type === "habit_creation_preview" OR type === "create_habit" OR rawIntent === "CREATE_HABIT")
+    // AND (status === "pending" OR status === "awaiting_confirmation")
+    // AND (intent === "CREATE_HABIT" || action === "CREATE_HABIT" || type === "habit_creation_preview")
+    // AND habit name provided from backend
+    const isPending = rawStatus === "pending" || rawStatus === "awaiting_confirmation";
+    const isCreateHabit = rawIntent === "CREATE_HABIT" || rawIntent === "CREATE_HABITS" || rawType === "habit_creation_preview" || rawType === "create_habit";
+
+    if (isPending && isCreateHabit && rawPreview && typeof rawPreview === "object") {
       const isMulti = rawIntent === "CREATE_HABITS" || Array.isArray(rawPreview?.habits);
 
       if (isMulti) {
         const habitsList = Array.isArray(rawPreview?.habits) ? rawPreview.habits : Array.isArray(rawPreview) ? rawPreview : [];
-        const normalizedHabits = habitsList.map((h: any) => {
-          const cleanName = cleanHabitName(h.name || h.title || "Habit");
-          const { displayDifficulty, xp } = getStandardActionDifficulty(h.difficulty, cleanName);
-          const { repeatType, displaySchedule, customDays } = normalizeSchedule(h.repeatType || h.schedule, h.customDays);
-          return {
-            name: cleanName,
-            difficulty: displayDifficulty,
-            xp: h.xp || xp,
-            repeatType,
-            customDays,
-            notes: h.notes || h.description || getDefaultNotesForHabit(cleanName),
-            icon: h.icon || "dumbbell",
-            category: h.category || "emerald",
-          };
-        });
+        const normalizedHabits = habitsList
+          .map((h: any) => {
+            const cleanName = cleanHabitName(h.name || h.title || "");
+            if (!cleanName) return null;
+            const { displayDifficulty, xp } = getStandardActionDifficulty(h.difficulty, cleanName);
+            const { repeatType, customDays } = normalizeSchedule(h.repeatType || h.schedule, h.customDays);
+            return {
+              name: cleanName,
+              difficulty: displayDifficulty,
+              xp: h.xp || xp,
+              repeatType,
+              customDays,
+              notes: h.notes || h.description || getDefaultNotesForHabit(cleanName),
+              icon: h.icon || "dumbbell",
+              category: h.category || "emerald",
+            };
+          })
+          .filter(Boolean);
+
+        if (normalizedHabits.length === 0) return null;
 
         return {
           type: "CREATE_HABITS",
           actionId,
           sessionId,
-          status: rawStatus || "AWAITING_CONFIRMATION",
+          status: "AWAITING_CONFIRMATION",
           messageId: msg.id,
           payload: {
             actionId,
@@ -311,7 +327,11 @@ export function parseCoachActionFromMessage(
       }
 
       // Single Habit Preview
-      const cleanName = cleanHabitName(rawPreview?.name || rawPreview?.title || rawPreview?.habit_name || rawPreview?.habitName || "Water Plants");
+      const cleanName = cleanHabitName(rawPreview?.name || rawPreview?.title || rawPreview?.habit_name || rawPreview?.habitName || "");
+      if (!cleanName) {
+        return null;
+      }
+
       const { displayDifficulty, xp } = getStandardActionDifficulty(rawPreview?.difficulty, cleanName);
       const { repeatType, customDays } = normalizeSchedule(
         rawPreview?.repeat_type || rawPreview?.repeatType || rawPreview?.schedule,
@@ -325,7 +345,7 @@ export function parseCoachActionFromMessage(
         type: "CREATE_HABIT",
         actionId,
         sessionId,
-        status: rawStatus || "AWAITING_CONFIRMATION",
+        status: "AWAITING_CONFIRMATION",
         messageId: msg.id,
         payload: {
           actionId,
@@ -346,213 +366,45 @@ export function parseCoachActionFromMessage(
 
     if (rawIntent === "UPDATE_HABIT" || rawIntent === "EDIT_HABIT") {
       const payload = extractPayload("UPDATE_HABIT", rawPreview || {}, existingHabits);
-      return {
-        type: "UPDATE_HABIT",
-        payload,
-        cleanedText: "Review and update your habit:",
-        rawText: msg.content || "",
-      };
+      if (payload?.name) {
+        return {
+          type: "UPDATE_HABIT",
+          payload,
+          cleanedText: "Review and update your habit:",
+          rawText: msg.content || "",
+        };
+      }
     }
 
     if (rawIntent === "DELETE_HABIT") {
       const payload = extractPayload("DELETE_HABIT", rawPreview || {}, existingHabits);
-      return {
-        type: "DELETE_HABIT",
-        payload,
-        cleanedText: `Preparing to remove **${payload.name || "Habit"}** from your routine:`,
-        rawText: msg.content || "",
-      };
+      if (payload?.name) {
+        return {
+          type: "DELETE_HABIT",
+          payload,
+          cleanedText: `Preparing to remove **${payload.name || "Habit"}** from your routine:`,
+          rawText: msg.content || "",
+        };
+      }
     }
 
     if (rawIntent === "RESTORE_HABIT") {
       const payload = extractPayload("RESTORE_HABIT", rawPreview || {}, existingHabits);
-      return {
-        type: "RESTORE_HABIT",
-        payload,
-        cleanedText: `Ready to restore **${payload.name || "Habit"}** to your routine:`,
-        rawText: msg.content || "",
-      };
+      if (payload?.name) {
+        return {
+          type: "RESTORE_HABIT",
+          payload,
+          cleanedText: `Ready to restore **${payload.name || "Habit"}** to your routine:`,
+          rawText: msg.content || "",
+        };
+      }
     }
 
-    if (rawIntent === "EDIT_PROFILE") {
-      return {
-        type: "EDIT_PROFILE",
-        payload: rawPreview || {},
-        cleanedText: "You can update your personal profile details below:",
-        rawText: msg.content || "",
-      };
-    }
-
-    // If object has content string, fallback to string parser
-    if (typeof msg.content === "string") {
-      return parseCoachActionFromMessage(msg.content, existingHabits);
-    }
+    // Normal coach responses render purely as text
+    return null;
   }
 
-  const content = typeof messageOrContent === "string" ? messageOrContent : "";
-  if (!content) return null;
-
-  // 2. Check for JSON Code Blocks with action field
-  const jsonCodeBlockRegex = /```(?:json)?\s*(\{[\s\S]*?"action"\s*:\s*"([A-Z_]+)"[\s\S]*?\})\s*```/i;
-  const jsonBlockMatch = content.match(jsonCodeBlockRegex);
-
-  if (jsonBlockMatch) {
-    try {
-      const parsedJson = JSON.parse(jsonBlockMatch[1]);
-      const rawActionType = normalizeActionType(parsedJson.action);
-      const cleanedText = content.replace(jsonBlockMatch[0], "").trim();
-
-      const payload = extractPayload(rawActionType, parsedJson, existingHabits);
-      const isCreate = rawActionType === "CREATE_HABIT" || rawActionType === "CREATE_HABITS";
-      return {
-        type: rawActionType,
-        payload,
-        cleanedText: isCreate ? "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD." : (cleanedText || getFallbackCleanText(rawActionType, payload)),
-        rawText: content,
-      };
-    } catch (e) {
-      console.warn("[actionParser] Failed to parse JSON code block action:", e);
-    }
-  }
-
-  // 3. Check for Inline JSON objects
-  const inlineJsonRegex = /\{[\s\n]*"action"\s*:\s*"(CREATE_HABIT|CREATE_HABITS|UPDATE_HABIT|EDIT_HABIT|DELETE_HABIT|EDIT_PROFILE|RESTORE_HABIT|GET_HABITS|GET_PROGRESS|GET_STREAK|GET_LEVEL|GET_PROFILE)"[\s\S]*?\}/i;
-  const inlineJsonMatch = content.match(inlineJsonRegex);
-  if (inlineJsonMatch) {
-    try {
-      const parsedJson = JSON.parse(inlineJsonMatch[0]);
-      const rawActionType = normalizeActionType(parsedJson.action);
-      const cleanedText = content.replace(inlineJsonMatch[0], "").trim();
-
-      const payload = extractPayload(rawActionType, parsedJson, existingHabits);
-      const isCreate = rawActionType === "CREATE_HABIT" || rawActionType === "CREATE_HABITS";
-      return {
-        type: rawActionType,
-        payload,
-        cleanedText: isCreate ? "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD." : (cleanedText || getFallbackCleanText(rawActionType, payload)),
-        rawText: content,
-      };
-    } catch (e) {
-      console.warn("[actionParser] Failed to parse inline JSON action:", e);
-    }
-  }
-
-  // 4. Check for Tagged Action Blocks: [ACTION: CREATE_HABIT] or ACTION: CREATE_HABIT
-  const taggedActionRegex = /(?:\[ACTION:\s*([A-Z_]+)\]|ACTION:\s*([A-Z_]+))([\s\S]*?)(?:\[\/ACTION\]|$)/i;
-  const taggedMatch = content.match(taggedActionRegex);
-  if (taggedMatch) {
-    const rawName = taggedMatch[1] || taggedMatch[2] || "";
-    const actionName = normalizeActionType(rawName);
-    const body = taggedMatch[3] || "";
-    const cleanedText = content.replace(taggedMatch[0], "").trim();
-
-    if (isValidActionType(actionName)) {
-      const payload = parseKeyValueBody(actionName, body, existingHabits);
-      const isCreate = actionName === "CREATE_HABIT" || actionName === "CREATE_HABITS";
-      return {
-        type: actionName,
-        payload,
-        cleanedText: isCreate ? "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD." : (cleanedText || getFallbackCleanText(actionName, payload)),
-        rawText: content,
-      };
-    }
-  }
-
-  // 5. Check for Structured Text Preview (e.g. CREATE HABIT / CREATE HABITS card format in text)
-  const multiHabitRegex = /(?:^|\n)\s*CREATE\s+HABITS\s*\n+([\s\S]*?)(?=(?:\n\s*Buttons:|\n\s*\[Confirm|\n\s*Cancel|$))/i;
-  const multiMatch = content.match(multiHabitRegex);
-  if (multiMatch) {
-    const blockText = multiMatch[1];
-    const habits = parseStructuredMultiHabits(blockText);
-
-    if (habits.length > 0) {
-      return {
-        type: "CREATE_HABITS",
-        payload: { habits },
-        cleanedText: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
-        rawText: content,
-      };
-    }
-  }
-
-  const createHabitCardRegex = /(?:^|\n)\s*CREATE\s+HABIT\s*\n+([\s\S]*?)(?=(?:\n\s*Buttons:|\n\s*\[Confirm|\n\s*Cancel|$))/i;
-  const createMatch = content.match(createHabitCardRegex);
-  if (createMatch) {
-    const blockText = createMatch[1];
-    const payload = parseStructuredCreateHabit(blockText);
-
-    return {
-      type: "CREATE_HABIT",
-      payload,
-      cleanedText: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
-      rawText: content,
-    };
-  }
-
-  // 6. Check for explicit EDIT_HABIT / UPDATE_HABIT text block
-  const updateHabitCardRegex = /(?:^|\n)\s*(?:EDIT|UPDATE)\s+HABIT\s*\n+([\s\S]*?)(?=(?:\n\s*Buttons:|\n\s*Cancel|$))/i;
-  const updateMatch = content.match(updateHabitCardRegex);
-  if (updateMatch) {
-    const blockText = updateMatch[1];
-    const payload = parseStructuredUpdateHabit(blockText, existingHabits);
-    const cleanedText = content.replace(updateMatch[0], "").replace(/Buttons:[\s\S]*/i, "").trim();
-
-    return {
-      type: "UPDATE_HABIT",
-      payload,
-      cleanedText: cleanedText || "Review and update your habit:",
-      rawText: content,
-    };
-  }
-
-  // 8. Check for explicit DELETE_HABIT text block
-  const deleteHabitCardRegex = /(?:^|\n)\s*DELETE\s+HABIT\s*[:\n]+([\s\S]*?)(?=(?:\n\s*Buttons:|\n\s*\[Delete|$))/i;
-  const deleteMatch = content.match(deleteHabitCardRegex);
-  if (deleteMatch) {
-    const blockText = deleteMatch[1];
-    const payload = parseStructuredDeleteHabit(blockText, existingHabits);
-    const cleanedText = content.replace(deleteMatch[0], "").trim();
-
-    return {
-      type: "DELETE_HABIT",
-      payload,
-      cleanedText: cleanedText || `Are you sure you want to delete this habit?`,
-      rawText: content,
-    };
-  }
-
-  // 9. Check for RESTORE_HABIT text block
-  const restoreHabitRegex = /(?:^|\n)\s*(?:RESTORE_HABIT|RESTORE\s+HABIT)\s*[:\n]+([\s\S]*?)$/i;
-  const restoreMatch = content.match(restoreHabitRegex);
-  if (restoreMatch) {
-    const targetName = restoreMatch[1].replace(/[:?]/g, "").trim();
-    const matched = existingHabits.find((h) => h.name.toLowerCase() === targetName.toLowerCase());
-    const cleanedText = content.replace(restoreMatch[0], "").trim();
-
-    return {
-      type: "RESTORE_HABIT",
-      payload: {
-        habitId: matched?.id,
-        name: targetName || matched?.name || "Habit",
-        snapshot: matched,
-      },
-      cleanedText: cleanedText || `Ready to restore **${targetName || "habit"}** to your active routine.`,
-      rawText: content,
-    };
-  }
-
-  // 10. Check for EDIT_PROFILE text block
-  const editProfileRegex = /(?:^|\n)\s*(?:EDIT_PROFILE|EDIT\s+PROFILE|UPDATE\s+PROFILE)\s*[:\n]*/i;
-  if (editProfileRegex.test(content) && content.length < 250) {
-    const cleanedText = content.replace(editProfileRegex, "").trim();
-    return {
-      type: "EDIT_PROFILE",
-      payload: {},
-      cleanedText: cleanedText || "You can update your personal profile details below:",
-      rawText: content,
-    };
-  }
-
+  // String messages never guess intent or habit creation
   return null;
 }
 

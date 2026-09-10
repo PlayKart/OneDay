@@ -45,7 +45,7 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
   const isSubmittingRef = useRef<boolean>(false);
 
   // Exact values extracted directly from payload/preview
-  const habitName = cleanHabitName(payload.name || "Water Plants");
+  const habitName = cleanHabitName(payload.name || "") || "Habit";
   const { displayDifficulty, xp } = getStandardActionDifficulty(payload.difficulty, habitName);
   const { repeatType, displaySchedule, customDays } = normalizeSchedule(payload.repeatType, payload.customDays);
   const finalXp = payload.xp && typeof payload.xp === "number" ? payload.xp : xp;
@@ -54,6 +54,10 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
   const rawColor = payload.category || (payload as any).color || (payload as any).colour || "emerald";
   const IconComp = getHabitIconComponent(payload.icon, habitName);
   const colorTheme = getHabitColorTheme(rawColor, habitName);
+
+  useEffect(() => {
+    console.log("[COACH UI] habit preview rendered", actionId);
+  }, [actionId]);
 
   // Register in pendingActions store on mount if not registered yet
   useEffect(() => {
@@ -116,6 +120,7 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
       // Remove from store
       removePendingAction(actionId);
       console.log("[COACH CONFIRM] removed", actionId);
+      console.log("[COACH UI] habit preview cleared");
 
       const confirmText = `✓ ${habitName} added to your habits.`;
       toast.success(confirmText);
@@ -149,6 +154,7 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
     if (currentState === "CONFIRMING") return;
     updatePendingActionState(actionId, "CANCELLED");
     removePendingAction(actionId);
+    console.log("[COACH UI] habit preview cleared");
     if (onDismiss) {
       onDismiss();
     }

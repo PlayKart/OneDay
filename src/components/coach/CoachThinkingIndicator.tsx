@@ -11,18 +11,7 @@ interface CoachThinkingIndicatorProps {
 export const CoachThinkingIndicator: React.FC<CoachThinkingIndicatorProps> = ({
   statusText,
 }) => {
-  const [phase, setPhase] = useState<number>(0);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPhase(1);
-    }, 1600);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const defaultText = phase === 0 ? "UNDERSTANDING YOUR REQUEST..." : "PREPARING YOUR HABIT...";
-  const displayText = statusText || defaultText;
+  const displayText = statusText || "THINKING...";
 
   return (
     <motion.div

@@ -51,6 +51,11 @@ interface StoreState {
   chatMessages: ChatMessage[];
   chatLoading: boolean;
   sessionsLoading: boolean;
+  isSendingMessage: boolean;
+  isGeneratingCoachResponse: boolean;
+  isPreparingHabit: boolean;
+  isConfirmingHabit: boolean;
+  pendingHabitAction: CoachPendingAction | null;
   pendingActions: Record<string, CoachPendingAction>;
 
   // Actions
@@ -182,6 +187,11 @@ export const useStore = create<StoreState>((set, get) => {
     chatMessages: [],
     chatLoading: false,
     sessionsLoading: false,
+    isSendingMessage: false,
+    isGeneratingCoachResponse: false,
+    isPreparingHabit: false,
+    isConfirmingHabit: false,
+    pendingHabitAction: null,
     pendingActions: {},
 
     setFirebaseUser: (fbUser) => {
@@ -760,8 +770,19 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     createSession: async () => {
+      console.log("[COACH UI] habit preview cleared");
       console.log("[COACH NEW CHAT] cleared pending actions");
-      set({ activeChatId: null, chatMessages: [], pendingActions: {} });
+      set({
+        activeChatId: null,
+        chatMessages: [],
+        pendingHabitAction: null,
+        pendingActions: {},
+        isSendingMessage: false,
+        isGeneratingCoachResponse: false,
+        isPreparingHabit: false,
+        isConfirmingHabit: false,
+        chatLoading: false,
+      });
       localStorage.removeItem("activeChatId");
       return "";
     },
@@ -858,6 +879,7 @@ export const useStore = create<StoreState>((set, get) => {
 
     sendChatMessage: async (messageText) => {
       let activeId = get().activeChatId;
+      console.log(`[COACH UI] user message sent: ${messageText}`);
 
       const userMsg: ChatMessage = {
         id: `user_${Date.now()}`,
@@ -877,9 +899,13 @@ export const useStore = create<StoreState>((set, get) => {
         isStreaming: true,
       };
 
+      // Reset any previous unattached pendingHabitAction when sending ANY new user message
       set((state) => ({
         chatMessages: [...state.chatMessages, userMsg, placeholderMsg],
         chatLoading: true,
+        isSendingMessage: true,
+        isGeneratingCoachResponse: true,
+        pendingHabitAction: null,
       }));
 
       try {
@@ -894,148 +920,106 @@ export const useStore = create<StoreState>((set, get) => {
           await get().fetchSessions();
         }
 
-        set((state) => {
-          // Check if there is an existing pending CREATE_HABIT preview in chatMessages
-          const existingPendingIdx = state.chatMessages.findIndex(
-            (m) => (m.intent === "CREATE_HABIT" || m.preview) && m.status === "AWAITING_CONFIRMATION"
-          );
+        const rawType = res.type || "coach_response";
+        const rawStatus = res.status || "complete";
+        const rawIntent = res.intent || "NORMAL_COACH";
 
-          const lowerUserPrompt = messageText.toLowerCase();
-          const isScheduleOrParamModification =
-            lowerUserPrompt.includes("mon") ||
-            lowerUserPrompt.includes("tue") ||
-            lowerUserPrompt.includes("wed") ||
-            lowerUserPrompt.includes("thu") ||
-            lowerUserPrompt.includes("fri") ||
-            lowerUserPrompt.includes("sat") ||
-            lowerUserPrompt.includes("sun") ||
-            lowerUserPrompt.includes("weekday") ||
-            lowerUserPrompt.includes("weekend") ||
-            lowerUserPrompt.includes("every day") ||
-            lowerUserPrompt.includes("daily") ||
-            lowerUserPrompt.includes("difficulty") ||
-            lowerUserPrompt.includes("make it");
+        console.log(`[COACH UI] response type=${rawType}`);
+        console.log(`[COACH UI] response intent=${rawIntent}`);
 
-          // If user modified a pending preview and an older pending preview exists
-          if (existingPendingIdx !== -1 && isScheduleOrParamModification) {
-            const oldPendingMsg = state.chatMessages[existingPendingIdx];
-            const oldPreview = oldPendingMsg.preview || {};
+        // Strict response validation: ONLY render habit preview for explicit CREATE_HABIT intent and pending status
+        const isPendingStatus =
+          String(rawStatus).toLowerCase() === "pending" ||
+          String(rawStatus).toUpperCase() === "AWAITING_CONFIRMATION";
 
-            // Compute updated schedule / days if mentioned
-            const hasMon = lowerUserPrompt.includes("mon");
-            const hasTue = lowerUserPrompt.includes("tue");
-            const hasWed = lowerUserPrompt.includes("wed");
-            const hasThu = lowerUserPrompt.includes("thu");
-            const hasFri = lowerUserPrompt.includes("fri");
-            const hasSat = lowerUserPrompt.includes("sat");
-            const hasSun = lowerUserPrompt.includes("sun");
+        const isCreateHabitIntent =
+          rawIntent === "CREATE_HABIT" || rawIntent === "CREATE_HABITS";
 
-            const updatedDays: string[] = [];
-            if (hasMon) updatedDays.push("Mon");
-            if (hasTue) updatedDays.push("Tue");
-            if (hasWed) updatedDays.push("Wed");
-            if (hasThu) updatedDays.push("Thu");
-            if (hasFri) updatedDays.push("Fri");
-            if (hasSat) updatedDays.push("Sat");
-            if (hasSun) updatedDays.push("Sun");
+        const isHabitPreviewType =
+          rawType === "habit_creation_preview" ||
+          rawType === "create_habit" ||
+          isCreateHabitIntent;
 
-            const updatedRepeatType =
-              updatedDays.length > 0
-                ? "custom_days"
-                : lowerUserPrompt.includes("weekday")
-                ? "weekdays"
-                : lowerUserPrompt.includes("weekend")
-                ? "weekends"
-                : lowerUserPrompt.includes("daily") || lowerUserPrompt.includes("every day")
-                ? "every_day"
-                : oldPreview.repeatType || "every_day";
+        const habitData = res.habit || res.preview;
+        const hasValidHabitName = Boolean(
+          habitData &&
+            typeof habitData === "object" &&
+            (habitData.name || habitData.title || (Array.isArray(habitData.habits) && habitData.habits.length > 0))
+        );
 
-            const updatedPreview = {
-              ...oldPreview,
-              ...(res.preview || {}),
-              repeatType: res.preview?.repeatType || updatedRepeatType,
-              customDays: res.preview?.customDays || (updatedDays.length > 0 ? updatedDays : oldPreview.customDays),
-            };
+        const isValidHabitCreationPreview =
+          isPendingStatus && isCreateHabitIntent && isHabitPreviewType && hasValidHabitName;
 
-            return {
-              chatMessages: state.chatMessages.map((m, idx) => {
-                if (idx === existingPendingIdx) {
-                  return {
-                    ...m,
-                    preview: updatedPreview,
-                    status: "AWAITING_CONFIRMATION",
-                    content: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
-                  };
-                }
-                if (m.id === tempAssistantMsgId) {
-                  return {
-                    ...m,
-                    sessionId: activeId || "",
-                    content: "Updated your habit preview schedule. Confirm below to add it:",
-                    isStreaming: false,
-                    // Clear action on new message so card only appears once on the updated preview
-                    intent: undefined,
-                    status: undefined,
-                    preview: undefined,
-                  };
-                }
-                return m;
-              }),
-              chatLoading: false,
-            };
-          }
+        if (isValidHabitCreationPreview) {
+          console.log("[COACH UI] habit preview received");
+          const actionId =
+            (res as any).actionId ||
+            habitData.actionId ||
+            `act_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-          const isHabitCreationResponse =
-            Boolean(res.preview) ||
-            res.intent === "CREATE_HABIT" ||
-            res.status === "AWAITING_CONFIRMATION" ||
-            (typeof reply === "string" && (reply.includes("PLEASE REVIEW THE PREVIEW") || reply.toLowerCase().includes("confirm to add")));
+          const newPendingAction: CoachPendingAction = {
+            actionId,
+            sessionId: activeId || "",
+            type: rawIntent === "CREATE_HABITS" ? "CREATE_HABITS" : "CREATE_HABIT",
+            state: "PENDING",
+            payload: habitData,
+            messageId: tempAssistantMsgId,
+            createdAt: Date.now(),
+          };
 
-          const actionId = (res as any).actionId || res.data?.actionId || res.preview?.actionId || `act_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-
-          if (isHabitCreationResponse) {
-            console.log("[COACH PREVIEW] created", actionId);
-            console.log("[COACH PREVIEW] actionId", actionId);
-            console.log("[COACH PREVIEW] sessionId", activeId || "");
-          }
-
-          const newPendingActions = isHabitCreationResponse
-            ? {
-                ...state.pendingActions,
-                [actionId]: {
-                  actionId,
-                  sessionId: activeId || "",
-                  type: "CREATE_HABIT" as const,
-                  state: "PENDING" as const,
-                  payload: res.preview || res.actionPayload,
-                  messageId: tempAssistantMsgId,
-                  createdAt: Date.now(),
-                },
-              }
-            : state.pendingActions;
-
-          return {
-            pendingActions: newPendingActions,
+          set((state) => ({
+            pendingHabitAction: newPendingAction,
+            pendingActions: {
+              ...state.pendingActions,
+              [actionId]: newPendingAction,
+            },
             chatMessages: state.chatMessages.map((m) =>
               m.id === tempAssistantMsgId
                 ? {
                     ...m,
                     sessionId: activeId || "",
-                    content: isHabitCreationResponse ? "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD." : reply,
+                    content: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
                     isStreaming: false,
-                    intent: res.intent || (isHabitCreationResponse ? "CREATE_HABIT" : undefined),
-                    status: res.status || (isHabitCreationResponse ? "AWAITING_CONFIRMATION" : undefined),
-                    actionId: isHabitCreationResponse ? actionId : undefined,
-                    preview: res.preview,
-                    action: res.action || (isHabitCreationResponse ? "CREATE_HABIT" : undefined),
-                    actionPayload: res.actionPayload || res.preview,
+                    intent: "CREATE_HABIT",
+                    status: "AWAITING_CONFIRMATION",
+                    actionId,
+                    preview: habitData,
+                    action: "CREATE_HABIT",
+                    actionPayload: habitData,
                     data: res.data,
                   }
                 : m
             ),
+            isSendingMessage: false,
+            isGeneratingCoachResponse: false,
             chatLoading: false,
-          };
-        });
+          }));
+        } else {
+          // Normal Coach response - render purely the assistant message content
+          set((state) => ({
+            pendingHabitAction: null,
+            chatMessages: state.chatMessages.map((m) =>
+              m.id === tempAssistantMsgId
+                ? {
+                    ...m,
+                    sessionId: activeId || "",
+                    content: reply,
+                    isStreaming: false,
+                    intent: undefined,
+                    status: undefined,
+                    actionId: undefined,
+                    preview: undefined,
+                    action: undefined,
+                    actionPayload: undefined,
+                    data: res.data,
+                  }
+                : m
+            ),
+            isSendingMessage: false,
+            isGeneratingCoachResponse: false,
+            chatLoading: false,
+          }));
+        }
 
         // Title Auto Update logic
         if (activeId) {
@@ -1084,6 +1068,8 @@ export const useStore = create<StoreState>((set, get) => {
               ? { ...m, content: `⚠️ ${errorMessage}`, isStreaming: false }
               : m
           ),
+          isSendingMessage: false,
+          isGeneratingCoachResponse: false,
           chatLoading: false,
         }));
       }
@@ -1203,10 +1189,13 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     removePendingAction: (actionId) => {
+      console.log("[COACH UI] habit preview cleared");
       set((state) => {
         const next = { ...state.pendingActions };
         delete next[actionId];
+        const nextPendingHabit = state.pendingHabitAction?.actionId === actionId ? null : state.pendingHabitAction;
         return {
+          pendingHabitAction: nextPendingHabit,
           pendingActions: next,
           chatMessages: state.chatMessages.map((m) =>
             m.actionId === actionId
@@ -1222,8 +1211,9 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     clearAllPendingActions: () => {
+      console.log("[COACH UI] habit preview cleared");
       console.log("[COACH NEW CHAT] cleared pending actions");
-      set({ pendingActions: {} });
+      set({ pendingActions: {}, pendingHabitAction: null });
     },
   };
 });

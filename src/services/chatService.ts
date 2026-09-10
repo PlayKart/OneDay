@@ -73,12 +73,15 @@ export const chatService = {
   },
 
   async sendMessage(sessionId: string | null | undefined, message: string): Promise<{
+    type?: string;
+    status?: string;
+    intent?: string;
+    actionId?: string;
+    habit?: any;
     reply: string;
     title?: string;
     messages?: ChatMessage[];
     sessionId?: string;
-    intent?: string;
-    status?: string;
     preview?: any;
     action?: string;
     actionPayload?: any;
@@ -118,37 +121,26 @@ export const chatService = {
       const titleText = body?.title || body?.data?.title || body?.session?.title;
       const returnedSessionId = body?.sessionId || body?.session_id || body?.session?.id;
 
-      // Extract structured action fields if present
-      const rawIntent = body?.intent || body?.data?.intent || body?.action || body?.data?.action || (body?.preview ? "CREATE_HABIT" : undefined);
-      const rawStatus = body?.status || body?.data?.status || (body?.preview ? "AWAITING_CONFIRMATION" : undefined);
-      let rawPreview =
-        body?.preview ||
-        body?.data?.preview ||
-        body?.habit ||
-        body?.data?.habit ||
-        body?.habit_preview ||
-        body?.data?.habit_preview ||
-        body?.actionPayload ||
-        body?.data?.actionPayload;
-
-      // If rawPreview is not found yet, check if body.data has habit fields (name, title, icon, difficulty, etc.)
-      if (!rawPreview && body?.data && typeof body?.data === "object" && (body.data.name || body.data.title || body.data.icon || body.data.difficulty || body.data.repeat_type || body.data.repeatType)) {
-        rawPreview = body.data;
-      }
-
-      const rawAction = body?.action || body?.data?.action || rawIntent;
-      const rawActionPayload = body?.actionPayload || body?.data?.actionPayload || rawPreview;
+      // Authoritative extraction without loose intent guessing
+      const rawType = body?.type || body?.data?.type || (body?.intent === "CREATE_HABIT" ? "habit_creation_preview" : "coach_response");
+      const rawStatus = body?.status || body?.data?.status || "complete";
+      const rawIntent = body?.intent || body?.data?.intent || body?.action || body?.data?.action || "NORMAL_COACH";
+      const rawActionId = body?.actionId || body?.data?.actionId || body?.habit?.actionId || body?.preview?.actionId;
+      const rawHabit = body?.habit || body?.preview || body?.data?.habit || body?.data?.preview;
 
       return {
+        type: rawType,
+        status: rawStatus,
+        intent: rawIntent,
+        actionId: rawActionId,
+        habit: rawHabit,
         reply: replyText,
         title: titleText,
         messages: body?.messages ? safeArray(body.messages) : undefined,
         sessionId: returnedSessionId,
-        intent: rawIntent,
-        status: rawStatus,
-        preview: rawPreview,
-        action: rawAction,
-        actionPayload: rawActionPayload,
+        preview: rawHabit,
+        action: rawIntent,
+        actionPayload: rawHabit,
         data: body?.data,
       };
     } catch (err: any) {
