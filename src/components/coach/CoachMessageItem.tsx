@@ -24,7 +24,7 @@ export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
   onEditAndResend,
   onActionComplete,
 }) => {
-  const { habits } = useStore();
+  const { habits, pendingActions, activeChatId } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
 
@@ -34,8 +34,19 @@ export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
   // Parse any action embedded in assistant message
   const parsedAction = useMemo(() => {
     if (isUser || isError) return null;
+    const rawStatus = (message.status || message.data?.status || "").toUpperCase().trim();
+    if (rawStatus === "COMPLETED" || rawStatus === "CREATED" || rawStatus === "CANCELLED" || rawStatus === "DUPLICATE") {
+      return null;
+    }
+    const actionId = message.actionId || message.data?.actionId || message.preview?.actionId;
+    if (actionId && pendingActions[actionId]) {
+      const state = pendingActions[actionId].state;
+      if (state === "CREATED" || state === "CANCELLED") {
+        return null;
+      }
+    }
     return parseCoachActionFromMessage(message, habits);
-  }, [message, isUser, isError, habits]);
+  }, [message, isUser, isError, habits, pendingActions]);
 
   const displayContent = parsedAction ? parsedAction.cleanedText : message.content;
 

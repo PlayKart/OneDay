@@ -44,6 +44,8 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
     return (
       <CoachCreateHabitCard
         payload={action.payload}
+        actionId={action.actionId || (action.payload as any)?.actionId}
+        sessionId={action.sessionId || (action.payload as any)?.sessionId}
         onActionComplete={onActionComplete}
       />
     );

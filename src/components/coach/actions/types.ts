@@ -23,7 +23,28 @@ export type ActionExecutionState =
   | "success"
   | "error";
 
+export type HabitPreviewState =
+  | "PENDING"
+  | "CONFIRMING"
+  | "CREATED"
+  | "DUPLICATE"
+  | "FAILED"
+  | "CANCELLED";
+
+export interface CoachPendingAction {
+  actionId: string;
+  sessionId: string;
+  type: CoachActionType;
+  state: HabitPreviewState;
+  payload: any;
+  messageId?: string;
+  errorMessage?: string;
+  createdAt: number;
+}
+
 export interface CreateHabitActionPayload {
+  actionId?: string;
+  sessionId?: string;
   name: string;
   difficulty?: string;
   xp?: number;
@@ -87,4 +108,8 @@ export interface ParsedCoachAction {
   payload: any;
   cleanedText: string;
   rawText?: string;
+  actionId?: string;
+  sessionId?: string;
+  status?: string;
+  messageId?: string;
 }

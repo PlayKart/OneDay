@@ -258,6 +258,19 @@ export function parseCoachActionFromMessage(
     const rawIntent = (msg.intent || msg.action || msg.data?.intent || msg.data?.action || "").toUpperCase().trim();
     const rawStatus = (msg.status || msg.data?.status || "").toUpperCase().trim();
     const rawPreview = msg.preview || msg.actionPayload || msg.data?.preview || msg.data?.habit || msg.data;
+    const actionId = msg.actionId || msg.data?.actionId || rawPreview?.actionId;
+    const sessionId = msg.sessionId || msg.session_id;
+
+    // Completed or cancelled actions must NEVER render an interactive preview card
+    if (
+      rawStatus === "COMPLETED" ||
+      rawStatus === "CREATED" ||
+      rawStatus === "CANCELLED" ||
+      rawStatus === "DUPLICATE" ||
+      rawStatus === "DONE"
+    ) {
+      return null;
+    }
 
     if (rawIntent === "CREATE_HABIT" || rawIntent === "CREATE_HABITS" || rawStatus === "AWAITING_CONFIRMATION" || (msg.preview && typeof msg.preview === "object")) {
       const isMulti = rawIntent === "CREATE_HABITS" || Array.isArray(rawPreview?.habits);
@@ -282,7 +295,13 @@ export function parseCoachActionFromMessage(
 
         return {
           type: "CREATE_HABITS",
+          actionId,
+          sessionId,
+          status: rawStatus || "AWAITING_CONFIRMATION",
+          messageId: msg.id,
           payload: {
+            actionId,
+            sessionId,
             habits: normalizedHabits,
             title: rawPreview?.title || "Recommended Routine",
           },
@@ -292,7 +311,7 @@ export function parseCoachActionFromMessage(
       }
 
       // Single Habit Preview
-      const cleanName = cleanHabitName(rawPreview?.name || rawPreview?.title || rawPreview?.habit_name || rawPreview?.habitName || extractHabitNameFromText(msg.content) || "Water Plants");
+      const cleanName = cleanHabitName(rawPreview?.name || rawPreview?.title || rawPreview?.habit_name || rawPreview?.habitName || "Water Plants");
       const { displayDifficulty, xp } = getStandardActionDifficulty(rawPreview?.difficulty, cleanName);
       const { repeatType, customDays } = normalizeSchedule(
         rawPreview?.repeat_type || rawPreview?.repeatType || rawPreview?.schedule,
@@ -304,7 +323,13 @@ export function parseCoachActionFromMessage(
 
       return {
         type: "CREATE_HABIT",
+        actionId,
+        sessionId,
+        status: rawStatus || "AWAITING_CONFIRMATION",
+        messageId: msg.id,
         payload: {
+          actionId,
+          sessionId,
           name: cleanName,
           difficulty: displayDifficulty,
           xp: typeof rawPreview?.xp === "number" ? rawPreview.xp : xp,
@@ -464,39 +489,7 @@ export function parseCoachActionFromMessage(
     };
   }
 
-  // 6. Check for Natural Language Preview Announcement
-  // e.g. "I've prepared the habit preview for Water Plants. Confirm to add it."
-  // or "I've prepared the habit preview. Confirm to add it."
-  // or "Confirm to add it."
-  const previewAnnouncementRegex = /(?:prepared|created|set\s+up|here\s+is)\s+(?:the\s+)?(?:habit\s+)?preview(?:\s+for\s+([^.\n]+))?/i;
-  const confirmAnnouncementRegex = /(?:confirm\s+to\s+add|please\s+review\s+the\s+preview)/i;
-
-  if (previewAnnouncementRegex.test(content) || (confirmAnnouncementRegex.test(content) && content.length < 300)) {
-    const extractedName = extractHabitNameFromText(content);
-    const cleanName = cleanHabitName(extractedName || "Water Plants");
-    const { displayDifficulty, xp } = getStandardActionDifficulty(undefined, cleanName);
-    const { repeatType, displaySchedule, customDays } = normalizeSchedule(content);
-    const notes = getDefaultNotesForHabit(cleanName);
-    const icon = cleanName.toLowerCase().includes("plant") ? "sprout" : "dumbbell";
-
-    return {
-      type: "CREATE_HABIT",
-      payload: {
-        name: cleanName,
-        difficulty: displayDifficulty,
-        xp,
-        repeatType,
-        customDays,
-        notes,
-        icon,
-        category: "emerald",
-      },
-      cleanedText: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
-      rawText: content,
-    };
-  }
-
-  // 7. Check for explicit EDIT_HABIT / UPDATE_HABIT text block
+  // 6. Check for explicit EDIT_HABIT / UPDATE_HABIT text block
   const updateHabitCardRegex = /(?:^|\n)\s*(?:EDIT|UPDATE)\s+HABIT\s*\n+([\s\S]*?)(?=(?:\n\s*Buttons:|\n\s*Cancel|$))/i;
   const updateMatch = content.match(updateHabitCardRegex);
   if (updateMatch) {

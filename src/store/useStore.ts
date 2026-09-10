@@ -24,6 +24,7 @@ import {
   Achievement, 
   Statistics 
 } from '../types';
+import { CoachPendingAction, HabitPreviewState } from '../components/coach/actions/types';
 
 export { apiRequest, normalizeCompletedDates };
 export type { ChatSession, ChatMessage, Habit, TabState, BackendUser as User };
@@ -50,6 +51,7 @@ interface StoreState {
   chatMessages: ChatMessage[];
   chatLoading: boolean;
   sessionsLoading: boolean;
+  pendingActions: Record<string, CoachPendingAction>;
 
   // Actions
   setFirebaseUser: (fbUser: FirebaseUser | null) => void;
@@ -83,6 +85,10 @@ interface StoreState {
   sendChatMessage: (message: string) => Promise<void>;
   regenerateMessage: (messageId?: string) => Promise<void>;
   editPreviousMessage: (messageId: string, newContent: string) => Promise<void>;
+  setPendingAction: (action: CoachPendingAction) => void;
+  updatePendingActionState: (actionId: string, state: HabitPreviewState, extra?: { errorMessage?: string }) => void;
+  removePendingAction: (actionId: string) => void;
+  clearAllPendingActions: () => void;
 }
 
 export const useStore = create<StoreState>((set, get) => {
@@ -176,6 +182,7 @@ export const useStore = create<StoreState>((set, get) => {
     chatMessages: [],
     chatLoading: false,
     sessionsLoading: false,
+    pendingActions: {},
 
     setFirebaseUser: (fbUser) => {
       console.log("[AUTH] setFirebaseUser called:", fbUser ? `authenticated (UID: ${fbUser.uid})` : "unauthenticated");
@@ -753,7 +760,8 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     createSession: async () => {
-      set({ activeChatId: null, chatMessages: [] });
+      console.log("[COACH NEW CHAT] cleared pending actions");
+      set({ activeChatId: null, chatMessages: [], pendingActions: {} });
       localStorage.removeItem("activeChatId");
       return "";
     },
@@ -983,7 +991,31 @@ export const useStore = create<StoreState>((set, get) => {
             res.status === "AWAITING_CONFIRMATION" ||
             (typeof reply === "string" && (reply.includes("PLEASE REVIEW THE PREVIEW") || reply.toLowerCase().includes("confirm to add")));
 
+          const actionId = (res as any).actionId || res.data?.actionId || res.preview?.actionId || `act_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+          if (isHabitCreationResponse) {
+            console.log("[COACH PREVIEW] created", actionId);
+            console.log("[COACH PREVIEW] actionId", actionId);
+            console.log("[COACH PREVIEW] sessionId", activeId || "");
+          }
+
+          const newPendingActions = isHabitCreationResponse
+            ? {
+                ...state.pendingActions,
+                [actionId]: {
+                  actionId,
+                  sessionId: activeId || "",
+                  type: "CREATE_HABIT" as const,
+                  state: "PENDING" as const,
+                  payload: res.preview || res.actionPayload,
+                  messageId: tempAssistantMsgId,
+                  createdAt: Date.now(),
+                },
+              }
+            : state.pendingActions;
+
           return {
+            pendingActions: newPendingActions,
             chatMessages: state.chatMessages.map((m) =>
               m.id === tempAssistantMsgId
                 ? {
@@ -993,6 +1025,7 @@ export const useStore = create<StoreState>((set, get) => {
                     isStreaming: false,
                     intent: res.intent || (isHabitCreationResponse ? "CREATE_HABIT" : undefined),
                     status: res.status || (isHabitCreationResponse ? "AWAITING_CONFIRMATION" : undefined),
+                    actionId: isHabitCreationResponse ? actionId : undefined,
                     preview: res.preview,
                     action: res.action || (isHabitCreationResponse ? "CREATE_HABIT" : undefined),
                     actionPayload: res.actionPayload || res.preview,
@@ -1141,6 +1174,56 @@ export const useStore = create<StoreState>((set, get) => {
       } catch (e) {
         console.warn("Failed to edit message:", e);
       }
+    },
+
+    setPendingAction: (action) => {
+      set((state) => ({
+        pendingActions: {
+          ...state.pendingActions,
+          [action.actionId]: action,
+        },
+      }));
+    },
+
+    updatePendingActionState: (actionId, state, extra) => {
+      set((s) => {
+        const existing = s.pendingActions[actionId];
+        if (!existing) return s;
+        return {
+          pendingActions: {
+            ...s.pendingActions,
+            [actionId]: {
+              ...existing,
+              state,
+              ...(extra || {}),
+            },
+          },
+        };
+      });
+    },
+
+    removePendingAction: (actionId) => {
+      set((state) => {
+        const next = { ...state.pendingActions };
+        delete next[actionId];
+        return {
+          pendingActions: next,
+          chatMessages: state.chatMessages.map((m) =>
+            m.actionId === actionId
+              ? {
+                  ...m,
+                  status: "CREATED",
+                  preview: undefined,
+                }
+              : m
+          ),
+        };
+      });
+    },
+
+    clearAllPendingActions: () => {
+      console.log("[COACH NEW CHAT] cleared pending actions");
+      set({ pendingActions: {} });
     },
   };
 });

@@ -88,6 +88,7 @@ export interface ChatMessage {
   error?: string | null;
   intent?: string;
   status?: string;
+  actionId?: string;
   preview?: any;
   action?: string;
   actionPayload?: any;
