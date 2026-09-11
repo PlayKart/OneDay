@@ -202,37 +202,129 @@ export function HabitTrendsView() {
     return [...dayOfWeekPattern].sort((a, b) => a.avgPercentage - b.avgPercentage)[0];
   }, [dayOfWeekPattern]);
 
-  // Category distribution
+  // The four official habit categories
+  const OFFICIAL_CATEGORIES = [
+    { name: "Health and Fitness", color: "#10b981" },
+    { name: "Mind and Focus", color: "#06b6d4" },
+    { name: "Productivity", color: "#a855f7" },
+    { name: "Lifestyle", color: "#f59e0b" },
+  ] as const;
+
+  // Resolves a habit's category exclusively from its category/type field
+  const resolveHabitCategory = (h: Habit): string | null => {
+    const raw = (
+      h.category ||
+      (h as any).habitType ||
+      (h as any).habit_type ||
+      (h as any).type ||
+      (h as any).categoryName ||
+      ""
+    ).trim();
+
+    if (!raw) return null;
+
+    const normalized = raw
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[_\-]+/g, " ")
+      .replace(/[^a-z0-9 ]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (
+      normalized === "health and fitness" ||
+      normalized === "health fitness" ||
+      normalized === "health" ||
+      normalized === "fitness"
+    ) {
+      return "Health and Fitness";
+    }
+
+    if (
+      normalized === "mind and focus" ||
+      normalized === "mind focus" ||
+      normalized === "mind" ||
+      normalized === "focus"
+    ) {
+      return "Mind and Focus";
+    }
+
+    if (normalized === "productivity" || normalized === "productive") {
+      return "Productivity";
+    }
+
+    if (
+      normalized === "lifestyle" ||
+      normalized === "life style" ||
+      normalized === "life"
+    ) {
+      return "Lifestyle";
+    }
+
+    // Direct match against official category names
+    for (const cat of OFFICIAL_CATEGORIES) {
+      if (
+        cat.name.toLowerCase() === raw.toLowerCase() ||
+        cat.name.toLowerCase().replace(/ and /g, " & ") === raw.toLowerCase()
+      ) {
+        return cat.name;
+      }
+    }
+
+    return null;
+  };
+
+  // Category distribution: Group completed habit activity across the last 30 days by the 4 official categories
   const categoryData: CategoryData[] = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const counts: Record<string, number> = {
+      "Health and Fitness": 0,
+      "Mind and Focus": 0,
+      "Productivity": 0,
+      "Lifestyle": 0,
+    };
     let totalCompletions = 0;
 
+    // Build the 30-day analytics date set from dailyData
+    const thirtyDayDateSet = new Set(dailyData.map((d) => d.dateStr));
+    const todayDateStr = dailyData[dailyData.length - 1]?.dateStr;
+
     safeHabits.forEach((h) => {
-      const cat = h.category || "General";
-      const completionsCount = h.completedDates?.length || (h.completedToday ? 1 : 0);
-      counts[cat] = (counts[cat] || 0) + completionsCount;
-      totalCompletions += completionsCount;
+      const cat = resolveHabitCategory(h);
+      if (!cat || counts[cat] === undefined) return;
+
+      let habit30DayCheckIns = 0;
+
+      // Count completions in the 30-day window
+      if (Array.isArray(h.completedDates)) {
+        h.completedDates.forEach((dStr) => {
+          if (thirtyDayDateSet.has(dStr)) {
+            habit30DayCheckIns++;
+          }
+        });
+      }
+
+      // If marked completedToday, ensure today's check-in is accounted for
+      if (h.completedToday && todayDateStr && thirtyDayDateSet.has(todayDateStr)) {
+        if (!Array.isArray(h.completedDates) || !h.completedDates.includes(todayDateStr)) {
+          habit30DayCheckIns++;
+        }
+      }
+
+      counts[cat] += habit30DayCheckIns;
+      totalCompletions += habit30DayCheckIns;
     });
 
-    const categoryColors: Record<string, string> = {
-      emerald: "#10b981",
-      cyan: "#06b6d4",
-      purple: "#a855f7",
-      amber: "#f59e0b",
-      rose: "#f43f5e",
-      blue: "#3b82f6",
-      General: "#64748b",
-    };
-
-    return Object.entries(counts)
-      .map(([name, count]) => ({
-        name: name.charAt(0).toUpperCase() + name.slice(1),
+    return OFFICIAL_CATEGORIES.map((cat) => {
+      const count = counts[cat.name] || 0;
+      const percentage = totalCompletions === 0 ? 0 : Math.round((count / totalCompletions) * 100);
+      return {
+        name: cat.name,
         count,
-        percentage: totalCompletions === 0 ? 0 : Math.round((count / totalCompletions) * 100),
-        color: categoryColors[name.toLowerCase()] || "#8b5cf6",
-      }))
-      .sort((a, b) => b.count - a.count);
-  }, [safeHabits]);
+        percentage,
+        color: cat.color,
+      };
+    });
+  }, [safeHabits, dailyData]);
 
   // Custom Chart Tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -566,20 +658,29 @@ export function HabitTrendsView() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={categoryData}
+                        data={
+                          categoryData.some((c) => c.count > 0)
+                            ? categoryData.filter((c) => c.count > 0)
+                            : [{ name: "No Activity", count: 1, color: "rgba(255,255,255,0.08)" }]
+                        }
                         cx="50%"
                         cy="50%"
                         innerRadius={50}
                         outerRadius={75}
-                        paddingAngle={4}
+                        paddingAngle={categoryData.some((c) => c.count > 0) ? 4 : 0}
                         dataKey="count"
                       >
-                        {categoryData.map((entry, index) => (
+                        {(categoryData.some((c) => c.count > 0)
+                          ? categoryData.filter((c) => c.count > 0)
+                          : [{ name: "No Activity", count: 1, color: "rgba(255,255,255,0.08)" }]
+                        ).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(val: any, name: any) => [`${val} check-ins`, name]}
+                        formatter={(val: any, name: any) =>
+                          name === "No Activity" ? ["0 check-ins", "No Activity"] : [`${val} check-ins`, name]
+                        }
                         contentStyle={{
                           backgroundColor: "#0c0d12",
                           borderColor: "rgba(255,255,255,0.15)",
