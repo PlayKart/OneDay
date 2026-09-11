@@ -10,6 +10,8 @@ export interface User {
   xp: number;
   streak: number;
   currentStreak?: number;
+  longestStreak?: number;
+  longest_streak?: number;
   level: number;
   levelProgress: number;
   title?: string;

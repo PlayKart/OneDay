@@ -4,6 +4,7 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "ax
 import { auth } from "../lib/firebase";
 import { BACKEND_URL } from "../constants";
 import { keysToCamel } from "../utils/camelCase";
+import { getLocalCalendarDate } from "../utils/streakUtils";
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: BACKEND_URL,
@@ -37,8 +38,8 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Attach local date header YYYY-MM-DD
-    config.headers["x-local-date"] = new Date().toISOString().split("T")[0];
+    // Attach local calendar date header YYYY-MM-DD
+    config.headers["x-local-date"] = getLocalCalendarDate();
 
     return config;
   },

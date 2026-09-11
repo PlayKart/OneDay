@@ -231,6 +231,8 @@ export const habitService = {
       const rawData = response.data || {};
 
       const streak = rawData.streak ?? rawData.currentStreak ?? rawData.user?.streak ?? rawData.user?.currentStreak;
+      const longestStreak = rawData.longestStreak ?? rawData.longest_streak ?? rawData.user?.longestStreak ?? rawData.user?.longest_streak;
+      const lastActiveDate = rawData.lastActiveDate ?? rawData.last_active_date ?? rawData.user?.lastActiveDate ?? rawData.user?.last_active_date;
       const xp = rawData.xp ?? rawData.user?.xp;
       const level = rawData.level ?? rawData.user?.level;
       const levelProgress = rawData.levelProgress ?? rawData.user?.levelProgress;
@@ -239,6 +241,8 @@ export const habitService = {
         success: true,
         streak,
         currentStreak: streak,
+        longestStreak,
+        lastActiveDate,
         xp,
         level,
         levelProgress,
@@ -264,7 +268,9 @@ export const habitService = {
       const response = await apiClient.post(`/api/undo`, { habitId, date });
       const rawData = response.data || {};
 
-      const streak = rawData.streak ?? rawData.currentStreak ?? rawData.user?.streak;
+      const streak = rawData.streak ?? rawData.currentStreak ?? rawData.user?.streak ?? rawData.user?.currentStreak;
+      const longestStreak = rawData.longestStreak ?? rawData.longest_streak ?? rawData.user?.longestStreak ?? rawData.user?.longest_streak;
+      const lastActiveDate = rawData.lastActiveDate ?? rawData.last_active_date ?? rawData.user?.lastActiveDate ?? rawData.user?.last_active_date;
       const xp = rawData.xp ?? rawData.user?.xp;
       const level = rawData.level ?? rawData.user?.level;
       const levelProgress = rawData.levelProgress ?? rawData.user?.levelProgress;
@@ -273,6 +279,8 @@ export const habitService = {
         success: true,
         streak,
         currentStreak: streak,
+        longestStreak,
+        lastActiveDate,
         xp,
         level,
         levelProgress,

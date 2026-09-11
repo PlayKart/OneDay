@@ -4,7 +4,6 @@ import { userService } from "./userService";
 import { habitService } from "./habitService";
 import { quoteService } from "./quoteService";
 import { User, Habit, Statistics, Achievement, NotificationItem } from "../types";
-import { calculateStreak } from "../utils";
 
 export interface DashboardData {
   user: User;
@@ -31,16 +30,24 @@ export const dashboardService = {
       ? userRes.currentStreak
       : typeof userRes.streak === "number" && !isNaN(userRes.streak)
       ? userRes.streak
-      : calculateStreak(habitsRes);
+      : 0;
+
+    const longestStreak = typeof (userRes as any)?.longestStreak === "number" && !isNaN((userRes as any)?.longestStreak)
+      ? (userRes as any).longestStreak
+      : typeof (userRes as any)?.longest_streak === "number" && !isNaN((userRes as any)?.longest_streak)
+      ? (userRes as any).longest_streak
+      : authoritativeStreak;
 
     userRes.streak = authoritativeStreak;
     userRes.currentStreak = authoritativeStreak;
+    userRes.longestStreak = longestStreak;
+    (userRes as any).longest_streak = longestStreak;
 
     const statistics: Statistics = {
       totalHabits: habitsRes.length,
       completedToday: completedTodayCount,
       currentStreak: authoritativeStreak,
-      longestStreak: Math.max(authoritativeStreak, (userRes as any)?.longestStreak ?? 7),
+      longestStreak: longestStreak,
       completionRate: habitsRes.length > 0 ? Math.round((completedTodayCount / habitsRes.length) * 100) : 0,
       weeklyHistory: [],
     };

@@ -9,7 +9,7 @@ import { chatService } from '../services/chatService';
 import { userService } from '../services/userService';
 import { syncService } from '../services/syncService';
 import { quoteService } from '../services/quoteService';
-import { safeArray, normalizeCompletedDates, normalizeUser, hasCompletedOnboarding, getOnboardingStatus, calculateLevelProgress, getXpForDifficulty, extractXpAwarded, calculateStreak, getLocalCalendarDate, logStreakDebug } from '../utils';
+import { safeArray, normalizeCompletedDates, normalizeUser, hasCompletedOnboarding, getOnboardingStatus, calculateLevelProgress, getXpForDifficulty, extractXpAwarded, getLocalCalendarDate, logStreakDebug } from '../utils';
 import { isHabitScheduledForToday } from '../lib/habitUtils';
 import { isTitleNew, markTitleAsSeen, getTitleDescription, setEquippedTitle, getEquippedTitle } from '../utils/titleUtils';
 import { apiRequest } from '../api/client';
@@ -304,88 +304,16 @@ export const useStore = create<StoreState>((set, get) => {
       const today = getLocalCalendarDate();
       const earnedXp = getXpForDifficulty(targetHabit?.difficulty);
 
-      const prevStreak = originalUser?.streak ?? originalUser?.currentStreak ?? 0;
-      const wasTodayAlreadyActive = originalHabits.some(
-        (h) => h.id !== habitId && (h.completedToday || h.completedDates?.includes(today))
-      );
-      const optimisticStreak = wasTodayAlreadyActive
-        ? prevStreak
-        : (prevStreak === 0 ? 1 : prevStreak + 1);
-
-      let prevXp = 0;
-      let newTotalXp = 0;
-      let nextLevel = 1;
-      let nextProgress = 0;
-      let completedTodayCount = 0;
-      let totalTodayCount = 0;
-      let todayPct = 0;
-
+      // 1. Show temporary loading state for this habit
+      // The frontend must NEVER calculate or persist the user's official streak optimistically!
       set((state) => {
         const nextPending = new Set(state.pendingHabitIds);
         nextPending.add(habitId);
-
-        prevXp = typeof state.user?.xp === "number" && !isNaN(state.user.xp) ? Math.max(0, state.user.xp) : 0;
-        newTotalXp = prevXp + earnedXp;
-        const currentLevel = typeof state.user?.level === "number" && !isNaN(state.user.level) && state.user.level >= 1
-          ? Math.floor(state.user.level)
-          : 1;
-        nextLevel = Math.max(currentLevel, Math.floor(newTotalXp / 100) + 1);
-        nextProgress = calculateLevelProgress(newTotalXp, nextLevel, 100);
-
-        const isLevelUp = nextLevel > currentLevel;
-
-        const updatedHabits = state.habits.map((h) =>
-          h.id === habitId
-            ? {
-                ...h,
-                completedToday: true,
-                completedDates: h.completedDates?.includes(today)
-                  ? h.completedDates
-                  : [...(h.completedDates || []), today],
-              }
-            : h
-        );
-
-        const safeHabitsList = Array.isArray(updatedHabits) ? updatedHabits : [];
-        const scheduledTodayList = safeHabitsList.filter(isHabitScheduledForToday);
-        completedTodayCount = scheduledTodayList.filter((h) => h.completedToday).length;
-        totalTodayCount = scheduledTodayList.length;
-        todayPct = totalTodayCount === 0 ? 0 : Math.round((completedTodayCount / totalTodayCount) * 100);
-
-        const updatedUser: BackendUser | null = state.user
-          ? {
-              ...state.user,
-              xp: newTotalXp,
-              level: nextLevel,
-              levelProgress: nextProgress,
-              streak: optimisticStreak,
-              currentStreak: optimisticStreak,
-              lastActiveDate: today,
-            }
-          : null;
-
-        return {
-          pendingHabitIds: nextPending,
-          user: updatedUser,
-          habits: updatedHabits,
-          ...(isLevelUp
-            ? {
-                levelUpData: {
-                  previousLevel: currentLevel,
-                  currentLevel: nextLevel,
-                  xp: newTotalXp,
-                  progress: nextProgress,
-                },
-              }
-            : {}),
-        };
+        return { pendingHabitIds: nextPending };
       });
 
-      console.log(
-        `[HABIT COMPLETION]\nhabitId: ${habitId}\nearnedXP: ${earnedXp}\npreviousXP: ${prevXp}\nnewXP: ${newTotalXp}\ncompletedToday: ${completedTodayCount}\ntotalToday: ${totalTodayCount}\ntodayPercentage: ${todayPct}%\nlevel: ${nextLevel}\nlevelProgress: ${nextProgress}%`
-      );
-
       try {
+        // 2. Send completion request to backend and wait for response
         const res = await syncService.saveHabitCompletion(habitId, true);
 
         if (res && res.success === false) {
@@ -407,7 +335,7 @@ export const useStore = create<StoreState>((set, get) => {
               titleUnlockData: {
                 title: targetTitle,
                 signature: getTitleDescription(targetTitle, root?.signature || userObj?.signature),
-                level: root?.level || userObj?.level || nextLevel,
+                level: root?.level || userObj?.level || 1,
               }
             });
           }
@@ -422,80 +350,137 @@ export const useStore = create<StoreState>((set, get) => {
           });
         }
 
+        // 3. Read backend-authoritative streak, longest streak, and last active date
+        const prevStreak = originalUser?.streak ?? originalUser?.currentStreak ?? 0;
         const backendStreak =
           typeof root?.streak === "number" ? root.streak :
           typeof root?.user?.streak === "number" ? root.user.streak :
           typeof root?.currentStreak === "number" ? root.currentStreak :
           typeof root?.user?.currentStreak === "number" ? root.user.currentStreak :
-          optimisticStreak;
+          prevStreak;
 
-        const displayedStreak = backendStreak;
+        const prevLongest = originalUser?.longestStreak ?? originalUser?.longest_streak ?? prevStreak;
+        const backendLongest =
+          typeof root?.longestStreak === "number" ? root.longestStreak :
+          typeof root?.longest_streak === "number" ? root.longest_streak :
+          typeof root?.user?.longestStreak === "number" ? root.user.longestStreak :
+          typeof root?.user?.longest_streak === "number" ? root.user.longest_streak :
+          Math.max(prevLongest, backendStreak);
+
+        const backendLastActiveDate =
+          root?.lastActiveDate ||
+          root?.last_active_date ||
+          root?.user?.lastActiveDate ||
+          root?.user?.last_active_date ||
+          today;
 
         console.log(
-          `[STREAK FRONTEND]\npreviousStreak: ${prevStreak}\ncompletionRequest: ${habitId}\nbackendStreak: ${backendStreak}\ndisplayedStreak: ${displayedStreak}`
+          `[STREAK FRONTEND AUTHORITATIVE]\npreviousStreak: ${prevStreak}\ncompletionRequest: ${habitId}\nbackendStreak: ${backendStreak}\nlongestStreak: ${backendLongest}\nlastActiveDate: ${backendLastActiveDate}`
         );
+
+        // 4. Update habits with completed state
+        const updatedHabits = originalHabits.map((h) =>
+          h.id === habitId
+            ? {
+                ...h,
+                completedToday: true,
+                completedDates: h.completedDates?.includes(today)
+                  ? h.completedDates
+                  : [...(h.completedDates || []), today],
+              }
+            : h
+        );
+
+        // 5. Update today's completion count & 6. Update today's percentage
+        const scheduledTodayList = updatedHabits.filter(isHabitScheduledForToday);
+        const completedTodayCount = scheduledTodayList.filter((h) => h.completedToday).length;
+        const totalTodayCount = scheduledTodayList.length;
+        const todayPct = totalTodayCount === 0 ? 0 : Math.round((completedTodayCount / totalTodayCount) * 100);
+
+        // 7, 8, 9. Update streak, longest streak, and XP/level from backend response
+        const normalizedUser = normalizeUser(res, originalUser);
+
+        const prevXp = originalUser?.xp ?? 0;
+        const backendXp = typeof root?.xp === "number" ? root.xp :
+          typeof root?.user?.xp === "number" ? root.user.xp :
+          typeof normalizedUser?.xp === "number" && normalizedUser.xp > 0 ? normalizedUser.xp :
+          (prevXp + earnedXp);
+
+        const prevLevel = originalUser?.level ?? 1;
+        const backendLevel = typeof root?.level === "number" ? root.level :
+          typeof root?.user?.level === "number" ? root.user.level :
+          typeof normalizedUser?.level === "number" ? normalizedUser.level :
+          Math.max(prevLevel, Math.floor(backendXp / 100) + 1);
+
+        const backendProgress = calculateLevelProgress(backendXp, backendLevel, 100);
+        const isLevelUp = backendLevel > prevLevel;
+
+        const finalUser: BackendUser | null = originalUser
+          ? {
+              ...originalUser,
+              ...normalizedUser,
+              xp: backendXp,
+              level: backendLevel,
+              levelProgress: backendProgress,
+              streak: backendStreak,
+              currentStreak: backendStreak,
+              longestStreak: backendLongest,
+              longest_streak: backendLongest,
+              lastActiveDate: backendLastActiveDate,
+            }
+          : normalizedUser;
 
         set((state) => {
           const nextPending = new Set(state.pendingHabitIds);
           nextPending.delete(habitId);
 
-          const normalizedUser = normalizeUser(res, state.user);
-          const currentXp = state.user?.xp ?? newTotalXp;
-          const resXp = normalizedUser?.xp ?? 0;
-          const finalXp = Math.max(currentXp, resXp);
-          const finalLevel = Math.max(
-            normalizedUser?.level ?? 1,
-            state.user?.level ?? 1,
-            Math.floor(finalXp / 100) + 1
-          );
-          const finalProgress = calculateLevelProgress(finalXp, finalLevel, 100);
-
-          const finalUser = state.user
-            ? {
-                ...state.user,
-                ...normalizedUser,
-                xp: finalXp,
-                level: finalLevel,
-                levelProgress: finalProgress,
-                streak: backendStreak,
-                currentStreak: backendStreak,
-                lastActiveDate: today,
-              }
-            : normalizedUser;
-
           return {
-            user: finalUser,
             pendingHabitIds: nextPending,
+            habits: updatedHabits,
+            user: finalUser,
+            ...(isLevelUp
+              ? {
+                  levelUpData: {
+                    previousLevel: prevLevel,
+                    currentLevel: backendLevel,
+                    xp: backendXp,
+                    progress: backendProgress,
+                  },
+                }
+              : {}),
           };
         });
+
+        console.log(
+          `[HABIT COMPLETION SUCCESS]\nhabitId: ${habitId}\nearnedXP: ${earnedXp}\nnewXP: ${backendXp}\ncompletedToday: ${completedTodayCount}/${totalTodayCount} (${todayPct}%)\nstreak: ${backendStreak}\nlongestStreak: ${backendLongest}`
+        );
 
         return res;
       } catch (e: any) {
         console.error(`[useStore] completeHabit error:`, e);
+
+        // ERROR: If completion request fails:
+        // Do NOT update the streak locally.
+        // Do NOT award XP locally.
+        // Do NOT mark the habit permanently completed.
+        set((state) => {
+          const nextPending = new Set(state.pendingHabitIds);
+          nextPending.delete(habitId);
+          return {
+            pendingHabitIds: nextPending,
+            habits: originalHabits,
+            user: originalUser,
+          };
+        });
 
         const rawError =
           e?.response?.data?.error?.message ||
           e?.response?.data?.error ||
           e?.response?.data?.message ||
           e?.message ||
-          "Failed to complete habit";
+          "Failed to complete habit on server";
 
-        const cleanMessage =
-          typeof rawError === "string" && rawError !== "Unexpected Error"
-            ? rawError
-            : "Failed to complete habit on server";
-
-        set((state) => {
-          const nextPending = new Set(state.pendingHabitIds);
-          nextPending.delete(habitId);
-          return {
-            habits: originalHabits,
-            user: originalUser,
-            pendingHabitIds: nextPending,
-          };
-        });
-
-        throw new Error(cleanMessage);
+        throw new Error(typeof rawError === "string" ? rawError : "Failed to complete habit on server");
       }
     },
 
@@ -517,55 +502,11 @@ export const useStore = create<StoreState>((set, get) => {
       const today = getLocalCalendarDate();
       const earnedXp = getXpForDifficulty(targetHabit?.difficulty);
 
-      const prevStreak = originalUser?.streak ?? originalUser?.currentStreak ?? 0;
-      const hasOtherCompletedToday = originalHabits.some(
-        (h) => h.id !== habitId && (h.completedToday || (h.completedDates?.includes(today) && h.id !== habitId))
-      );
-      const optimisticStreak = hasOtherCompletedToday ? prevStreak : Math.max(0, prevStreak - 1);
-
-      let prevXp = 0;
-      let newTotalXp = 0;
-      let nextLevel = 1;
-      let nextProgress = 0;
-
+      // 1. Show temporary loading state for this habit
       set((state) => {
         const nextPending = new Set(state.pendingHabitIds);
         nextPending.add(habitId);
-
-        prevXp = typeof state.user?.xp === "number" && !isNaN(state.user.xp) ? Math.max(0, state.user.xp) : 0;
-        newTotalXp = Math.max(0, prevXp - earnedXp);
-        const currentLevel = typeof state.user?.level === "number" && !isNaN(state.user.level) && state.user.level >= 1
-          ? Math.floor(state.user.level)
-          : 1;
-        nextLevel = Math.max(1, Math.floor(newTotalXp / 100) + 1);
-        nextProgress = calculateLevelProgress(newTotalXp, nextLevel, 100);
-
-        const updatedHabits = state.habits.map((h) =>
-          h.id === habitId
-            ? {
-                ...h,
-                completedToday: false,
-                completedDates: (h.completedDates || []).filter((d) => d !== today),
-              }
-            : h
-        );
-
-        const updatedUser: BackendUser | null = state.user
-          ? {
-              ...state.user,
-              xp: newTotalXp,
-              level: nextLevel,
-              levelProgress: nextProgress,
-              streak: optimisticStreak,
-              currentStreak: optimisticStreak,
-            }
-          : null;
-
-        return {
-          pendingHabitIds: nextPending,
-          user: updatedUser,
-          habits: updatedHabits,
-        };
+        return { pendingHabitIds: nextPending };
       });
 
       try {
@@ -579,57 +520,74 @@ export const useStore = create<StoreState>((set, get) => {
         }
 
         const root = (res as any)?.data || res;
+        const prevStreak = originalUser?.streak ?? originalUser?.currentStreak ?? 0;
         const backendStreak =
           typeof root?.streak === "number" ? root.streak :
           typeof root?.user?.streak === "number" ? root.user.streak :
           typeof root?.currentStreak === "number" ? root.currentStreak :
           typeof root?.user?.currentStreak === "number" ? root.user.currentStreak :
-          optimisticStreak;
+          prevStreak;
 
-        const displayedStreak = backendStreak;
+        const prevLongest = originalUser?.longestStreak ?? originalUser?.longest_streak ?? prevStreak;
+        const backendLongest =
+          typeof root?.longestStreak === "number" ? root.longestStreak :
+          typeof root?.longest_streak === "number" ? root.longest_streak :
+          typeof root?.user?.longestStreak === "number" ? root.user.longestStreak :
+          typeof root?.user?.longest_streak === "number" ? root.user.longest_streak :
+          prevLongest;
 
-        console.log(
-          `[STREAK FRONTEND]\npreviousStreak: ${prevStreak}\ncompletionRequest: undo_${habitId}\nbackendStreak: ${backendStreak}\ndisplayedStreak: ${displayedStreak}`
+        const updatedHabits = originalHabits.map((h) =>
+          h.id === habitId
+            ? {
+                ...h,
+                completedToday: false,
+                completedDates: (h.completedDates || []).filter((d) => d !== today),
+              }
+            : h
         );
+
+        const normalizedUser = normalizeUser(res, originalUser);
+        const prevXp = originalUser?.xp ?? 0;
+        const backendXp = typeof root?.xp === "number" ? root.xp :
+          typeof root?.user?.xp === "number" ? root.user.xp :
+          typeof normalizedUser?.xp === "number" ? normalizedUser.xp :
+          Math.max(0, prevXp - earnedXp);
+
+        const backendLevel = typeof root?.level === "number" ? root.level :
+          typeof root?.user?.level === "number" ? root.user.level :
+          typeof normalizedUser?.level === "number" ? normalizedUser.level :
+          Math.max(1, Math.floor(backendXp / 100) + 1);
+
+        const backendProgress = calculateLevelProgress(backendXp, backendLevel, 100);
+
+        const finalUser: BackendUser | null = originalUser
+          ? {
+              ...originalUser,
+              ...normalizedUser,
+              xp: backendXp,
+              level: backendLevel,
+              levelProgress: backendProgress,
+              streak: backendStreak,
+              currentStreak: backendStreak,
+              longestStreak: backendLongest,
+              longest_streak: backendLongest,
+            }
+          : normalizedUser;
 
         set((state) => {
           const nextPending = new Set(state.pendingHabitIds);
           nextPending.delete(habitId);
 
-          const normalizedUser = normalizeUser(res, state.user);
-          const finalUser = state.user
-            ? {
-                ...state.user,
-                ...normalizedUser,
-                xp: newTotalXp,
-                level: nextLevel,
-                levelProgress: nextProgress,
-                streak: backendStreak,
-                currentStreak: backendStreak,
-              }
-            : normalizedUser;
-
           return {
-            user: finalUser,
             pendingHabitIds: nextPending,
+            habits: updatedHabits,
+            user: finalUser,
           };
         });
 
         return res;
       } catch (e: any) {
         console.error(`[useStore] undoHabit error:`, e);
-
-        const rawError =
-          e?.response?.data?.error?.message ||
-          e?.response?.data?.error ||
-          e?.response?.data?.message ||
-          e?.message ||
-          "Failed to undo habit completion";
-
-        const cleanMessage =
-          typeof rawError === "string" && rawError !== "Unexpected Error"
-            ? rawError
-            : "Failed to undo habit completion on server";
 
         set((state) => {
           const nextPending = new Set(state.pendingHabitIds);
@@ -641,24 +599,25 @@ export const useStore = create<StoreState>((set, get) => {
           };
         });
 
-        throw new Error(cleanMessage);
+        const rawError =
+          e?.response?.data?.error?.message ||
+          e?.response?.data?.error ||
+          e?.response?.data?.message ||
+          e?.message ||
+          "Failed to undo habit completion on server";
+
+        throw new Error(typeof rawError === "string" ? rawError : "Failed to undo habit completion on server");
       }
     },
 
     freezeStreak: async (days) => {
       const updatedUser = await userService.freezeStreak(days);
-      if (updatedUser) {
-        localStorage.setItem("oneday_cached_user", JSON.stringify(updatedUser));
-      }
       set({ user: updatedUser });
       await get().refreshFromBackend();
     },
 
     deactivateFreeze: async () => {
       const updatedUser = await userService.deactivateFreeze();
-      if (updatedUser) {
-        localStorage.setItem("oneday_cached_user", JSON.stringify(updatedUser));
-      }
       set({ user: updatedUser });
       await get().refreshFromBackend();
     },
@@ -705,7 +664,6 @@ export const useStore = create<StoreState>((set, get) => {
         equippedTitle: normalizedTitle,
       };
       set({ user: updatedUser });
-      localStorage.setItem("oneday_cached_user", JSON.stringify(updatedUser));
       try {
         await userService.updateProfile({ title: normalizedTitle, equippedTitle: normalizedTitle } as any);
       } catch (err) {

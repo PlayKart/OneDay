@@ -9,7 +9,7 @@ import { toast } from "react-hot-toast";
 import { isHabitScheduledForToday } from "../../lib/habitUtils";
 import { getPersonalizedGreeting } from "../../utils/greetingUtils";
 import { getEquippedTitle } from "../../utils/titleUtils";
-import { calculateLevelProgress, calculateStreak } from "../../utils";
+import { calculateLevelProgress } from "../../utils";
 import { perfLogger } from "../../utils/perfLogger";
 
 export function DashboardScreen() {
@@ -69,9 +69,15 @@ export function DashboardScreen() {
     : "";
 
   const equippedTitle = getEquippedTitle(user);
+  const isStreakLoading = typeof user.currentStreak !== "number" && typeof user.streak !== "number";
   const activeStreak = typeof user.currentStreak === "number" && !isNaN(user.currentStreak)
     ? user.currentStreak
     : (typeof user.streak === "number" && !isNaN(user.streak) ? user.streak : 0);
+  const longestStreak = typeof user.longestStreak === "number" && !isNaN(user.longestStreak)
+    ? user.longestStreak
+    : (typeof (user as any).longest_streak === "number" && !isNaN((user as any).longest_streak)
+    ? (user as any).longest_streak
+    : null);
 
   const greeting = getPersonalizedGreeting({
     user, habits, completedTodayCount: completedToday, totalHabitsCount: totalHabits, isFrozen: Boolean(isFrozen),
@@ -221,16 +227,22 @@ export function DashboardScreen() {
               )}
             </div>
             <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-zinc-400 bg-white/[0.04] border border-white/[0.06] px-2.5 py-1 rounded-md">
-              {isFrozen ? "Protected" : "Consistency"}
+              {isFrozen ? "Protected" : longestStreak !== null ? `Best: ${longestStreak}d` : "Consistency"}
             </span>
           </div>
 
           {/* Bottom Content: Number + Subtitle + Thin Progress Bar */}
           <div className="relative z-10 space-y-2.5">
             <div>
-              <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-sans">
-                {activeStreak} <span className="text-base sm:text-lg text-zinc-400 font-bold uppercase tracking-wider font-mono">{activeStreak === 1 ? 'Day' : 'Days'}</span>
-              </div>
+              {isStreakLoading ? (
+                <div className="text-2xl sm:text-3xl font-extrabold text-white/50 tracking-tight font-sans">
+                  Loading...
+                </div>
+              ) : (
+                <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-sans">
+                  {activeStreak} <span className="text-base sm:text-lg text-zinc-400 font-bold uppercase tracking-wider font-mono">{activeStreak === 1 ? 'Day' : 'Days'}</span>
+                </div>
+              )}
               <div className="text-[11px] font-mono uppercase text-zinc-400 tracking-wider mt-1">
                 {isFrozen ? "Streak Shield Active" : "Current Momentum"}
               </div>

@@ -6,7 +6,7 @@ import { userService } from "./userService";
 import { habitService } from "./habitService";
 import { useStore } from "../store/useStore";
 import { User, Habit } from "../types";
-import { normalizeUser, safeArray, calculateStreak, getLocalCalendarDate } from "../utils";
+import { normalizeUser, safeArray, getLocalCalendarDate } from "../utils";
 import { perfLogger } from "../utils/perfLogger";
 
 export type SyncStatus = 'idle' | 'syncing' | 'success' | 'retrying' | 'error' | 'offline';
@@ -311,15 +311,8 @@ class SyncService {
 
     const promise = (async () => {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
-        console.log(`[SYNC] Offline: Queueing completion mutation for ${habitId}`);
-        this.enqueueOfflineMutation({
-          idempotencyKey,
-          type: isCompleted ? 'COMPLETE_HABIT' : 'UNDO_HABIT',
-          payload: { habitId, date: today, userId: fbUser.uid },
-          createdAt: Date.now(),
-        });
         this.setStatus("offline");
-        return { success: true, offline: true };
+        throw new Error("You are offline. Server connection is required to complete habits and update streak.");
       }
 
       this.setStatus("syncing");
@@ -339,15 +332,9 @@ class SyncService {
         this.setStatus("success");
         return res;
       } catch (err: any) {
-        console.warn(`[SYNC] Network completion mutation failed for habit ${habitId}. Queueing offline mutation...`);
-        this.enqueueOfflineMutation({
-          idempotencyKey,
-          type: isCompleted ? 'COMPLETE_HABIT' : 'UNDO_HABIT',
-          payload: { habitId, date: today, userId: fbUser.uid },
-          createdAt: Date.now(),
-        });
-        this.setStatus("offline");
-        return { success: true, offline: true };
+        console.warn(`[SYNC] Network completion mutation failed for habit ${habitId}:`, err);
+        this.setStatus("error", err?.message || "Failed to complete habit on server");
+        throw err;
       }
     })().finally(() => {
       this.inflightPromises.delete(dedupeKey);

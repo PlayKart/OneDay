@@ -115,7 +115,7 @@ export function getPersonalizedGreeting(context: GreetingContext): string {
     const pool = [
       firstName ? `${currentStreak}-day streak, ${firstName}. Your consistency is showing.` : `${currentStreak}-day streak. Your consistency is showing.`,
       firstName ? `Unbroken streak, ${firstName}. Let's keep the standard.` : `Unbroken standard. Let's make today count.`,
-      firstName ? `Day ${currentStreak + 1} begins, ${firstName}.` : `Day ${currentStreak + 1} begins.`,
+      firstName ? `Day ${currentStreak} strong, ${firstName}.` : `Day ${currentStreak} strong.`,
     ];
     return pickFromPool(pool, stateKey);
   }

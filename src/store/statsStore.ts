@@ -5,7 +5,7 @@ import { Statistics } from "../types";
 
 interface StatsState {
   stats: Statistics;
-  updateStats: (habits: any[], streak: number) => void;
+  updateStats: (habits: any[], streak: number, longestStreak?: number) => void;
 }
 
 export const useStatsStore = create<StatsState>((set) => ({
@@ -17,7 +17,7 @@ export const useStatsStore = create<StatsState>((set) => ({
     completionRate: 0,
     weeklyHistory: [],
   },
-  updateStats: (habits, streak) => {
+  updateStats: (habits, streak, longestStreak) => {
     const safeList = Array.isArray(habits) ? habits : [];
     const completedCount = safeList.filter((h) => h.completedToday).length;
     const rate = safeList.length > 0 ? Math.round((completedCount / safeList.length) * 100) : 0;
@@ -27,7 +27,7 @@ export const useStatsStore = create<StatsState>((set) => ({
         totalHabits: safeList.length,
         completedToday: completedCount,
         currentStreak: streak,
-        longestStreak: Math.max(streak, 7),
+        longestStreak: typeof longestStreak === "number" ? longestStreak : streak,
         completionRate: rate,
         weeklyHistory: [],
       },
