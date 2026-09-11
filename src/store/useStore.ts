@@ -57,6 +57,7 @@ interface StoreState {
   isConfirmingHabit: boolean;
   pendingHabitAction: CoachPendingAction | null;
   pendingActions: Record<string, CoachPendingAction>;
+  coachError: string | null;
 
   // Actions
   setFirebaseUser: (fbUser: FirebaseUser | null) => void;
@@ -94,7 +95,13 @@ interface StoreState {
   updatePendingActionState: (actionId: string, state: HabitPreviewState, extra?: { errorMessage?: string }) => void;
   removePendingAction: (actionId: string) => void;
   clearAllPendingActions: () => void;
+  clearCoachError: () => void;
 }
+
+// Module-level in-flight trackers and abort controllers for race-condition prevention
+let inFlightFetchSessionsPromise: Promise<void> | null = null;
+let selectSessionAbortController: AbortController | null = null;
+let selectSessionSequence = 0;
 
 export const useStore = create<StoreState>((set, get) => {
   const authStartTime = performance.now();
@@ -193,6 +200,8 @@ export const useStore = create<StoreState>((set, get) => {
     isConfirmingHabit: false,
     pendingHabitAction: null,
     pendingActions: {},
+    coachError: null,
+    clearCoachError: () => set({ coachError: null }),
 
     setFirebaseUser: (fbUser) => {
       console.log("[AUTH] setFirebaseUser called:", fbUser ? `authenticated (UID: ${fbUser.uid})` : "unauthenticated");
@@ -696,35 +705,62 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     fetchSessions: async () => {
-      set({ sessionsLoading: true });
-      try {
-        console.log("[useStore] Fetching chat sessions from backend...");
-        const sessions = await chatService.getSessions();
-        const safeArr = safeArray(sessions) as ChatSession[];
-        const sorted = [...safeArr].sort((a: any, b: any) => {
-          const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
-          const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
-          return timeB - timeA;
-        });
-
-        set({ chatSessions: sorted });
-
-        if (sorted.length > 0) {
-          const savedActiveId = localStorage.getItem("activeChatId") || get().activeChatId;
-          const targetSession = sorted.find((s) => s.id === savedActiveId) || sorted[0];
-          if (targetSession) {
-            console.log(`[useStore] Restoring/selecting session ${targetSession.id}`);
-            await get().selectSession(targetSession.id);
-          }
-        } else {
-          console.log("[useStore] No sessions found, delaying backend creation.");
-          set({ activeChatId: null, chatMessages: [] });
-        }
-      } catch (e) {
-        console.warn("[useStore] fetchSessions failed:", e);
-      } finally {
-        set({ sessionsLoading: false });
+      // If store is not initialized or user is not logged in, skip safely
+      if (!get().initialized) {
+        console.log("[useStore] fetchSessions skipped: waiting for app/auth initialization");
+        return;
       }
+      const activeFbUser = auth.currentUser || get().firebaseUser;
+      if (!activeFbUser) {
+        console.log("[useStore] fetchSessions skipped: no authenticated user");
+        set({ sessionsLoading: false });
+        return;
+      }
+
+      // Prevent duplicate simultaneous requests: return existing in-flight promise if one is running
+      if (inFlightFetchSessionsPromise) {
+        console.log("[useStore] fetchSessions already in flight, joining existing request");
+        return inFlightFetchSessionsPromise;
+      }
+
+      inFlightFetchSessionsPromise = (async () => {
+        set({ sessionsLoading: true, coachError: null });
+        try {
+          console.log("[useStore] Fetching chat sessions from backend...");
+          const sessions = await chatService.getSessions();
+          const safeArr = safeArray(sessions) as ChatSession[];
+          const sorted = [...safeArr].sort((a: any, b: any) => {
+            const timeA = new Date(a.updated_at || a.created_at || a.updatedAt || a.createdAt || 0).getTime();
+            const timeB = new Date(b.updated_at || b.created_at || b.updatedAt || b.createdAt || 0).getTime();
+            return timeB - timeA;
+          });
+
+          set({ chatSessions: sorted, coachError: null });
+
+          if (sorted.length > 0) {
+            const savedActiveId = localStorage.getItem("activeChatId") || get().activeChatId;
+            const targetSession = sorted.find((s) => s.id === savedActiveId) || sorted[0];
+            if (targetSession) {
+              console.log(`[useStore] Restoring/selecting session ${targetSession.id}`);
+              await get().selectSession(targetSession.id);
+            }
+          } else {
+            console.log("[useStore] No sessions found, delaying backend creation.");
+            set({ activeChatId: null, chatMessages: [] });
+          }
+        } catch (e: any) {
+          if (e?.name !== "CanceledError" && e?.name !== "AbortError") {
+            console.warn("[useStore] fetchSessions non-fatal error:", e);
+            // Don't crash the store, just record error state for inline UI banner
+            set({ coachError: e?.message || "Failed to load coaching conversations" });
+          }
+        } finally {
+          set({ sessionsLoading: false });
+          inFlightFetchSessionsPromise = null;
+        }
+      })();
+
+      return inFlightFetchSessionsPromise;
     },
 
     createSession: async () => {
@@ -740,6 +776,7 @@ export const useStore = create<StoreState>((set, get) => {
         isPreparingHabit: false,
         isConfirmingHabit: false,
         chatLoading: false,
+        coachError: null,
       });
       localStorage.removeItem("activeChatId");
       return "";
@@ -747,15 +784,35 @@ export const useStore = create<StoreState>((set, get) => {
 
     selectSession: async (id) => {
       if (!id) return;
+
+      // Abort any ongoing selectSession fetch to prevent race condition when quickly switching sessions
+      if (selectSessionAbortController) {
+        selectSessionAbortController.abort();
+      }
+      selectSessionAbortController = new AbortController();
+      const signal = selectSessionAbortController.signal;
+      const sequence = ++selectSessionSequence;
+
       localStorage.setItem("activeChatId", id);
-      set({ activeChatId: id, chatLoading: true });
+      set({ activeChatId: id, chatLoading: true, coachError: null });
+
       try {
-        const msgs = await chatService.getMessages(id);
-        console.log(`[useStore] Loaded ${msgs.length} messages for session ${id}:`, msgs);
-        set({ chatMessages: safeArray(msgs), chatLoading: false });
-      } catch (e) {
-        console.error(`[useStore] selectSession failed for ${id}:`, e);
-        set({ chatLoading: false });
+        const msgs = await chatService.getMessages(id, signal);
+        
+        // Guard against race conditions: only apply if this request is still the newest one
+        if (sequence === selectSessionSequence) {
+          console.log(`[useStore] Loaded ${msgs.length} messages for session ${id}:`, msgs);
+          set({ chatMessages: safeArray(msgs), chatLoading: false, coachError: null });
+        }
+      } catch (e: any) {
+        if (e?.name === "CanceledError" || e?.name === "AbortError") {
+          console.log(`[useStore] selectSession for ${id} cancelled due to newer selection.`);
+          return;
+        }
+        if (sequence === selectSessionSequence) {
+          console.warn(`[useStore] selectSession non-fatal failure for ${id}:`, e);
+          set({ chatLoading: false });
+        }
       }
     },
 

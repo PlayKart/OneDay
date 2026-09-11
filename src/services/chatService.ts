@@ -5,11 +5,14 @@ import { BACKEND_URL } from "../constants";
 import { ChatSession, ChatMessage } from "../types";
 import { safeArray } from "../utils";
 
+const SESSIONS_CACHE_KEY = "oneday_cached_chat_sessions";
+const getMessagesCacheKey = (sessionId: string) => `oneday_cached_chat_msgs_${sessionId}`;
+
 export const chatService = {
-  async getSessions(): Promise<ChatSession[]> {
+  async getSessions(signal?: AbortSignal): Promise<ChatSession[]> {
     try {
       console.log("[chatService] Requesting GET /api/conversations");
-      const res = await apiClient.get<any>("/api/conversations");
+      const res = await apiClient.get<any>("/api/conversations", { signal });
       console.log("[chatService] GET /api/conversations response:", res.data);
       const rawData = res.data;
       const list = Array.isArray(rawData)
@@ -31,18 +34,39 @@ export const chatService = {
         return timeB - timeA;
       });
 
+      // Cache successful response
+      try {
+        localStorage.setItem(SESSIONS_CACHE_KEY, JSON.stringify(mapped));
+      } catch {}
+
       return mapped;
-    } catch (e) {
-      console.error("Failed to fetch sessions from /api/conversations:", e);
+    } catch (e: any) {
+      if (e?.name === "CanceledError" || e?.name === "AbortError") {
+        console.log("[chatService] getSessions request cancelled.");
+        throw e;
+      }
+      console.warn("[chatService] Failed to fetch sessions from /api/conversations, checking cache:", e);
+      
+      // Fallback to cache if available
+      try {
+        const cached = localStorage.getItem(SESSIONS_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch {}
+
       return [];
     }
   },
 
-  async getMessages(sessionId: string): Promise<ChatMessage[]> {
+  async getMessages(sessionId: string, signal?: AbortSignal): Promise<ChatMessage[]> {
     if (!sessionId) return [];
     try {
       console.log(`[chatService] Requesting GET /api/chats for session ${sessionId}`);
-      const res = await apiClient.get(`/api/chats`, { params: { sessionId } });
+      const res = await apiClient.get(`/api/chats`, { params: { sessionId }, signal });
       console.log(`[chatService] GET /api/chats response:`, res.data);
       const rawData = res.data;
       const list = Array.isArray(rawData)
@@ -65,9 +89,30 @@ export const chatService = {
 
       mapped.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
 
+      // Cache successful messages
+      try {
+        localStorage.setItem(getMessagesCacheKey(sessionId), JSON.stringify(mapped));
+      } catch {}
+
       return mapped;
-    } catch (e) {
-      console.error(`Failed to fetch messages for session ${sessionId}:`, e);
+    } catch (e: any) {
+      if (e?.name === "CanceledError" || e?.name === "AbortError") {
+        console.log(`[chatService] getMessages for ${sessionId} request cancelled.`);
+        throw e;
+      }
+      console.warn(`[chatService] Failed to fetch messages for session ${sessionId}, checking cache:`, e);
+
+      // Fallback to cache if available
+      try {
+        const cached = localStorage.getItem(getMessagesCacheKey(sessionId));
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch {}
+
       return [];
     }
   },

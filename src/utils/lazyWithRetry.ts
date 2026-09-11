@@ -15,79 +15,94 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     const componentKey = namedExport || 'default_component';
     const retryCountKey = `oneday_chunk_retry_${componentKey}`;
 
-    try {
-      const module = await factory();
-      
-      if (!module) {
-        throw new Error(`Module for '${componentKey}' resolved to undefined.`);
-      }
+    // Internal retry loop with exponential backoff for transient network hiccups
+    const maxInternalAttempts = 3;
+    let lastError: any = null;
 
-      // 1. If named export is specified and present
-      if (namedExport && module[namedExport]) {
-        return { default: module[namedExport] };
-      }
-
-      // 2. If default export is present
-      if (module.default) {
-        if (namedExport && module.default[namedExport]) {
-          return { default: module.default[namedExport] };
-        }
-        return { default: module.default };
-      }
-
-      // 3. If the module itself is a callable component function
-      if (typeof module === 'function') {
-        return { default: module };
-      }
-
-      // 4. If namedExport exists under any property
-      if (namedExport && typeof module[namedExport] === 'function') {
-        return { default: module[namedExport] };
-      }
-
-      // 5. Fallback: take the first function export available in module
-      const possibleExportKey = Object.keys(module).find(
-        (key) => typeof module[key] === 'function' && key !== 'default'
-      );
-      if (possibleExportKey && typeof module[possibleExportKey] === 'function') {
-        return { default: module[possibleExportKey] };
-      }
-
-      throw new Error(`Could not resolve export '${namedExport || 'default'}' from module.`);
-    } catch (error: any) {
-      console.error(`[lazyWithRetry] Failed to load component '${componentKey}':`, error);
-
-      const errorMessage = error?.message || (typeof error === 'string' ? error : '') || '';
-      const isChunkError =
-        error?.name === 'ChunkLoadError' ||
-        errorMessage.includes('Failed to fetch dynamically imported module') ||
-        errorMessage.includes('Importing a module script failed') ||
-        errorMessage.includes('error loading dynamically imported module') ||
-        errorMessage.includes('Unable to preload CSS') ||
-        errorMessage.includes('Cannot read properties of undefined');
-
-      const currentRetries = parseInt(sessionStorage.getItem(retryCountKey) || '0', 10);
-
-      if (isChunkError && currentRetries < 2) {
-        sessionStorage.setItem(retryCountKey, String(currentRetries + 1));
+    for (let attempt = 1; attempt <= maxInternalAttempts; attempt++) {
+      try {
+        const module = await factory();
         
-        // Attempt to update service workers if available
-        if ('serviceWorker' in navigator) {
-          try {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (const registration of registrations) {
-              await registration.update();
-            }
-          } catch {
-            // Ignore SW errors during reload
-          }
+        if (!module) {
+          throw new Error(`Module for '${componentKey}' resolved to undefined.`);
         }
 
-        // Hard reload the window to fetch latest chunks
-        window.location.reload();
+        // 1. If named export is specified and present
+        if (namedExport && module[namedExport]) {
+          return { default: module[namedExport] };
+        }
+
+        // 2. If default export is present
+        if (module.default) {
+          if (namedExport && module.default[namedExport]) {
+            return { default: module.default[namedExport] };
+          }
+          return { default: module.default };
+        }
+
+        // 3. If the module itself is a callable component function
+        if (typeof module === 'function') {
+          return { default: module };
+        }
+
+        // 4. If namedExport exists under any property
+        if (namedExport && typeof module[namedExport] === 'function') {
+          return { default: module[namedExport] };
+        }
+
+        // 5. Fallback: take the first function export available in module
+        const possibleExportKey = Object.keys(module).find(
+          (key) => typeof module[key] === 'function' && key !== 'default'
+        );
+        if (possibleExportKey && typeof module[possibleExportKey] === 'function') {
+          return { default: module[possibleExportKey] };
+        }
+
+        throw new Error(`Could not resolve export '${namedExport || 'default'}' from module.`);
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`[lazyWithRetry] Attempt ${attempt}/${maxInternalAttempts} failed for '${componentKey}':`, error);
+        
+        if (attempt < maxInternalAttempts) {
+          // Wait with exponential backoff (500ms, 1000ms) before retrying import
+          await new Promise((res) => setTimeout(res, attempt * 500));
+        }
+      }
+    }
+
+    const error = lastError;
+    console.error(`[lazyWithRetry] All ${maxInternalAttempts} attempts failed for component '${componentKey}':`, error);
+
+    const errorMessage = error?.message || (typeof error === 'string' ? error : '') || '';
+    const isChunkError =
+      error?.name === 'ChunkLoadError' ||
+      errorMessage.includes('Failed to fetch dynamically imported module') ||
+      errorMessage.includes('Importing a module script failed') ||
+      errorMessage.includes('error loading dynamically imported module') ||
+      errorMessage.includes('Unable to preload CSS') ||
+      errorMessage.includes('Cannot read properties of undefined');
+
+    const currentRetries = parseInt(sessionStorage.getItem(retryCountKey) || '0', 10);
+
+    if (isChunkError && currentRetries < 2) {
+      sessionStorage.setItem(retryCountKey, String(currentRetries + 1));
+      
+      // Attempt to update service workers if available
+      if ('serviceWorker' in navigator) {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (const registration of registrations) {
+            await registration.update();
+          }
+        } catch {
+          // Ignore SW errors during reload
+        }
       }
 
-      throw error;
+      // Hard reload the window to fetch latest chunks
+      window.location.reload();
     }
+
+    throw error;
   });
 }

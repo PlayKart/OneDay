@@ -18,6 +18,8 @@ export const AICoach: React.FC = () => {
     chatMessages,
     chatLoading,
     sessionsLoading,
+    coachError,
+    clearCoachError,
     fetchSessions,
     createSession,
     selectSession,
@@ -30,6 +32,7 @@ export const AICoach: React.FC = () => {
     editPreviousMessage,
     user,
     habits,
+    initialized,
   } = useStore();
 
   // Layout State
@@ -43,10 +46,12 @@ export const AICoach: React.FC = () => {
   const prevMsgCountRef = useRef(chatMessages?.length || 0);
   const userJustSentRef = useRef(false);
 
-  // Fetch initial chat sessions on mount
+  // Fetch initial chat sessions safely when store is initialized
   useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+    if (initialized) {
+      fetchSessions();
+    }
+  }, [initialized, fetchSessions]);
 
   const activeSession = chatSessions.find((s) => s.id === activeChatId);
 
@@ -217,6 +222,25 @@ export const AICoach: React.FC = () => {
           hasActiveSession={Boolean(activeChatId)}
           chatLoading={chatLoading}
         />
+
+        {/* Subtle Reconnect Banner if Coach Sync Failed */}
+        {coachError && (
+          <div className="mx-4 my-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between gap-2 shrink-0 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 truncate">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+              <span className="truncate">{coachError}. You can still review cached discussions.</span>
+            </div>
+            <button
+              onClick={() => {
+                clearCoachError();
+                fetchSessions();
+              }}
+              className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold text-[11px] uppercase tracking-wider transition-colors shrink-0 cursor-pointer active:scale-95"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Message Thread or Empty State */}
         <div
