@@ -103,8 +103,21 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
 
     try {
       await editHabit(habitId, payload);
-      await refreshFromBackend();
       toast.success("✓ Habit updated.");
+
+      const rawInitialPayload = initialPayload as any;
+      if (rawInitialPayload?.actionId) {
+        useStore.getState().removePendingAction(rawInitialPayload.actionId);
+      }
+      if (rawInitialPayload?.messageId) {
+        useStore.setState((state) => ({
+          chatMessages: state.chatMessages.map((m) =>
+            m.id === rawInitialPayload.messageId
+              ? { ...m, status: "COMPLETED", preview: undefined, action: undefined, actionPayload: undefined }
+              : m
+          ),
+        }));
+      }
 
       if (onSuccess) {
         onSuccess(trimmedName);

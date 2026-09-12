@@ -92,9 +92,22 @@ export const CoachDeleteHabitModal: React.FC<CoachDeleteHabitModalProps> = ({
 
       console.log(`[CoachDeleteHabitModal] Deleting habit ${habitId} (${habitName})...`);
       await deleteHabit(habitId);
-      await refreshFromBackend();
 
       toast.success(`✓ ${habitName} deleted.`);
+
+      const actionPayload = payload as any;
+      if (actionPayload?.actionId) {
+        useStore.getState().removePendingAction(actionPayload.actionId);
+      }
+      if (actionPayload?.messageId) {
+        useStore.setState((state) => ({
+          chatMessages: state.chatMessages.map((m) =>
+            m.id === actionPayload.messageId
+              ? { ...m, status: "DELETED", preview: undefined, action: undefined, actionPayload: undefined }
+              : m
+          ),
+        }));
+      }
 
       if (onSuccess) {
         onSuccess(habitSnapshot, selectedReason);

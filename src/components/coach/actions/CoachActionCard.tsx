@@ -24,7 +24,7 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
   action,
   onActionComplete,
 }) => {
-  const { deleteHabit, refreshFromBackend } = useStore();
+  const { habits, deleteHabit, removePendingAction } = useStore();
   const [showEditModal, setShowEditModal] = useState(
     () => action.type === "UPDATE_HABIT" || action.action === "OPEN_EDIT_HABIT"
   );
@@ -146,16 +146,26 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
     }
 
     const handleConfirmInlineDelete = async () => {
-      if (isDeletingInline || !habitId) {
-        if (!habitId) {
-          toast.error("Habit record identifier not found.");
-        }
+      if (isDeletingInline) return;
+
+      // Resolve habit ID from payload or match by name from habits list
+      let targetHabitId = habitId;
+      if (!targetHabitId) {
+        const found = habits.find(
+          (h) => h.name.toLowerCase() === habitName.toLowerCase()
+        );
+        if (found) targetHabitId = found.id;
+      }
+
+      if (!targetHabitId) {
+        toast.error(`Habit "${habitName}" not found in your routine.`);
         return;
       }
+
       setIsDeletingInline(true);
       try {
-        const habitSnapshot = action.payload.deletedHabitSnapshot || {
-          id: habitId,
+        const habitSnapshot = action.payload.deletedHabitSnapshot || habits.find((h) => h.id === targetHabitId) || {
+          id: targetHabitId,
           name: habitName,
           completedToday: false,
           completedDates: [],
@@ -165,17 +175,43 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
           icon: "dumbbell",
           category: "emerald",
         };
-        await deleteHabit(habitId);
-        await refreshFromBackend();
+
+        // 1. Delete habit via authoritative backend call (deleteHabit automatically refetches and replaces habits)
+        await deleteHabit(targetHabitId);
+
+        // 2. Only show successful deletion after backend confirms success
         setIsDeleted(true);
         setDeletedHabitSnapshot(habitSnapshot as Habit);
         toast.success(`✓ ${habitName} deleted.`);
+
+        // 3. Clean up pending action state from store
+        if (action.actionId) {
+          removePendingAction(action.actionId);
+        }
+
+        // 4. Update message status in store so stale preview disappears
+        if (action.messageId) {
+          useStore.setState((state) => ({
+            chatMessages: state.chatMessages.map((m) =>
+              m.id === action.messageId
+                ? { ...m, status: "DELETED", preview: undefined, action: undefined, actionPayload: undefined }
+                : m
+            ),
+          }));
+        }
+
         if (onActionComplete) {
           onActionComplete(`✓ ${habitName} deleted.`);
         }
       } catch (err: any) {
         console.error("[CoachActionCard] Delete habit error:", err);
-        toast.error("Failed to delete habit.");
+        const errMsg =
+          err?.response?.data?.error?.message ||
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          `Failed to delete ${habitName}.`;
+        toast.error(errMsg);
       } finally {
         setIsDeletingInline(false);
       }
@@ -183,6 +219,18 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
 
     const handleCancelInlineDelete = () => {
       setIsCancelled(true);
+      if (action.actionId) {
+        removePendingAction(action.actionId);
+      }
+      if (action.messageId) {
+        useStore.setState((state) => ({
+          chatMessages: state.chatMessages.map((m) =>
+            m.id === action.messageId
+              ? { ...m, status: "CANCELLED", preview: undefined, action: undefined, actionPayload: undefined }
+              : m
+          ),
+        }));
+      }
       if (onActionComplete) {
         onActionComplete(`Kept ${habitName}.`);
       }

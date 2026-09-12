@@ -138,6 +138,7 @@ export const AICoach: React.FC = () => {
   const handleStartNewChat = async () => {
     try {
       await createSession("New Chat");
+      useStore.getState().clearAllPendingActions();
       setIsMobileDrawerOpen(false);
       toast.success("New strategy session started");
     } catch (e) {
@@ -147,7 +148,15 @@ export const AICoach: React.FC = () => {
   };
 
   const handleClearChat = () => {
-    useStore.setState({ chatMessages: [] });
+    useStore.getState().clearAllPendingActions();
+    useStore.setState({
+      chatMessages: [],
+      pendingHabitAction: null,
+      pendingActions: {},
+      isPreparingHabit: false,
+      isConfirmingHabit: false,
+      coachError: null,
+    });
     toast.success("Session messages cleared");
   };
 

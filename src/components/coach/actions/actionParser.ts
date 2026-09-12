@@ -28,43 +28,13 @@ export function cleanHabitName(raw: string = ""): string {
     .trim()
     .replace(/^["'`]+|["'`]+$/g, "")
     .replace(/^(?:i\s+wanna|i\s+want\s+to|can\s+you|please|help\s+me)\s+/i, "")
-    .replace(/^(?:create|add|set\s+up|start|build|track|log|make)(?:\s+a|\s+an|\s+new|\s+the)?\s+(?:habit\s+(?:for|to|called|named)\s+|routine\s+(?:for|to|called|named)\s+|habit\s+|routine\s+)?/i, "")
+    .replace(/^(?:create|add|set\s+up|start|build|track|log|make|delete|remove|edit|update)(?:\s+a|\s+an|\s+new|\s+the)?\s+(?:habit\s+(?:for|to|called|named)\s+|routine\s+(?:for|to|called|named)\s+|habit\s+|routine\s+)?/i, "")
     .replace(/^(?:habit\s+for|habit\s+to|routine\s+for|routine\s+to)\s+/i, "")
     .replace(/\s+habit$/i, "")
     .replace(/[.!?]+$/, "")
     .trim();
 
-  // Specific canonical mappings for common phrases
-  const lower = clean.toLowerCase();
-  if (lower === "watering plants" || lower === "water plants" || lower === "water the plants" || lower === "watering the plants" || lower === "plants") {
-    return "Water Plants";
-  }
-  if (lower === "washing dishes" || lower === "wash dishes" || lower === "wash the dishes" || lower === "dishes") {
-    return "Wash Dishes";
-  }
-  if (lower === "making my bed" || lower === "make bed" || lower === "make my bed" || lower === "bed") {
-    return "Make Bed";
-  }
-  if (lower === "workout" || lower === "working out" || lower === "gym" || lower === "exercise" || lower === "hit the gym") {
-    return "Workout";
-  }
-  if (lower === "study" || lower === "studying" || lower === "study habit") {
-    return "Study";
-  }
-  if (lower === "running" || lower === "run" || lower === "go for a run") {
-    return "Running";
-  }
-  if (lower === "reading" || lower === "read" || lower === "read book" || lower === "read 10 pages") {
-    return "Reading";
-  }
-  if (lower === "meditation" || lower === "meditate" || lower === "mindfulness") {
-    return "Meditation";
-  }
-  if (lower === "drinking water" || lower === "drink water" || lower === "hydrate" || lower === "water") {
-    return "Hydrate";
-  }
-
-  // General Title Case formatting
+  // General Title Case formatting dynamically
   const words = clean.split(/\s+/).filter(Boolean);
   if (words.length === 0) return "";
 
@@ -84,15 +54,10 @@ export function cleanHabitName(raw: string = ""): string {
 
 /**
  * Normalizes difficulty to canonical OneDay capitalization and gets official authoritative XP.
- * Heuristics:
- * Easy (20 XP): Water plants, Make bed, Drink water, Vitamins, Teeth brushing
- * Medium (40 XP): Wash dishes, Reading, Journaling, Walk 20m, Stretching
- * Hard (60 XP): Workout, Study, Running, Deep Work, Coding, Strength Training
- * Elite (80 XP): Marathon training, Cold plunge 10m, Fasting 24h
  */
 export function getStandardActionDifficulty(
   val?: string,
-  habitName: string = ""
+  _habitName: string = ""
 ): { displayDifficulty: string; xp: number } {
   if (val && typeof val === "string" && val.trim()) {
     const displayDifficulty = toDisplayDifficulty(val);
@@ -100,45 +65,7 @@ export function getStandardActionDifficulty(
     return { displayDifficulty, xp };
   }
 
-  // Infer based on habit name
-  const lower = habitName.toLowerCase();
-  if (
-    lower.includes("plant") ||
-    lower.includes("bed") ||
-    lower.includes("water") ||
-    lower.includes("vitamin") ||
-    lower.includes("teeth") ||
-    lower.includes("breathe") ||
-    lower.includes("hydrate")
-  ) {
-    return { displayDifficulty: "Easy", xp: 20 };
-  }
-  if (
-    lower.includes("dish") ||
-    lower.includes("read") ||
-    lower.includes("journal") ||
-    lower.includes("stretch") ||
-    lower.includes("walk") ||
-    lower.includes("meditat") ||
-    lower.includes("clean")
-  ) {
-    return { displayDifficulty: "Medium", xp: 40 };
-  }
-  if (
-    lower.includes("marathon") ||
-    lower.includes("plunge") ||
-    lower.includes("fasting") ||
-    lower.includes("triathlon")
-  ) {
-    return { displayDifficulty: "Elite", xp: 80 };
-  }
-
-  // Default to Hard for workout/fitness/study
-  if (lower.includes("workout") || lower.includes("gym") || lower.includes("lift") || lower.includes("run") || lower.includes("study")) {
-    return { displayDifficulty: "Hard", xp: 60 };
-  }
-
-  return { displayDifficulty: "Easy", xp: 20 };
+  return { displayDifficulty: "Medium", xp: 40 };
 }
 
 /**
@@ -206,34 +133,7 @@ export function normalizeSchedule(
  * Returns default motivating note for habit
  */
 export function getDefaultNotesForHabit(habitName: string = ""): string {
-  const lower = habitName.toLowerCase();
-  if (lower.includes("plant") || lower.includes("garden")) {
-    return "Keep the plants healthy and build a consistent care routine.";
-  }
-  if (lower.includes("dish") || lower.includes("clean")) {
-    return "Keep the sink clean and tidy up after meals.";
-  }
-  if (lower.includes("bed")) {
-    return "Make your bed every morning after waking up.";
-  }
-  if (lower.includes("workout") || lower.includes("gym")) {
-    return "Build strength and improve physical fitness.";
-  }
-  if (lower.includes("study")) {
-    return "Improve understanding and work toward better grades.";
-  }
-  if (lower.includes("read")) {
-    return "Read dedicated pages to expand your knowledge.";
-  }
-  if (lower.includes("water") || lower.includes("hydrate")) {
-    return "Stay hydrated throughout the day.";
-  }
-  if (lower.includes("run")) {
-    return "Run consistently to build endurance and stamina.";
-  }
-  if (lower.includes("meditat")) {
-    return "Practice mindfulness and calm your mind.";
-  }
+  if (!habitName) return "Daily routine execution.";
   return `Consistent daily execution for ${habitName}.`;
 }
 
@@ -500,7 +400,7 @@ function extractPayload(actionType: CoachActionType, data: any, existingHabits: 
   }
 
   if (actionType === "CREATE_HABIT") {
-    const cleanName = cleanHabitName(habitData.name || habitData.title || "Water Plants");
+    const cleanName = cleanHabitName(habitData.name || habitData.title || "Habit");
     const diff = habitData.difficulty || undefined;
     const { displayDifficulty, xp } = getStandardActionDifficulty(diff, cleanName);
     const { repeatType, customDays } = normalizeSchedule(habitData.repeatType || habitData.schedule, habitData.customDays);
@@ -511,7 +411,7 @@ function extractPayload(actionType: CoachActionType, data: any, existingHabits: 
       repeatType,
       customDays,
       notes: habitData.notes || habitData.description || habitData.note || getDefaultNotesForHabit(cleanName),
-      icon: habitData.icon || (cleanName.toLowerCase().includes("plant") ? "sprout" : "dumbbell"),
+      icon: habitData.icon || "dumbbell",
       category: habitData.category || habitData.color || "emerald",
     } as CreateHabitActionPayload;
   }
@@ -599,10 +499,10 @@ function parseKeyValueBody(actionType: CoachActionType, body: string, existingHa
 
 function parseStructuredCreateHabit(text: string): CreateHabitActionPayload {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  let name = "Water Plants";
-  let difficulty = "Easy";
+  let name = "";
+  let difficulty = "Medium";
   let repeatType = "every_day";
-  let notes = "Water your plants and keep the routine consistent.";
+  let notes = "";
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -639,7 +539,7 @@ function parseStructuredCreateHabit(text: string): CreateHabitActionPayload {
     repeatType: normRepeat,
     customDays,
     notes: notes || getDefaultNotesForHabit(cleanName),
-    icon: cleanName.toLowerCase().includes("plant") ? "sprout" : "dumbbell",
+    icon: "dumbbell",
     category: "emerald",
   };
 }

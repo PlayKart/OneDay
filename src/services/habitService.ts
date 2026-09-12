@@ -132,8 +132,22 @@ export const habitService = {
   async updateHabit(habitId: string, habitData: Partial<Habit>): Promise<Habit> {
     const fbUser = auth.currentUser || useStore.getState().firebaseUser;
     if (!fbUser) throw new Error("Not authenticated");
+    if (!habitId) throw new Error("Habit identifier is required for update");
 
-    const payload: any = { id: habitId, habitId };
+    // Resolve UUID if an alias/name was provided
+    let targetId = habitId;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId);
+    if (!isUuid) {
+      const storeHabits = useStore.getState().habits;
+      const matched = storeHabits.find(
+        (h) => h.id === targetId || h.name.toLowerCase() === targetId.toLowerCase()
+      );
+      if (matched && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(matched.id)) {
+        targetId = matched.id;
+      }
+    }
+
+    const payload: any = { id: targetId, habitId: targetId };
     if (habitData.name) { payload.name = habitData.name; payload.title = habitData.name; }
     if (habitData.repeatType) payload.repeatType = habitData.repeatType;
     if (habitData.customDays) payload.customDays = habitData.customDays;
@@ -143,14 +157,17 @@ export const habitService = {
     if (habitData.category) { payload.category = habitData.category; payload.color = habitData.category; }
     if (habitData.reminderTime !== undefined) payload.reminderTime = habitData.reminderTime;
 
-    console.log(`[HABIT SERVICE] Updating habit ${habitId} via PUT /api/habit...`);
+    console.log(`[HABIT SERVICE] Updating habit ${targetId} via PUT /api/habit...`);
     try {
       const response = await apiClient.put(`/api/habit`, payload);
+      if (response.data && response.data.success === false) {
+        throw new Error(response.data.error?.message || response.data.error || response.data.message || "Failed to update habit on backend");
+      }
       const rawData = response.data || {};
       const updated = rawData.data || rawData.habit || rawData;
 
       return {
-        id: habitId,
+        id: targetId,
         name: updated.title || updated.name || habitData.name || "Updated Habit",
         completedToday: Boolean(updated.completedToday),
         completedDates: safeArray(updated.completedDates),
@@ -163,8 +180,14 @@ export const habitService = {
         reminderTime: updated.reminderTime || habitData.reminderTime || "",
       };
     } catch (err: any) {
-      console.warn(`[HABIT SERVICE] Backend updateHabit failed:`, err?.message || err);
-      return { id: habitId, ...habitData } as any;
+      console.error(`[HABIT SERVICE] Backend updateHabit failed:`, err?.response?.data || err?.message || err);
+      const errMsg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to update habit on backend";
+      throw new Error(errMsg);
     }
   },
 
@@ -172,12 +195,39 @@ export const habitService = {
    * Deletes a habit via authoritative DELETE /api/habit/:habitId endpoint.
    */
   async deleteHabit(habitId: string): Promise<void> {
-    console.log(`[HABIT SERVICE] Deleting habit ${habitId} via DELETE /api/habit/${habitId}...`);
+    const fbUser = auth.currentUser || useStore.getState().firebaseUser;
+    if (!fbUser) throw new Error("Not authenticated");
+    if (!habitId) throw new Error("Habit identifier is required for deletion");
+
+    // Resolve UUID if an alias/name was provided
+    let targetId = habitId;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId);
+    if (!isUuid) {
+      const storeHabits = useStore.getState().habits;
+      const matched = storeHabits.find(
+        (h) => h.id === targetId || h.name.toLowerCase() === targetId.toLowerCase()
+      );
+      if (matched && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(matched.id)) {
+        targetId = matched.id;
+      }
+    }
+
+    console.log(`[HABIT SERVICE] Deleting habit ${targetId} via DELETE /api/habit/${targetId}...`);
     try {
-      await apiClient.delete(`/api/habit/${habitId}`);
-      console.log(`[HABIT SERVICE] Delete habit ${habitId} successful.`);
+      const response = await apiClient.delete(`/api/habit/${targetId}`);
+      if (response.data && response.data.success === false) {
+        throw new Error(response.data.error?.message || response.data.error || response.data.message || "Failed to delete habit on backend");
+      }
+      console.log(`[HABIT SERVICE] Delete habit ${targetId} successful.`);
     } catch (err: any) {
-      console.warn(`[HABIT SERVICE] Backend deleteHabit failed:`, err?.message || err);
+      console.error(`[HABIT SERVICE] Backend deleteHabit failed:`, err?.response?.data || err?.message || err);
+      const errMsg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to delete habit on backend";
+      throw new Error(errMsg);
     }
   },
 

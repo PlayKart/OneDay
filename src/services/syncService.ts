@@ -178,7 +178,7 @@ class SyncService {
 
     const dedupeKey = `sync_user_${activeFbUser.uid}`;
 
-    if (this.inflightPromises.has(dedupeKey)) {
+    if (!force && this.inflightPromises.has(dedupeKey)) {
       console.log("[SYNC] Deduplicating syncUserData request. Reusing active in-flight promise.");
       return this.inflightPromises.get(dedupeKey)!;
     }

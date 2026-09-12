@@ -237,60 +237,45 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     addHabit: async (habitData) => {
-      const tempId = `temp_${Date.now()}`;
-      const optimistic: Habit = {
-        id: tempId,
-        name: habitData.name || "New Habit",
-        completedToday: false,
-        completedDates: [],
-        repeatType: habitData.repeatType || "every_day",
-        customDays: habitData.customDays || [],
-        icon: habitData.icon || "dumbbell",
-        category: habitData.category || "emerald",
-        difficulty: habitData.difficulty || "Medium",
-        notes: habitData.notes || "",
-      };
-
-      set((state) => ({ habits: [optimistic, ...state.habits] }));
-
       try {
-        const created = await syncService.saveHabit(habitData);
-        set((state) => ({
-          habits: state.habits.map((h) => (h.id === tempId ? created : h)),
-        }));
+        await habitService.createHabit(habitData);
+        // Authoritative: immediately refetch habits from backend to prevent duplicates
+        const freshHabits = await habitService.getHabits();
+        set({ habits: safeArray(freshHabits) });
+        // Trigger background user stats sync
+        syncService.syncUserData(true).catch((e) => console.warn("[SYNC] post-create sync:", e));
       } catch (e) {
-        set((state) => ({ habits: state.habits.filter((h) => h.id !== tempId) }));
+        console.error("[useStore] addHabit error:", e);
         throw e;
       }
     },
 
     editHabit: async (habitId, habitData) => {
-      const original = get().habits.find((h) => h.id === habitId);
-      set((state) => ({
-        habits: state.habits.map((h) => (h.id === habitId ? { ...h, ...habitData } : h)),
-      }));
-
       try {
-        const updated = await syncService.saveHabit(habitData, habitId);
-        set((state) => ({
-          habits: state.habits.map((h) => (h.id === habitId ? updated : h)),
-        }));
+        await habitService.updateHabit(habitId, habitData);
+        // Authoritative: refetch fresh habits list from backend
+        const freshHabits = await habitService.getHabits();
+        set({ habits: safeArray(freshHabits) });
+        syncService.syncUserData(true).catch((e) => console.warn("[SYNC] post-edit sync:", e));
       } catch (e) {
-        if (original) {
-          set((state) => ({
-            habits: state.habits.map((h) => (h.id === habitId ? original : h)),
-          }));
-        }
+        console.error("[useStore] editHabit error:", e);
         throw e;
       }
     },
 
     deleteHabit: async (habitId) => {
       try {
+        // Backend/database is the ONLY source of truth.
+        // NEVER remove optimistically. Await backend confirmation first.
         await habitService.deleteHabit(habitId);
-        set((state) => ({ habits: state.habits.filter((h) => h.id !== habitId) }));
-        syncService.scheduleBackgroundSync(1000);
+        // Invalidate and immediately refetch fresh habits from backend
+        const freshHabits = await habitService.getHabits();
+        // Replace displayed habit list with authoritative server response
+        set({ habits: safeArray(freshHabits) });
+        // Background sync to update user stats
+        syncService.syncUserData(true).catch((e) => console.warn("[SYNC] post-delete sync:", e));
       } catch (e) {
+        console.error("[useStore] deleteHabit error:", e);
         throw e;
       }
     },
@@ -800,7 +785,17 @@ export const useStore = create<StoreState>((set, get) => {
       const sequence = ++selectSessionSequence;
 
       localStorage.setItem("activeChatId", id);
-      set({ activeChatId: id, chatLoading: true, coachError: null });
+      set({
+        activeChatId: id,
+        chatLoading: true,
+        coachError: null,
+        pendingHabitAction: null,
+        pendingActions: {},
+        isSendingMessage: false,
+        isGeneratingCoachResponse: false,
+        isPreparingHabit: false,
+        isConfirmingHabit: false,
+      });
 
       try {
         const msgs = await chatService.getMessages(id, signal);
@@ -1263,12 +1258,16 @@ export const useStore = create<StoreState>((set, get) => {
         return {
           pendingHabitAction: nextPendingHabit,
           pendingActions: next,
+          isPreparingHabit: false,
+          isConfirmingHabit: false,
           chatMessages: state.chatMessages.map((m) =>
             m.actionId === actionId
               ? {
                   ...m,
-                  status: "CREATED",
+                  status: m.status === "FAILED" ? "FAILED" : m.status === "CANCELLED" ? "CANCELLED" : "COMPLETED",
                   preview: undefined,
+                  action: undefined,
+                  actionPayload: undefined,
                 }
               : m
           ),
