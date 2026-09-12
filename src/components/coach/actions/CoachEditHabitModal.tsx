@@ -23,27 +23,21 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
 }) => {
   const { habits, editHabit, refreshFromBackend } = useStore();
 
-  // Find existing habit matching ID or name if available
-  const existingHabit = habits.find(
-    (h) => h.id === initialPayload.habitId || h.name.toLowerCase() === (initialPayload.name || "").toLowerCase()
-  );
+  const habitId = initialPayload.habitId;
 
-  const [name, setName] = useState(initialPayload.name || existingHabit?.name || "");
+  const [name, setName] = useState(initialPayload.name || "");
   const [repeatType, setRepeatType] = useState<"every_day" | "weekdays" | "weekends" | "custom_days">(
-    (existingHabit?.repeatType as any) || (initialPayload.repeatType as any) || "every_day"
+    (initialPayload.repeatType as any) || "every_day"
   );
   const [customDays, setCustomDays] = useState<string[]>(() => {
-    if (Array.isArray(initialPayload.customDays) && initialPayload.customDays.length > 0) {
-      return initialPayload.customDays;
-    }
-    return Array.isArray(existingHabit?.customDays) ? existingHabit.customDays : [];
+    return Array.isArray(initialPayload.customDays) ? initialPayload.customDays : [];
   });
   const [difficulty, setDifficulty] = useState(
-    toDisplayDifficulty(initialPayload.difficulty || existingHabit?.difficulty || "Medium")
+    toDisplayDifficulty(initialPayload.difficulty || "Medium")
   );
-  const [notes, setNotes] = useState(initialPayload.notes || existingHabit?.notes || "");
-  const [selectedIcon, setSelectedIcon] = useState(initialPayload.icon || existingHabit?.icon || "dumbbell");
-  const [selectedColor, setSelectedColor] = useState(initialPayload.category || existingHabit?.category || "emerald");
+  const [notes, setNotes] = useState(initialPayload.notes || "");
+  const [selectedIcon, setSelectedIcon] = useState(initialPayload.icon || "dumbbell");
+  const [selectedColor, setSelectedColor] = useState(initialPayload.category || "emerald");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -83,7 +77,7 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
       return;
     }
 
-    const habitId = existingHabit?.id || initialPayload.habitId;
+    const habitId = initialPayload.habitId;
     if (!habitId) {
       toast.error("Habit record identifier not found. Please verify the habit exists.");
       return;

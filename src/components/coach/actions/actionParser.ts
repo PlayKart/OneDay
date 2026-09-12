@@ -265,9 +265,13 @@ export function parseCoachActionFromMessage(
       };
     }
 
+    if (rawIntent === "HABIT_NOT_FOUND" || rawActionName === "HABIT_NOT_FOUND" || msg.action === "HABIT_NOT_FOUND") {
+      return null;
+    }
+
     if (rawIntent === "UPDATE_HABIT" || rawIntent === "EDIT_HABIT" || rawActionName === "OPEN_EDIT_HABIT") {
-      const payload = extractPayload("UPDATE_HABIT", rawPreview || msg.data || msg, existingHabits);
-      const rawHabitId = msg.habit_id || msg.habitId || msg.data?.habit_id || msg.data?.habitId || rawPreview?.habit_id || rawPreview?.habitId || rawPreview?.id;
+      const payload = extractPayload("UPDATE_HABIT", rawPreview || msg.habit || msg.data || msg, existingHabits);
+      const rawHabitId = msg.habit_id || msg.habitId || msg.data?.habit_id || msg.data?.habitId || rawPreview?.habit_id || rawPreview?.habitId || rawPreview?.id || (msg.habit && (msg.habit.id || msg.habit.habit_id));
       if (rawHabitId && !payload.habitId) {
         payload.habitId = rawHabitId;
       }
@@ -417,24 +421,26 @@ function extractPayload(actionType: CoachActionType, data: any, existingHabits: 
   }
 
   if (actionType === "UPDATE_HABIT") {
-    const targetId = habitData.habit_id || habitData.habitId || habitData.id;
-    const targetName = habitData.name || habitData.title || habitData.habit_name || "";
-    const matchedHabit = existingHabits.find(
-      (h) => (targetId && h.id === targetId) || (targetName && h.name.toLowerCase() === targetName.toLowerCase())
+    const targetId = habitData.habit_id || habitData.habitId || habitData.id || data.habit_id || data.habitId || data.id;
+    const targetName = habitData.name || habitData.title || habitData.habit_name || data.name || data.title || "";
+    const diff = habitData.difficulty || data.difficulty || "Medium";
+    const { displayDifficulty, xp } = getStandardActionDifficulty(diff, targetName);
+    const { repeatType, customDays } = normalizeSchedule(
+      habitData.repeat_type || habitData.repeatType || habitData.schedule || data.repeat_type || data.repeatType,
+      habitData.custom_days || habitData.customDays || data.custom_days || data.customDays
     );
-    const diff = habitData.difficulty || matchedHabit?.difficulty || "Medium";
-    const { displayDifficulty, xp } = getStandardActionDifficulty(diff, targetName || matchedHabit?.name || "");
 
     return {
-      habitId: targetId || matchedHabit?.id || habitData.habitId || "",
-      name: matchedHabit?.name || targetName || "Habit",
+      habitId: targetId || "",
+      name: targetName || "Habit",
       difficulty: displayDifficulty,
-      xp: habitData.xp || (matchedHabit as any)?.xp || xp,
-      repeatType: habitData.repeat_type || habitData.repeatType || matchedHabit?.repeatType || "every_day",
-      customDays: habitData.custom_days || habitData.customDays || matchedHabit?.customDays || [],
-      notes: habitData.notes || habitData.note || matchedHabit?.notes || "",
-      icon: habitData.icon || matchedHabit?.icon || "dumbbell",
-      category: habitData.category || habitData.colour || habitData.color || matchedHabit?.category || "emerald",
+      xp: habitData.xp || data.xp || xp,
+      repeatType,
+      customDays,
+      notes: habitData.notes || habitData.description || habitData.note || data.notes || data.description || "",
+      icon: habitData.icon || habitData.icon_id || habitData.iconId || data.icon || "dumbbell",
+      category: habitData.category || habitData.colour || habitData.color || data.category || data.colour || "emerald",
+      reminderTime: habitData.reminder_time || habitData.reminderTime || data.reminder_time || "",
     } as UpdateHabitActionPayload;
   }
 

@@ -58,6 +58,14 @@ interface StoreState {
   pendingHabitAction: CoachPendingAction | null;
   pendingActions: Record<string, CoachPendingAction>;
   coachError: string | null;
+  editingHabit?: any | null;
+  editingHabitId?: string | null;
+  selectedHabit?: any | null;
+  selectedHabitId?: string | null;
+  pendingAction?: any | null;
+  pendingHabit?: any | null;
+  proposedHabit?: any | null;
+  previewHabit?: any | null;
 
   // Actions
   setFirebaseUser: (fbUser: FirebaseUser | null) => void;
@@ -785,6 +793,14 @@ export const useStore = create<StoreState>((set, get) => {
         isConfirmingHabit: false,
         chatLoading: false,
         coachError: null,
+        editingHabit: null,
+        editingHabitId: null,
+        selectedHabit: null,
+        selectedHabitId: null,
+        pendingAction: null,
+        pendingHabit: null,
+        proposedHabit: null,
+        previewHabit: null,
       });
       localStorage.removeItem("activeChatId");
       return "";
