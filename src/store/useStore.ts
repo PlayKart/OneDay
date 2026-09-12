@@ -283,15 +283,23 @@ export const useStore = create<StoreState>((set, get) => {
         await habitService.deleteHabit(habitId);
         // Invalidate and immediately refetch fresh habits from backend
         const freshHabits = await habitService.getHabits();
-        // Replace displayed habit list with authoritative server response
+        // Replace displayed habit list with authoritative server response and optimistically deduct XP
         set((state) => {
           const nextPendingHabit =
             state.pendingHabitAction?.payload?.id === habitId ||
             state.pendingHabitAction?.payload?.habitId === habitId
               ? null
               : state.pendingHabitAction;
+              
+          const currentUser = state.user;
+          const nextUser = currentUser ? {
+            ...currentUser,
+            xp: Math.max(0, (currentUser.xp || 0) - 20)
+          } : null;
+
           return {
             habits: safeArray(freshHabits),
+            user: nextUser,
             pendingHabitAction: nextPendingHabit,
             isPreparingHabit: false,
             isConfirmingHabit: false,

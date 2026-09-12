@@ -57,7 +57,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
     setIsDeleting(true);
     try {
       await deleteHabit(habit.id);
-      toast.success("Habit deleted successfully.");
+      toast.success("Habit deleted (-20 XP)");
       setDeleteConfirmationHabit(null);
     } catch (err: any) {
       console.error("Failed to delete habit:", err);
