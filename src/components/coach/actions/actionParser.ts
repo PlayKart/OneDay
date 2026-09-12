@@ -239,7 +239,7 @@ export function parseCoachActionFromMessage(
         rawPreview?.custom_days || rawPreview?.customDays
       );
       const notes = rawPreview?.notes || rawPreview?.description || rawPreview?.note || rawPreview?.reason || getDefaultNotesForHabit(cleanName);
-      const icon = rawPreview?.icon || rawPreview?.icon_id || rawPreview?.iconId || (cleanName.toLowerCase().includes("plant") ? "sprout" : "dumbbell");
+      const icon = rawPreview?.icon || rawPreview?.icon_id || rawPreview?.iconId || "dumbbell";
       const category = rawPreview?.colour || rawPreview?.color || rawPreview?.category || "emerald";
 
       return {

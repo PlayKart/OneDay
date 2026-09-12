@@ -1,6 +1,6 @@
 import { useStore } from "../../store/useStore";
 import { HabitList } from "../HabitList";
-import { useState, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Plus, ListFilter, BarChart3, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -13,8 +13,13 @@ const CreateHabitModal = lazy(() =>
 );
 
 export function HabitsScreen() {
+  const { refreshFromBackend } = useStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<"list" | "trends">("list");
+
+  useEffect(() => {
+    refreshFromBackend().catch((e) => console.warn("[HabitsScreen] initial sync:", e));
+  }, []);
 
   return (
     <motion.div 

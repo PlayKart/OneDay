@@ -1,18 +1,18 @@
 // src/hooks/useHabits.ts
 
-import { useHabitStore } from "../store/habitStore";
+import { useStore } from "../store/useStore";
 
 export function useHabits() {
   const {
     habits,
     loading,
-    fetchHabits,
+    refreshFromBackend,
     addHabit,
     editHabit,
     deleteHabit,
     completeHabit,
     undoHabit,
-  } = useHabitStore();
+  } = useStore();
 
   const completedTodayCount = habits.filter((h) => h.completedToday).length;
 
@@ -21,7 +21,7 @@ export function useHabits() {
     loading,
     completedTodayCount,
     totalHabitsCount: habits.length,
-    fetchHabits,
+    fetchHabits: refreshFromBackend,
     addHabit,
     editHabit,
     deleteHabit,

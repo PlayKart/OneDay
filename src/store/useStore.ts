@@ -212,7 +212,12 @@ export const useStore = create<StoreState>((set, get) => {
       set((state) => ({ profileVersion: state.profileVersion + 1 }));
     },
 
-    setActiveTab: (tab) => set({ activeTab: tab }),
+    setActiveTab: (tab) => {
+      set({ activeTab: tab });
+      if (tab === "habits" || tab === "dashboard" || tab === "coach") {
+        get().refreshFromBackend().catch((e) => console.warn("[TAB SWITCH] refresh error:", e));
+      }
+    },
     setTitleUnlockData: (data) => set({ titleUnlockData: data }),
     setTitleLossData: (data) => set({ titleLossData: data }),
     setLevelUpData: (data) => set({ levelUpData: data }),
@@ -241,7 +246,7 @@ export const useStore = create<StoreState>((set, get) => {
         await habitService.createHabit(habitData);
         // Authoritative: immediately refetch habits from backend to prevent duplicates
         const freshHabits = await habitService.getHabits();
-        set({ habits: safeArray(freshHabits) });
+        set({ habits: safeArray(freshHabits), pendingHabitAction: null });
         // Trigger background user stats sync
         syncService.syncUserData(true).catch((e) => console.warn("[SYNC] post-create sync:", e));
       } catch (e) {
@@ -271,9 +276,21 @@ export const useStore = create<StoreState>((set, get) => {
         // Invalidate and immediately refetch fresh habits from backend
         const freshHabits = await habitService.getHabits();
         // Replace displayed habit list with authoritative server response
-        set({ habits: safeArray(freshHabits) });
-        // Background sync to update user stats
-        syncService.syncUserData(true).catch((e) => console.warn("[SYNC] post-delete sync:", e));
+        set((state) => {
+          const nextPendingHabit =
+            state.pendingHabitAction?.payload?.id === habitId ||
+            state.pendingHabitAction?.payload?.habitId === habitId
+              ? null
+              : state.pendingHabitAction;
+          return {
+            habits: safeArray(freshHabits),
+            pendingHabitAction: nextPendingHabit,
+            isPreparingHabit: false,
+            isConfirmingHabit: false,
+          };
+        });
+        // Authoritative background sync to update user stats
+        await syncService.syncUserData(true);
       } catch (e) {
         console.error("[useStore] deleteHabit error:", e);
         throw e;
@@ -1068,6 +1085,24 @@ export const useStore = create<StoreState>((set, get) => {
               chatLoading: false,
             };
           });
+
+          // Check if the server response itself executed a DELETE_HABIT or confirmed habit deletion
+          const rawRes = res as any;
+          const isConfirmedServerDelete =
+            (rawRes?.action === "DELETE_HABIT" || rawRes?.data?.action === "DELETE_HABIT" || rawIntent === "DELETE_HABIT") &&
+            (rawRes?.deleted === true || rawRes?.data?.deleted === true || rawStatus === "DELETED" || rawStatus === "COMPLETED");
+
+          if (isConfirmedServerDelete) {
+            habitService.getHabits().then((fresh) => {
+              set((state) => ({
+                habits: safeArray(fresh),
+                pendingHabitAction: null,
+                isPreparingHabit: false,
+                isConfirmingHabit: false,
+              }));
+            }).catch((err) => console.warn("Failed to refetch habits after server deletion response:", err));
+            syncService.syncUserData(true).catch((e) => console.warn("[SYNC] post-delete sync:", e));
+          }
         }
 
         // Title Auto Update logic
