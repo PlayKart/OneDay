@@ -257,7 +257,8 @@ export function parseCoachActionFromMessage(
     const msg = messageOrContent;
     const rawType = (msg.type || msg.data?.type || "").toLowerCase().trim();
     const rawStatus = (msg.status || msg.data?.status || "").toLowerCase().trim();
-    const rawIntent = (msg.intent || msg.action || msg.data?.intent || msg.data?.action || "").toUpperCase().trim();
+    const rawIntent = (msg.intent || msg.data?.intent || "").toUpperCase().trim();
+    const rawActionName = (msg.action || msg.data?.action || msg.intent_action || "").toUpperCase().trim();
     const rawPreview = msg.preview || msg.actionPayload || msg.habit || msg.data?.preview || msg.data?.habit;
     const actionId = msg.actionId || msg.data?.actionId || rawPreview?.actionId;
     const sessionId = msg.sessionId || msg.session_id;
@@ -364,28 +365,53 @@ export function parseCoachActionFromMessage(
       };
     }
 
-    if (rawIntent === "UPDATE_HABIT" || rawIntent === "EDIT_HABIT") {
-      const payload = extractPayload("UPDATE_HABIT", rawPreview || {}, existingHabits);
-      if (payload?.name) {
-        return {
-          type: "UPDATE_HABIT",
-          payload,
-          cleanedText: "Review and update your habit:",
-          rawText: msg.content || "",
-        };
+    if (rawIntent === "UPDATE_HABIT" || rawIntent === "EDIT_HABIT" || rawActionName === "OPEN_EDIT_HABIT") {
+      const payload = extractPayload("UPDATE_HABIT", rawPreview || msg.data || msg, existingHabits);
+      const rawHabitId = msg.habit_id || msg.habitId || msg.data?.habit_id || msg.data?.habitId || rawPreview?.habit_id || rawPreview?.habitId || rawPreview?.id;
+      if (rawHabitId && !payload.habitId) {
+        payload.habitId = rawHabitId;
       }
+      return {
+        type: "UPDATE_HABIT",
+        action: rawActionName || "OPEN_EDIT_HABIT",
+        actionId,
+        sessionId,
+        status: rawStatus || "OPEN_EDIT_HABIT",
+        messageId: msg.id,
+        payload,
+        cleanedText: msg.content || `Configure your ${payload.name || "habit"}:`,
+        rawText: msg.content || "",
+      };
     }
 
     if (rawIntent === "DELETE_HABIT") {
-      const payload = extractPayload("DELETE_HABIT", rawPreview || {}, existingHabits);
-      if (payload?.name) {
-        return {
-          type: "DELETE_HABIT",
-          payload,
-          cleanedText: `Preparing to remove **${payload.name || "Habit"}** from your routine:`,
-          rawText: msg.content || "",
-        };
+      const rawActionName = (msg.action || msg.data?.action || "").toUpperCase().trim();
+      const rawStatusName = (msg.status || msg.data?.status || "").toUpperCase().trim();
+      const currentStatus = rawStatusName || rawActionName || "AWAITING_CONFIRMATION";
+
+      if (currentStatus === "DELETED" || currentStatus === "CONFIRMED" || currentStatus === "CANCELLED" || currentStatus === "COMPLETED") {
+        return null;
       }
+
+      const payload = extractPayload("DELETE_HABIT", rawPreview || msg.data || msg, existingHabits);
+      const rawHabitId = msg.habit_id || msg.habitId || msg.data?.habit_id || msg.data?.habitId || rawPreview?.habit_id || rawPreview?.habitId || rawPreview?.id;
+      if (rawHabitId && !payload.habitId) {
+        payload.habitId = rawHabitId;
+      }
+      (payload as any).status = currentStatus;
+      (payload as any).action = rawActionName;
+
+      return {
+        type: "DELETE_HABIT",
+        action: rawActionName || currentStatus,
+        status: currentStatus,
+        actionId,
+        sessionId,
+        messageId: msg.id,
+        payload,
+        cleanedText: msg.content || (currentStatus === "AWAITING_REASON" ? `Before I remove ${payload.name || "habit"}, what happened?` : `Are you sure you want to delete ${payload.name || "habit"}?`),
+        rawText: msg.content || "",
+      };
     }
 
     if (rawIntent === "RESTORE_HABIT") {
@@ -491,35 +517,37 @@ function extractPayload(actionType: CoachActionType, data: any, existingHabits: 
   }
 
   if (actionType === "UPDATE_HABIT") {
-    const targetName = habitData.name || habitData.title || "";
+    const targetId = habitData.habit_id || habitData.habitId || habitData.id;
+    const targetName = habitData.name || habitData.title || habitData.habit_name || "";
     const matchedHabit = existingHabits.find(
-      (h) => h.id === habitData.habitId || h.id === habitData.id || h.name.toLowerCase() === targetName.toLowerCase()
+      (h) => (targetId && h.id === targetId) || (targetName && h.name.toLowerCase() === targetName.toLowerCase())
     );
     const diff = habitData.difficulty || matchedHabit?.difficulty || "Medium";
-    const { displayDifficulty, xp } = getStandardActionDifficulty(diff, targetName);
+    const { displayDifficulty, xp } = getStandardActionDifficulty(diff, targetName || matchedHabit?.name || "");
 
     return {
-      habitId: habitData.habitId || habitData.id || matchedHabit?.id || "",
-      name: targetName || matchedHabit?.name || "Habit",
+      habitId: targetId || matchedHabit?.id || habitData.habitId || "",
+      name: matchedHabit?.name || targetName || "Habit",
       difficulty: displayDifficulty,
-      xp: habitData.xp || xp,
-      repeatType: habitData.repeatType || matchedHabit?.repeatType || "every_day",
-      customDays: habitData.customDays || matchedHabit?.customDays || [],
+      xp: habitData.xp || (matchedHabit as any)?.xp || xp,
+      repeatType: habitData.repeat_type || habitData.repeatType || matchedHabit?.repeatType || "every_day",
+      customDays: habitData.custom_days || habitData.customDays || matchedHabit?.customDays || [],
       notes: habitData.notes || habitData.note || matchedHabit?.notes || "",
       icon: habitData.icon || matchedHabit?.icon || "dumbbell",
-      category: habitData.category || habitData.color || matchedHabit?.category || "emerald",
+      category: habitData.category || habitData.colour || habitData.color || matchedHabit?.category || "emerald",
     } as UpdateHabitActionPayload;
   }
 
   if (actionType === "DELETE_HABIT") {
-    const targetName = habitData.name || habitData.title || habitData.habitName || "";
+    const targetId = habitData.habit_id || habitData.habitId || habitData.id;
+    const targetName = habitData.name || habitData.title || habitData.habitName || habitData.habit_name || "";
     const matchedHabit = existingHabits.find(
-      (h) => h.id === habitData.habitId || h.id === habitData.id || h.name.toLowerCase() === targetName.toLowerCase()
+      (h) => (targetId && h.id === targetId) || (targetName && h.name.toLowerCase() === targetName.toLowerCase())
     );
 
     return {
-      habitId: habitData.habitId || habitData.id || matchedHabit?.id || "",
-      name: targetName || matchedHabit?.name || "Habit",
+      habitId: targetId || matchedHabit?.id || habitData.habitId || "",
+      name: matchedHabit?.name || targetName || "Habit",
       reason: habitData.reason || "",
       deletedHabitSnapshot: matchedHabit,
     } as DeleteHabitActionPayload;

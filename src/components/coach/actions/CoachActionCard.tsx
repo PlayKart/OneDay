@@ -11,7 +11,9 @@ import { CoachRestoreHabitCard } from "./CoachRestoreHabitCard";
 import { CoachUndoBanner } from "./CoachUndoBanner";
 import { CoachQueryCard } from "./CoachQueryCard";
 import { Habit } from "../../../types";
-import { Edit3, Trash2, UserCircle, Plus } from "lucide-react";
+import { useStore } from "../../../store/useStore";
+import { toast } from "react-hot-toast";
+import { Edit3, Trash2, UserCircle, Plus, Check, Loader2 } from "lucide-react";
 
 interface CoachActionCardProps {
   action: ParsedCoachAction;
@@ -22,10 +24,16 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
   action,
   onActionComplete,
 }) => {
-  const [showEditModal, setShowEditModal] = useState(false);
+  const { deleteHabit, refreshFromBackend } = useStore();
+  const [showEditModal, setShowEditModal] = useState(
+    () => action.type === "UPDATE_HABIT" || action.action === "OPEN_EDIT_HABIT"
+  );
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [deletedHabitSnapshot, setDeletedHabitSnapshot] = useState<Habit | null>(null);
+  const [isDeletingInline, setIsDeletingInline] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
+  const [isCancelled, setIsCancelled] = useState(false);
 
   // 1. MULTI HABIT CREATION PREVIEW
   if (action.type === "CREATE_HABITS" || (action.type === "CREATE_HABIT" && Array.isArray(action.payload?.habits))) {
@@ -98,43 +106,132 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
   // 4. DELETE HABIT
   if (action.type === "DELETE_HABIT") {
     const habitName = action.payload.name || "Habit";
+    const habitId = action.payload.habitId;
+    const status = (action.status || (action.payload as any)?.status || "").toUpperCase();
+
+    // If awaiting reason, user will reply in chat with reason; do not show confirmation card yet
+    if (status === "AWAITING_REASON") {
+      return null;
+    }
+
+    if (deletedHabitSnapshot) {
+      return (
+        <CoachUndoBanner
+          deletedHabit={deletedHabitSnapshot}
+          onRestored={(restored) => {
+            setDeletedHabitSnapshot(null);
+            if (onActionComplete) {
+              onActionComplete(`✓ ${restored.name} restored.`);
+            }
+          }}
+        />
+      );
+    }
+
+    if (isDeleted) {
+      return (
+        <div className="mt-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+          <Check size={14} />
+          <span>✓ {habitName} deleted.</span>
+        </div>
+      );
+    }
+
+    if (isCancelled) {
+      return (
+        <div className="mt-2.5 p-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-xs font-semibold">
+          Kept {habitName}.
+        </div>
+      );
+    }
+
+    const handleConfirmInlineDelete = async () => {
+      if (isDeletingInline || !habitId) {
+        if (!habitId) {
+          toast.error("Habit record identifier not found.");
+        }
+        return;
+      }
+      setIsDeletingInline(true);
+      try {
+        const habitSnapshot = action.payload.deletedHabitSnapshot || {
+          id: habitId,
+          name: habitName,
+          completedToday: false,
+          completedDates: [],
+          repeatType: "every_day" as any,
+          difficulty: "Medium",
+          notes: "",
+          icon: "dumbbell",
+          category: "emerald",
+        };
+        await deleteHabit(habitId);
+        await refreshFromBackend();
+        setIsDeleted(true);
+        setDeletedHabitSnapshot(habitSnapshot as Habit);
+        toast.success(`✓ ${habitName} deleted.`);
+        if (onActionComplete) {
+          onActionComplete(`✓ ${habitName} deleted.`);
+        }
+      } catch (err: any) {
+        console.error("[CoachActionCard] Delete habit error:", err);
+        toast.error("Failed to delete habit.");
+      } finally {
+        setIsDeletingInline(false);
+      }
+    };
+
+    const handleCancelInlineDelete = () => {
+      setIsCancelled(true);
+      if (onActionComplete) {
+        onActionComplete(`Kept ${habitName}.`);
+      }
+    };
+
     return (
-      <div className="mt-3 w-full">
-        {deletedHabitSnapshot ? (
-          <CoachUndoBanner
-            deletedHabit={deletedHabitSnapshot}
-            onRestored={(restored) => {
-              setDeletedHabitSnapshot(null);
-              if (onActionComplete) {
-                onActionComplete(`✓ ${restored.name} restored.`);
-              }
-            }}
-          />
-        ) : (
-          <div className="p-3.5 rounded-2xl bg-[#0e0e14] border border-rose-500/20 shadow-xl flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
-                <Trash2 size={16} />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400 font-mono block">
-                  DELETE HABIT
-                </span>
-                <span className="text-xs font-bold text-white truncate block">
-                  {habitName}
-                </span>
-              </div>
+      <div className="mt-3 w-full space-y-2">
+        <div className="p-4 rounded-2xl bg-[#0e0e14] border border-rose-500/30 shadow-xl space-y-3.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
+              <Trash2 size={16} />
             </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400 font-mono block">
+                DELETE CONFIRMATION
+              </span>
+              <span className="text-xs font-bold text-white truncate block">
+                Are you sure you want to delete {habitName}?
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={handleCancelInlineDelete}
+              disabled={isDeletingInline}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40"
+            >
+              CANCEL
+            </button>
 
             <button
               type="button"
-              onClick={() => setShowDeleteModal(true)}
-              className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer shrink-0"
+              onClick={handleConfirmInlineDelete}
+              disabled={isDeletingInline}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-rose-600/20 disabled:opacity-60 flex items-center justify-center gap-2"
             >
-              Review
+              {isDeletingInline ? (
+                <>
+                  <Loader2 size={14} className="animate-spin text-white" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <span>DELETE</span>
+              )}
             </button>
           </div>
-        )}
+        </div>
 
         {showDeleteModal && (
           <CoachDeleteHabitModal
@@ -142,6 +239,7 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
             onClose={() => setShowDeleteModal(false)}
             onSuccess={(snapshot) => {
               setDeletedHabitSnapshot(snapshot);
+              setIsDeleted(true);
               if (onActionComplete) {
                 onActionComplete(`✓ ${snapshot.name} deleted.`);
               }

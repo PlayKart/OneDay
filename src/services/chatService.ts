@@ -79,8 +79,11 @@ export const chatService = {
         role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
         content: m.content || m.message || m.text || "",
         createdAt: m.createdAt || m.created_at || new Date().toISOString(),
-        intent: m.intent || m.data?.intent || m.action || m.data?.action,
+        intent: m.intent || m.data?.intent,
         status: m.status || m.data?.status,
+        actionId: m.actionId || m.data?.actionId,
+        habit_id: m.habit_id || m.habitId || m.data?.habit_id || m.data?.habitId || m.preview?.habit_id || m.preview?.id,
+        habitId: m.habit_id || m.habitId || m.data?.habit_id || m.data?.habitId || m.preview?.habit_id || m.preview?.id,
         preview: m.preview || m.data?.preview || m.habit || m.data?.habit,
         action: m.action || m.data?.action || m.intent || m.data?.intent,
         actionPayload: m.actionPayload || m.data?.actionPayload || m.preview || m.data?.preview,
@@ -122,6 +125,8 @@ export const chatService = {
     status?: string;
     intent?: string;
     actionId?: string;
+    habit_id?: string;
+    habitId?: string;
     habit?: any;
     reply: string;
     title?: string;
@@ -169,22 +174,26 @@ export const chatService = {
       // Authoritative extraction without loose intent guessing
       const rawType = body?.type || body?.data?.type || (body?.intent === "CREATE_HABIT" ? "habit_creation_preview" : "coach_response");
       const rawStatus = body?.status || body?.data?.status || "complete";
-      const rawIntent = body?.intent || body?.data?.intent || body?.action || body?.data?.action || "NORMAL_COACH";
+      const rawIntent = body?.intent || body?.data?.intent || "NORMAL_COACH";
+      const rawAction = body?.action || body?.data?.action || body?.action_name || body?.intent_action || rawIntent;
       const rawActionId = body?.actionId || body?.data?.actionId || body?.habit?.actionId || body?.preview?.actionId;
-      const rawHabit = body?.habit || body?.preview || body?.data?.habit || body?.data?.preview;
+      const rawHabitId = body?.habit_id || body?.habitId || body?.data?.habit_id || body?.data?.habitId || body?.habit?.id || body?.preview?.id;
+      const rawHabit = body?.habit || body?.preview || body?.data?.habit || body?.data?.preview || (rawHabitId ? { habit_id: rawHabitId, habitId: rawHabitId, name: body?.habit_name || body?.data?.habit_name } : undefined);
 
       return {
         type: rawType,
         status: rawStatus,
         intent: rawIntent,
+        action: rawAction,
         actionId: rawActionId,
+        habit_id: rawHabitId,
+        habitId: rawHabitId,
         habit: rawHabit,
         reply: replyText,
         title: titleText,
         messages: body?.messages ? safeArray(body.messages) : undefined,
         sessionId: returnedSessionId,
         preview: rawHabit,
-        action: rawIntent,
         actionPayload: rawHabit,
         data: body?.data,
       };

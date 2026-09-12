@@ -91,6 +91,8 @@ export interface ChatMessage {
   intent?: string;
   status?: string;
   actionId?: string;
+  habit_id?: string;
+  habitId?: string;
   preview?: any;
   action?: string;
   actionPayload?: any;

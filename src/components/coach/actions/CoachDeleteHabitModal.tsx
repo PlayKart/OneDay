@@ -42,7 +42,16 @@ export const CoachDeleteHabitModal: React.FC<CoachDeleteHabitModalProps> = ({
   const habitName = matchedHabit?.name || payload.name || "Habit";
   const habitId = matchedHabit?.id || payload.habitId;
 
-  const [step, setStep] = useState<"reason" | "confirm">("reason");
+  const [step, setStep] = useState<"reason" | "confirm">(() => {
+    if (
+      payload.status === "AWAITING_CONFIRMATION" ||
+      payload.action === "AWAITING_CONFIRMATION" ||
+      payload.reason
+    ) {
+      return "confirm";
+    }
+    return "reason";
+  });
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [mounted, setMounted] = useState(false);

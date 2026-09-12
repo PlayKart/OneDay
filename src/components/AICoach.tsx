@@ -45,11 +45,13 @@ export const AICoach: React.FC = () => {
   const prevLoadingRef = useRef(chatLoading);
   const prevMsgCountRef = useRef(chatMessages?.length || 0);
   const userJustSentRef = useRef(false);
+  const hasFetchedInitialSessions = useRef(false);
 
-  // Fetch initial chat sessions safely when store is initialized
+  // Fetch initial chat sessions safely ONCE when store is initialized
   useEffect(() => {
-    if (initialized) {
-      fetchSessions();
+    if (initialized && !hasFetchedInitialSessions.current) {
+      hasFetchedInitialSessions.current = true;
+      fetchSessions(false);
     }
   }, [initialized, fetchSessions]);
 
@@ -101,14 +103,13 @@ export const AICoach: React.FC = () => {
 
   // Handlers
   const handleSendMessage = async (text: string) => {
+    if (!text.trim() || chatLoading) return;
     userJustSentRef.current = true;
     scrollToBottom(true);
     try {
-      await sendChatMessage(text);
+      await sendChatMessage(text.trim());
     } catch (err: any) {
-      console.error("[AICoach] Delivery failed:", err);
-      toast.error(err?.message || "Delivery failed. Restored your input.");
-      throw err;
+      console.error("[AICoach] Delivery non-fatal error:", err);
     }
   };
 
@@ -118,7 +119,7 @@ export const AICoach: React.FC = () => {
       id: `action-res-${Date.now()}`,
       role: "assistant" as const,
       content: resultMessage,
-      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     };
 
     useStore.setState((state) => ({

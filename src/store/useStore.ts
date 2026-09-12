@@ -81,7 +81,7 @@ interface StoreState {
   deleteAccount: () => Promise<void>;
 
   // Multi-session chat actions
-  fetchSessions: () => Promise<void>;
+  fetchSessions: (forceSelect?: boolean) => Promise<void>;
   createSession: (title?: string) => Promise<string>;
   selectSession: (id: string) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
@@ -704,7 +704,7 @@ export const useStore = create<StoreState>((set, get) => {
       set({ user: null, habits: [], chatSessions: [], chatMessages: [] });
     },
 
-    fetchSessions: async () => {
+    fetchSessions: async (forceSelect = false) => {
       // If store is not initialized or user is not logged in, skip safely
       if (!get().initialized) {
         console.log("[useStore] fetchSessions skipped: waiting for app/auth initialization");
@@ -737,16 +737,22 @@ export const useStore = create<StoreState>((set, get) => {
 
           set({ chatSessions: sorted, coachError: null });
 
-          if (sorted.length > 0) {
-            const savedActiveId = localStorage.getItem("activeChatId") || get().activeChatId;
-            const targetSession = sorted.find((s) => s.id === savedActiveId) || sorted[0];
-            if (targetSession) {
-              console.log(`[useStore] Restoring/selecting session ${targetSession.id}`);
-              await get().selectSession(targetSession.id);
+          const currentActive = get().activeChatId;
+          const currentMessages = get().chatMessages;
+
+          // Only auto-select if explicitly requested (e.g. cold start) AND there is no active chat / in-memory conversation
+          if (forceSelect || (!currentActive && (!currentMessages || currentMessages.length === 0))) {
+            if (sorted.length > 0) {
+              const savedActiveId = localStorage.getItem("activeChatId") || currentActive;
+              const targetSession = sorted.find((s) => s.id === savedActiveId) || sorted[0];
+              if (targetSession) {
+                console.log(`[useStore] Restoring/selecting session ${targetSession.id}`);
+                await get().selectSession(targetSession.id);
+              }
+            } else {
+              console.log("[useStore] No sessions found, delaying backend creation.");
+              set({ activeChatId: null, chatMessages: [] });
             }
-          } else {
-            console.log("[useStore] No sessions found, delaying backend creation.");
-            set({ activeChatId: null, chatMessages: [] });
           }
         } catch (e: any) {
           if (e?.name !== "CanceledError" && e?.name !== "AbortError") {
@@ -925,14 +931,29 @@ export const useStore = create<StoreState>((set, get) => {
 
       try {
         const res = await chatService.sendMessage(activeId || null, messageText);
-        const reply = res.reply || "Focus on daily execution.";
+        const reply = typeof res?.reply === "string" ? res.reply : "Focus on daily execution.";
         const returnedSessionId = res.sessionId;
 
         if (returnedSessionId && returnedSessionId !== activeId) {
           activeId = returnedSessionId;
-          set({ activeChatId: returnedSessionId });
+          set((state) => {
+            const exists = state.chatSessions.some((s) => s.id === returnedSessionId);
+            const updatedSessions = exists
+              ? state.chatSessions
+              : [
+                  {
+                    id: returnedSessionId,
+                    title: res.title || "New Chat",
+                    createdAt: new Date().toISOString(),
+                  },
+                  ...state.chatSessions,
+                ];
+            return {
+              activeChatId: returnedSessionId,
+              chatSessions: updatedSessions,
+            };
+          });
           localStorage.setItem("activeChatId", returnedSessionId);
-          await get().fetchSessions();
         }
 
         const rawType = res.type || "coach_response";
@@ -982,58 +1003,76 @@ export const useStore = create<StoreState>((set, get) => {
             createdAt: Date.now(),
           };
 
-          set((state) => ({
-            pendingHabitAction: newPendingAction,
-            pendingActions: {
-              ...state.pendingActions,
-              [actionId]: newPendingAction,
-            },
-            chatMessages: state.chatMessages.map((m) =>
-              m.id === tempAssistantMsgId
-                ? {
-                    ...m,
-                    sessionId: activeId || "",
-                    content: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
-                    isStreaming: false,
-                    intent: "CREATE_HABIT",
-                    status: "AWAITING_CONFIRMATION",
-                    actionId,
-                    preview: habitData,
-                    action: "CREATE_HABIT",
-                    actionPayload: habitData,
-                    data: res.data,
-                  }
-                : m
-            ),
-            isSendingMessage: false,
-            isGeneratingCoachResponse: false,
-            chatLoading: false,
-          }));
+          set((state) => {
+            const hasTemp = state.chatMessages.some((m) => m.id === tempAssistantMsgId);
+            const previewMsg: ChatMessage = {
+              id: tempAssistantMsgId,
+              sessionId: activeId || "",
+              role: "assistant",
+              content: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
+              isStreaming: false,
+              intent: "CREATE_HABIT",
+              status: "AWAITING_CONFIRMATION",
+              actionId,
+              preview: habitData,
+              action: "CREATE_HABIT",
+              actionPayload: habitData,
+              data: res.data,
+            };
+
+            const nextMsgs = hasTemp
+              ? state.chatMessages.map((m) => (m.id === tempAssistantMsgId ? previewMsg : m))
+              : [...state.chatMessages, previewMsg];
+
+            return {
+              pendingHabitAction: newPendingAction,
+              pendingActions: {
+                ...state.pendingActions,
+                [actionId]: newPendingAction,
+              },
+              chatMessages: nextMsgs,
+              isSendingMessage: false,
+              isGeneratingCoachResponse: false,
+              chatLoading: false,
+            };
+          });
         } else {
-          // Normal Coach response - render purely the assistant message content
-          set((state) => ({
-            pendingHabitAction: null,
-            chatMessages: state.chatMessages.map((m) =>
-              m.id === tempAssistantMsgId
-                ? {
-                    ...m,
-                    sessionId: activeId || "",
-                    content: reply,
-                    isStreaming: false,
-                    intent: undefined,
-                    status: undefined,
-                    actionId: undefined,
-                    preview: undefined,
-                    action: undefined,
-                    actionPayload: undefined,
-                    data: res.data,
-                  }
-                : m
-            ),
-            isSendingMessage: false,
-            isGeneratingCoachResponse: false,
-            chatLoading: false,
-          }));
+          // Normal Coach response or structured EDIT/DELETE/OTHER action
+          const responseAction = res.action || res.data?.action || res.data?.intent_action || rawIntent;
+          const responseActionId = res.actionId || res.data?.actionId || habitData?.actionId;
+          const responseHabitId = res.habit_id || res.habitId || res.data?.habit_id || res.data?.habitId || habitData?.habit_id || habitData?.habitId || habitData?.id;
+
+          set((state) => {
+            const hasTemp = state.chatMessages.some((m) => m.id === tempAssistantMsgId);
+            const assistantMsg: ChatMessage = {
+              id: tempAssistantMsgId,
+              sessionId: activeId || "",
+              role: "assistant",
+              content: reply,
+              isStreaming: false,
+              intent: rawIntent,
+              status: rawStatus,
+              actionId: responseActionId,
+              habit_id: responseHabitId,
+              habitId: responseHabitId,
+              preview: habitData,
+              action: responseAction,
+              actionPayload: habitData,
+              data: res.data,
+            };
+
+            const nextMsgs = hasTemp
+              ? state.chatMessages.map((m) => (m.id === tempAssistantMsgId ? assistantMsg : m))
+              : [...state.chatMessages, assistantMsg];
+
+            return {
+              pendingHabitAction: null,
+              chatMessages: nextMsgs,
+              isSendingMessage: false,
+              isGeneratingCoachResponse: false,
+              chatLoading: false,
+            };
+          });
         }
 
         // Title Auto Update logic
@@ -1077,16 +1116,28 @@ export const useStore = create<StoreState>((set, get) => {
           errorMessage = e.message;
         }
 
-        set((state) => ({
-          chatMessages: state.chatMessages.map((m) =>
-            m.id === tempAssistantMsgId
-              ? { ...m, content: `⚠️ ${errorMessage}`, isStreaming: false }
-              : m
-          ),
-          isSendingMessage: false,
-          isGeneratingCoachResponse: false,
-          chatLoading: false,
-        }));
+        set((state) => {
+          const hasTemp = state.chatMessages.some((m) => m.id === tempAssistantMsgId);
+          const errorMsg: ChatMessage = {
+            id: tempAssistantMsgId,
+            sessionId: activeId || "",
+            role: "assistant",
+            content: `⚠️ Couldn't send message: ${errorMessage}`,
+            error: errorMessage,
+            isStreaming: false,
+          };
+
+          const nextMsgs = hasTemp
+            ? state.chatMessages.map((m) => (m.id === tempAssistantMsgId ? errorMsg : m))
+            : [...state.chatMessages, errorMsg];
+
+          return {
+            chatMessages: nextMsgs,
+            isSendingMessage: false,
+            isGeneratingCoachResponse: false,
+            chatLoading: false,
+          };
+        });
       }
     },
 

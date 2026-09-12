@@ -1,6 +1,6 @@
 // src/components/coach/CoachMessageItem.tsx
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, Component, ErrorInfo, ReactNode } from "react";
 import Markdown from "react-markdown";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { ChatMessage } from "../../types";
@@ -9,6 +9,38 @@ import { CoachMessageActions } from "./CoachMessageActions";
 import { parseCoachActionFromMessage } from "./actions/actionParser";
 import { CoachActionCard } from "./actions/CoachActionCard";
 import { useStore } from "../../store/useStore";
+
+interface ItemErrorBoundaryProps {
+  children: ReactNode;
+  fallbackText?: string;
+}
+
+interface ItemErrorBoundaryState {
+  hasError: boolean;
+}
+
+class MessageItemErrorBoundary extends Component<ItemErrorBoundaryProps, ItemErrorBoundaryState> {
+  public override state: ItemErrorBoundaryState = { hasError: false };
+
+  public static getDerivedStateFromError(): ItemErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.warn("[CoachMessageItem] Render warning caught:", error, errorInfo);
+  }
+
+  public override render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-3 rounded-xl bg-zinc-900 border border-white/10 text-slate-300 text-xs">
+          {this.props.fallbackText || "Message content rendered."}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface CoachMessageItemProps {
   message: ChatMessage;
@@ -24,34 +56,40 @@ export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
   onEditAndResend,
   onActionComplete,
 }) => {
-  const { habits, pendingActions, activeChatId } = useStore();
+  const { habits, pendingActions } = useStore();
+  const rawContent = typeof message?.content === "string" ? message.content : String(message?.content || "");
   const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(message.content);
+  const [editText, setEditText] = useState(rawContent);
 
-  const isUser = message.role === "user";
-  const isError = !isUser && (message.content.startsWith("⚠️") || (message.content.includes("error") && message.content.length < 120));
+  const isUser = message?.role === "user";
+  const isError = !isUser && (rawContent.startsWith("⚠️") || (rawContent.toLowerCase().includes("error") && rawContent.length < 140) || Boolean(message?.error));
 
   // Parse any action embedded in assistant message
   const parsedAction = useMemo(() => {
-    if (isUser || isError) return null;
-    const rawStatus = (message.status || message.data?.status || "").toUpperCase().trim();
-    if (rawStatus === "COMPLETED" || rawStatus === "CREATED" || rawStatus === "CANCELLED" || rawStatus === "DUPLICATE") {
-      return null;
-    }
-    const actionId = message.actionId || message.data?.actionId || message.preview?.actionId;
-    if (actionId && pendingActions[actionId]) {
-      const state = pendingActions[actionId].state;
-      if (state === "CREATED" || state === "CANCELLED") {
+    if (isUser || isError || !message) return null;
+    try {
+      const rawStatus = String(message.status || message.data?.status || "").toUpperCase().trim();
+      if (rawStatus === "COMPLETED" || rawStatus === "CREATED" || rawStatus === "CANCELLED" || rawStatus === "DUPLICATE") {
         return null;
       }
+      const actionId = message.actionId || message.data?.actionId || message.preview?.actionId;
+      if (actionId && pendingActions && pendingActions[actionId]) {
+        const state = pendingActions[actionId].state;
+        if (state === "CREATED" || state === "CANCELLED") {
+          return null;
+        }
+      }
+      return parseCoachActionFromMessage(message, habits || []);
+    } catch (err) {
+      console.warn("[CoachMessageItem] parseCoachAction error:", err);
+      return null;
     }
-    return parseCoachActionFromMessage(message, habits);
   }, [message, isUser, isError, habits, pendingActions]);
 
-  const displayContent = parsedAction ? parsedAction.cleanedText : message.content;
+  const displayContent = parsedAction && typeof parsedAction.cleanedText === "string" ? parsedAction.cleanedText : rawContent;
 
   const handleSaveEdit = () => {
-    if (editText.trim() && onEditAndResend) {
+    if (editText.trim() && onEditAndResend && message?.id) {
       onEditAndResend(message.id, editText.trim());
       setIsEditing(false);
     }
@@ -93,7 +131,7 @@ export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
         ) : (
           <div className="relative max-w-[88%] sm:max-w-[78%]">
             <div className="p-3 sm:p-3.5 rounded-2xl rounded-tr-xs bg-[#1a1a22] border border-white/[0.12] text-white text-xs sm:text-[13px] leading-relaxed shadow-[0_4px_16px_rgba(0,0,0,0.4)] break-words [overflow-wrap:anywhere]">
-              {message.content}
+              {rawContent}
             </div>
           </div>
         )}
@@ -103,122 +141,124 @@ export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
 
   // ── ASSISTANT MESSAGE (No timestamps, Markdown content, Action Row directly underneath) ──
   return (
-    <div className="flex items-start gap-2.5 sm:gap-3.5 w-full max-w-3xl mx-auto px-2 sm:px-4 py-2.5 group select-text">
-      {/* Avatar */}
-      <div className="shrink-0 mt-0.5">
-        <AICoachAvatar size="md" active={!isError} />
-      </div>
-
-      <div className="flex-1 min-w-0 flex flex-col">
-        {/* Header line - Clean, no visible timestamp */}
-        <div className="flex items-center gap-2 mb-1.5 px-0.5">
-          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300 font-mono">
-            OneDay Coach
-          </span>
+    <MessageItemErrorBoundary fallbackText={rawContent}>
+      <div className="flex items-start gap-2.5 sm:gap-3.5 w-full max-w-3xl mx-auto px-2 sm:px-4 py-2.5 group select-text">
+        {/* Avatar */}
+        <div className="shrink-0 mt-0.5">
+          <AICoachAvatar size="md" active={!isError} />
         </div>
 
-        {/* Message Body or Error State */}
-        {isError ? (
-          <div className="p-4 rounded-2xl bg-rose-950/20 border border-rose-500/30 text-rose-200 text-xs shadow-lg flex flex-col gap-3">
-            <div className="flex items-start gap-2.5">
-              <AlertTriangle size={16} className="text-rose-400 shrink-0 mt-0.5" />
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-rose-100 mb-0.5">
-                  Request Interrupted
-                </p>
-                <p className="text-[11px] text-rose-300/80 leading-relaxed">
-                  {message.content.replace(/^⚠️\s*/, "")}
-                </p>
-              </div>
-            </div>
-
-            {onRegenerate && (
-              <div className="flex justify-end pt-1">
-                <button
-                  type="button"
-                  onClick={() => onRegenerate(message.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  <RefreshCw size={12} />
-                  <span>Retry Request</span>
-                </button>
-              </div>
-            )}
+        <div className="flex-1 min-w-0 flex flex-col">
+          {/* Header line - Clean, no visible timestamp */}
+          <div className="flex items-center gap-2 mb-1.5 px-0.5">
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300 font-mono">
+              OneDay Coach
+            </span>
           </div>
-        ) : (
-          <>
-            <div className="p-3.5 sm:p-4 rounded-2xl rounded-tl-xs bg-[#111116] border border-white/[0.08] text-slate-200 text-xs sm:text-[13px] leading-relaxed shadow-[0_4px_24px_rgba(0,0,0,0.5)] break-words [overflow-wrap:anywhere]">
-              <div className="markdown-content space-y-3">
-                <Markdown
-                  components={{
-                    h1: ({ children }) => (
-                      <h1 className="text-sm font-black uppercase tracking-[0.16em] text-white pt-2 pb-1 border-b border-white/10 font-mono">
-                        {children}
-                      </h1>
-                    ),
-                    h2: ({ children }) => (
-                      <h2 className="text-xs font-black uppercase tracking-[0.14em] text-zinc-100 pt-2 pb-0.5 font-mono">
-                        {children}
-                      </h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 pt-1">
-                        {children}
-                      </h3>
-                    ),
-                    p: ({ children }) => (
-                      <p className="leading-relaxed text-slate-200 my-1.5">{children}</p>
-                    ),
-                    strong: ({ children }) => (
-                      <strong className="font-bold text-white tracking-tight">{children}</strong>
-                    ),
-                    ul: ({ children }) => (
-                      <ul className="space-y-1.5 my-2 pl-4 list-disc marker:text-slate-400">
-                        {children}
-                      </ul>
-                    ),
-                    ol: ({ children }) => (
-                      <ol className="space-y-1.5 my-2 pl-4 list-decimal marker:text-slate-400 marker:font-mono">
-                        {children}
-                      </ol>
-                    ),
-                    li: ({ children }) => (
-                      <li className="leading-relaxed pl-1">{children}</li>
-                    ),
-                    blockquote: ({ children }) => (
-                      <blockquote className="border-l-2 border-white/20 pl-3 my-2 italic text-slate-400 bg-white/[0.02] py-1 rounded-r-lg">
-                        {children}
-                      </blockquote>
-                    ),
-                    code: ({ children }) => (
-                      <code className="bg-black/60 text-zinc-300 px-1.5 py-0.5 rounded-md border border-white/10 font-mono text-[11px]">
-                        {children}
-                      </code>
-                    ),
-                  }}
-                >
-                  {displayContent}
-                </Markdown>
+
+          {/* Message Body or Error State */}
+          {isError ? (
+            <div className="p-4 rounded-2xl bg-rose-950/20 border border-rose-500/30 text-rose-200 text-xs shadow-lg flex flex-col gap-3">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle size={16} className="text-rose-400 shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-rose-100 mb-0.5">
+                    Request Interrupted
+                  </p>
+                  <p className="text-[11px] text-rose-300/80 leading-relaxed">
+                    {rawContent.replace(/^⚠️\s*/, "")}
+                  </p>
+                </div>
               </div>
+
+              {onRegenerate && message?.id && (
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => onRegenerate(message.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    <RefreshCw size={12} />
+                    <span>Retry Request</span>
+                  </button>
+                </div>
+              )}
             </div>
+          ) : (
+            <>
+              <div className="p-3.5 sm:p-4 rounded-2xl rounded-tl-xs bg-[#111116] border border-white/[0.08] text-slate-200 text-xs sm:text-[13px] leading-relaxed shadow-[0_4px_24px_rgba(0,0,0,0.5)] break-words [overflow-wrap:anywhere]">
+                <div className="markdown-content space-y-3">
+                  <Markdown
+                    components={{
+                      h1: ({ children }) => (
+                        <h1 className="text-sm font-black uppercase tracking-[0.16em] text-white pt-2 pb-1 border-b border-white/10 font-mono">
+                          {children}
+                        </h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="text-xs font-black uppercase tracking-[0.14em] text-zinc-100 pt-2 pb-0.5 font-mono">
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 pt-1">
+                          {children}
+                        </h3>
+                      ),
+                      p: ({ children }) => (
+                        <p className="leading-relaxed text-slate-200 my-1.5">{children}</p>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-bold text-white tracking-tight">{children}</strong>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="space-y-1.5 my-2 pl-4 list-disc marker:text-slate-400">
+                          {children}
+                        </ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="space-y-1.5 my-2 pl-4 list-decimal marker:text-slate-400 marker:font-mono">
+                          {children}
+                        </ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="leading-relaxed pl-1">{children}</li>
+                      ),
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-2 border-white/20 pl-3 my-2 italic text-slate-400 bg-white/[0.02] py-1 rounded-r-lg">
+                          {children}
+                        </blockquote>
+                      ),
+                      code: ({ children }) => (
+                        <code className="bg-black/60 text-zinc-300 px-1.5 py-0.5 rounded-md border border-white/10 font-mono text-[11px]">
+                          {children}
+                        </code>
+                      ),
+                    }}
+                  >
+                    {displayContent}
+                  </Markdown>
+                </div>
+              </div>
 
-            {/* ACTION CENTER CARD IF AN ACTION WAS GENERATED */}
-            {parsedAction && (
-              <CoachActionCard
-                action={parsedAction}
-                onActionComplete={onActionComplete}
+              {/* ACTION CENTER CARD IF AN ACTION WAS GENERATED */}
+              {parsedAction && (
+                <CoachActionCard
+                  action={parsedAction}
+                  onActionComplete={onActionComplete}
+                />
+              )}
+
+              {/* MESSAGE ACTION ROW DIRECTLY UNDERNEATH COACH RESPONSE */}
+              <CoachMessageActions
+                message={message}
+                onRegenerate={onRegenerate}
               />
-            )}
-
-            {/* MESSAGE ACTION ROW DIRECTLY UNDERNEATH COACH RESPONSE */}
-            <CoachMessageActions
-              message={message}
-              onRegenerate={onRegenerate}
-            />
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </MessageItemErrorBoundary>
   );
 };
 export default CoachMessageItem;

@@ -71,6 +71,8 @@ export interface UpdateHabitActionPayload {
   notes?: string;
   icon?: string;
   category?: string;
+  action?: string;
+  status?: string;
 }
 
 export interface DeleteHabitActionPayload {
@@ -78,6 +80,8 @@ export interface DeleteHabitActionPayload {
   name?: string;
   reason?: string;
   deletedHabitSnapshot?: Habit;
+  action?: string;
+  status?: string;
 }
 
 export interface RestoreHabitActionPayload {
@@ -111,5 +115,6 @@ export interface ParsedCoachAction {
   actionId?: string;
   sessionId?: string;
   status?: string;
+  action?: string;
   messageId?: string;
 }
