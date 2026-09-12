@@ -288,32 +288,32 @@ export function parseCoachActionFromMessage(
       };
     }
 
-    if (rawIntent === "DELETE_HABIT") {
+    if (rawIntent === "DELETE_HABIT" || rawActionName === "CONFIRM_DELETE_HABIT" || msg.action === "CONFIRM_DELETE_HABIT") {
       const rawActionName = (msg.action || msg.data?.action || "").toUpperCase().trim();
       const rawStatusName = (msg.status || msg.data?.status || "").toUpperCase().trim();
       const currentStatus = rawStatusName || rawActionName || "AWAITING_CONFIRMATION";
 
-      if (currentStatus === "DELETED" || currentStatus === "CONFIRMED" || currentStatus === "CANCELLED" || currentStatus === "COMPLETED") {
+      if (currentStatus === "HABIT_DELETED" || currentStatus === "DELETED" || currentStatus === "CONFIRMED" || currentStatus === "CANCELLED" || currentStatus === "COMPLETED") {
         return null;
       }
 
-      const payload = extractPayload("DELETE_HABIT", rawPreview || msg.data || msg, existingHabits);
-      const rawHabitId = msg.habit_id || msg.habitId || msg.data?.habit_id || msg.data?.habitId || rawPreview?.habit_id || rawPreview?.habitId || rawPreview?.id;
+      const payload = extractPayload("DELETE_HABIT", rawPreview || msg.habit || msg.data || msg, existingHabits);
+      const rawHabitId = msg.habit_id || msg.habitId || msg.data?.habit_id || msg.data?.habitId || rawPreview?.habit_id || rawPreview?.habitId || rawPreview?.id || (msg.habit && (msg.habit.id || msg.habit.habit_id));
       if (rawHabitId && !payload.habitId) {
         payload.habitId = rawHabitId;
       }
       (payload as any).status = currentStatus;
-      (payload as any).action = rawActionName;
+      (payload as any).action = rawActionName || "CONFIRM_DELETE_HABIT";
 
       return {
         type: "DELETE_HABIT",
-        action: rawActionName || currentStatus,
+        action: rawActionName || "CONFIRM_DELETE_HABIT",
         status: currentStatus,
         actionId,
         sessionId,
         messageId: msg.id,
         payload,
-        cleanedText: msg.content || (currentStatus === "AWAITING_REASON" ? `Before I remove ${payload.name || "habit"}, what happened?` : `Are you sure you want to delete ${payload.name || "habit"}?`),
+        cleanedText: msg.content || `Are you sure you want to delete ${payload.name || "habit"}?`,
         rawText: msg.content || "",
       };
     }
@@ -445,8 +445,9 @@ function extractPayload(actionType: CoachActionType, data: any, existingHabits: 
   }
 
   if (actionType === "DELETE_HABIT") {
-    const targetId = habitData.habit_id || habitData.habitId || habitData.id;
-    const targetName = habitData.name || habitData.title || habitData.habitName || habitData.habit_name || "";
+    const habitObj = habitData.habit || habitData.data?.habit || habitData;
+    const targetId = habitObj.id || habitObj.habit_id || habitObj.habitId || data.habit_id || data.habitId || data.id;
+    const targetName = habitObj.name || habitObj.title || habitObj.habitName || habitObj.habit_name || data.name || data.title || "";
     const matchedHabit = existingHabits.find(
       (h) => (targetId && h.id === targetId) || (targetName && h.name.toLowerCase() === targetName.toLowerCase())
     );
@@ -454,7 +455,8 @@ function extractPayload(actionType: CoachActionType, data: any, existingHabits: 
     return {
       habitId: targetId || matchedHabit?.id || habitData.habitId || "",
       name: matchedHabit?.name || targetName || "Habit",
-      reason: habitData.reason || "",
+      reason: habitData.reason || data.reason || "",
+      xpPenalty: data.xpPenalty || habitData.xpPenalty || 20,
       deletedHabitSnapshot: matchedHabit,
     } as DeleteHabitActionPayload;
   }

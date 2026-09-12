@@ -184,10 +184,18 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
         setDeletedHabitSnapshot(habitSnapshot as Habit);
         toast.success(`✓ ${habitName} deleted.`);
 
-        // 3. Clean up pending action state from store
-        if (action.actionId) {
-          removePendingAction(action.actionId);
-        }
+        // 3. Clear all stale coach/habit states
+        useStore.setState({
+          selectedHabit: null,
+          selectedHabitId: null,
+          pendingAction: null,
+          pendingHabit: null,
+          proposedHabit: null,
+          previewHabit: null,
+          editingHabit: null,
+          editingHabitId: null,
+          pendingHabitAction: null,
+        } as any);
 
         // 4. Update message status in store so stale preview disappears
         if (action.messageId) {
