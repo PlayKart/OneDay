@@ -12,6 +12,7 @@ import { quoteService } from '../services/quoteService';
 import { safeArray, normalizeCompletedDates, normalizeUser, hasCompletedOnboarding, getOnboardingStatus, calculateLevelProgress, getXpForDifficulty, extractXpAwarded, getLocalCalendarDate, logStreakDebug } from '../utils';
 import { isHabitScheduledForToday } from '../lib/habitUtils';
 import { isTitleNew, markTitleAsSeen, getTitleDescription, setEquippedTitle, getEquippedTitle } from '../utils/titleUtils';
+import { isUserFrozen, getFreezeUntil, formatFreezeDate } from '../utils/freezeUtils';
 import { apiRequest } from '../api/client';
 import { perfLogger } from '../utils/perfLogger';
 import { 
@@ -315,6 +316,15 @@ export const useStore = create<StoreState>((set, get) => {
 
     completeHabit: async (habitId) => {
       console.log(`[useStore] Initiating completeHabit for habitId: ${habitId}...`);
+
+      const currentUser = get().user;
+      if (isUserFrozen(currentUser)) {
+        console.warn(`[useStore] Account is frozen. Habit completion is blocked.`);
+        const freezeUntil = getFreezeUntil(currentUser);
+        const formattedDate = formatFreezeDate(freezeUntil);
+        throw new Error(`ACCOUNT_FROZEN: Your streak is protected until ${formattedDate || "scheduled expiration"}. Habit completion is paused.`);
+      }
+
       if (get().pendingHabitIds.has(habitId)) {
         console.warn(`[useStore] Habit ${habitId} is already updating. Ignoring duplicate complete attempt.`);
         return;
@@ -504,8 +514,20 @@ export const useStore = create<StoreState>((set, get) => {
           e?.response?.data?.error?.message ||
           e?.response?.data?.error ||
           e?.response?.data?.message ||
+          e?.response?.data?.code ||
           e?.message ||
           "Failed to complete habit on server";
+
+        const isAccountFrozen =
+          rawError === "ACCOUNT_FROZEN" ||
+          String(rawError).includes("ACCOUNT_FROZEN") ||
+          e?.response?.status === 423;
+
+        if (isAccountFrozen) {
+          const freezeUntil = getFreezeUntil(get().user);
+          const formattedDate = formatFreezeDate(freezeUntil);
+          throw new Error(`ACCOUNT_FROZEN: Your streak is protected until ${formattedDate || "scheduled expiration"}. Habit completion is paused.`);
+        }
 
         throw new Error(typeof rawError === "string" ? rawError : "Failed to complete habit on server");
       }
@@ -513,6 +535,15 @@ export const useStore = create<StoreState>((set, get) => {
 
     undoHabit: async (habitId) => {
       console.log(`[useStore] Initiating undoHabit for habitId: ${habitId}...`);
+
+      const currentUser = get().user;
+      if (isUserFrozen(currentUser)) {
+        console.warn(`[useStore] Account is frozen. Habit undo is blocked.`);
+        const freezeUntil = getFreezeUntil(currentUser);
+        const formattedDate = formatFreezeDate(freezeUntil);
+        throw new Error(`ACCOUNT_FROZEN: Your streak is protected until ${formattedDate || "scheduled expiration"}.`);
+      }
+
       if (get().pendingHabitIds.has(habitId)) {
         console.warn(`[useStore] Habit ${habitId} is already updating. Ignoring duplicate undo attempt.`);
         return;
@@ -1170,13 +1201,25 @@ export const useStore = create<StoreState>((set, get) => {
           errorMessage = e.message;
         }
 
+        const isAccountFrozen =
+          errorMessage.includes("ACCOUNT_FROZEN") ||
+          e?.response?.data?.code === "ACCOUNT_FROZEN" ||
+          e?.response?.data?.error === "ACCOUNT_FROZEN" ||
+          e?.response?.status === 423;
+
+        if (isAccountFrozen) {
+          const freezeUntil = getFreezeUntil(get().user);
+          const formattedDate = formatFreezeDate(freezeUntil);
+          errorMessage = `❄️ Your streak is currently protected until ${formattedDate || "scheduled expiration"}. Habit completion will automatically return when the freeze ends.`;
+        }
+
         set((state) => {
           const hasTemp = state.chatMessages.some((m) => m.id === tempAssistantMsgId);
           const errorMsg: ChatMessage = {
             id: tempAssistantMsgId,
             sessionId: activeId || "",
             role: "assistant",
-            content: `⚠️ Couldn't send message: ${errorMessage}`,
+            content: isAccountFrozen ? errorMessage : `⚠️ Couldn't send message: ${errorMessage}`,
             error: errorMessage,
             isStreaming: false,
           };

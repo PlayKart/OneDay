@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useStore } from "../../store/useStore";
 import { MotivationalQuote } from "../MotivationalQuote";
 import { HabitList } from "../HabitList";
-import { Target, Zap, Activity, ArrowRight, Trophy, Plus, Shield, CheckCircle2 } from "lucide-react";
+import { Target, Zap, Activity, ArrowRight, Trophy, Plus, Shield, CheckCircle2, Lock } from "lucide-react";
 import { AICoachIcon } from "../AICoachIcon";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
@@ -11,11 +11,13 @@ import { getPersonalizedGreeting } from "../../utils/greetingUtils";
 import { getEquippedTitle } from "../../utils/titleUtils";
 import { calculateLevelProgress } from "../../utils";
 import { perfLogger } from "../../utils/perfLogger";
+import { useFreezeCountdown } from "../../utils/freezeUtils";
 
 export function DashboardScreen() {
-  const { user, habits, deactivateFreeze, setActiveTab } = useStore();
-  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
-  const [unfreezing, setUnfreezing] = useState(false);
+  const { user, habits, setActiveTab, refreshFromBackend } = useStore();
+  const { isFrozen, formattedEndDate, timeRemaining } = useFreezeCountdown(user, () => {
+    refreshFromBackend();
+  });
 
   const [prevXp, setPrevXp] = useState<number>(user?.xp ?? 0);
   const [prevLevel, setPrevLevel] = useState<number>(user?.level ?? 1);
@@ -43,12 +45,6 @@ export function DashboardScreen() {
     }
   }, [user?.xp, user?.level, prevXp, prevLevel]);
 
-  useEffect(() => {
-    if (!confirmDeactivate) return;
-    const timer = setTimeout(() => setConfirmDeactivate(false), 3000);
-    return () => clearTimeout(timer);
-  }, [confirmDeactivate]);
-
   if (!user) return null;
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -62,11 +58,6 @@ export function DashboardScreen() {
   const currentLevel = typeof user.level === "number" && !isNaN(user.level) && user.level >= 1 ? Math.floor(user.level) : 1;
   const xpRequiredForNextLevel = 100;
   const progressPercentage = calculateLevelProgress(currentXP, currentLevel, xpRequiredForNextLevel);
-
-  const isFrozen = user.freeze_until && new Date(user.freeze_until) > new Date();
-  const freezeUntilDateStr = isFrozen && user.freeze_until
-    ? new Date(user.freeze_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : "";
 
   const equippedTitle = getEquippedTitle(user);
   const isStreakLoading = typeof user.currentStreak !== "number" && typeof user.streak !== "number";
@@ -90,54 +81,40 @@ export function DashboardScreen() {
       <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-5%] w-[30%] h-[30%] bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* STREAK SHIELD */}
+      {/* SUBTLE FROZEN STATUS INDICATOR */}
       {isFrozen && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 bg-[#0c0c11]/90 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-5 overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur-xl"
+          className="relative z-10 bg-[#0A0E14] border border-cyan-500/25 rounded-2xl p-4 sm:p-5 overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-[0_4px_24px_rgba(6,182,212,0.06)] backdrop-blur-xl"
         >
-          <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-[60px] pointer-events-none" />
-          <div className="flex items-center gap-4 relative z-10">
-            <div className="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-lg shrink-0">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-lg shrink-0 text-cyan-300">
               ❄️
             </div>
-            <div className="text-left">
-              <h2 className="text-xs font-mono font-bold tracking-wider text-white flex items-center gap-2 uppercase">
-                STREAK SHIELD ACTIVE <span className="text-[9px] font-mono uppercase text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded tracking-widest">Protected</span>
-              </h2>
-              <p className="text-zinc-400 text-xs mt-0.5">
-                Your progress is protected until <strong className="text-zinc-200">{freezeUntilDateStr}</strong>.
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs font-mono font-bold tracking-wider text-white uppercase">
+                  STREAK PROTECTED
+                </h2>
+                {timeRemaining.displayRemaining && (
+                  <span className="text-[9px] font-mono uppercase text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-full tracking-widest">
+                    {timeRemaining.displayRemaining}
+                  </span>
+                )}
+              </div>
+              <p className="text-zinc-300 text-xs mt-0.5">
+                Your habits are paused until <strong className="text-white font-semibold">{formattedEndDate || "expiration"}</strong>.
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={async () => {
-              if (!confirmDeactivate) {
-                setConfirmDeactivate(true);
-                return;
-              }
-              try {
-                setUnfreezing(true);
-                await deactivateFreeze();
-                toast.success("Streak Shield deactivated!");
-                setConfirmDeactivate(false);
-              } catch (e) {
-                toast.error("Failed to deactivate streak shield.");
-              } finally {
-                setUnfreezing(false);
-              }
-            }}
-            disabled={unfreezing}
-            className={`text-[10px] font-mono font-bold uppercase tracking-widest px-4 py-2.5 rounded-xl border transition-all duration-300 transform active:scale-95 cursor-pointer whitespace-nowrap z-10 ${
-              confirmDeactivate
-                ? "bg-red-500/20 text-red-300 border-red-500/40"
-                : "bg-white/[0.04] text-zinc-300 border-white/[0.1] hover:bg-white/[0.08] hover:text-white"
-            }`}
-          >
-            {unfreezing ? "Deactivating..." : confirmDeactivate ? "Confirm Unfreeze?" : "Deactivate Freeze"}
-          </button>
+
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            <span className="text-[11px] font-medium text-neutral-400 bg-white/[0.04] border border-white/[0.08] px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+              <Lock size={12} className="text-cyan-400" />
+              <span>Freeze is locked until it expires.</span>
+            </span>
+          </div>
         </motion.div>
       )}
 

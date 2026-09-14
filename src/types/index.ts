@@ -20,6 +20,10 @@ export interface User {
   unlockedTitles?: string[];
   freezeUntil?: string | null;
   freeze_until?: string | null;
+  freezeCount?: number;
+  freeze_count?: number;
+  isFrozen?: boolean;
+  is_frozen?: boolean;
   lastActiveDate?: string | null;
   createdAt?: string;
   updatedAt?: string;

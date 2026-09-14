@@ -291,13 +291,53 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
       rawUser?.freezeUntil ||
       rawUser?.freeze_until ||
       existingUser?.freezeUntil ||
+      existingUser?.freeze_until ||
       null,
     freeze_until:
       findFirstString(["freeze_until", "freezeUntil"]) ||
       rawUser?.freeze_until ||
       rawUser?.freezeUntil ||
       existingUser?.freeze_until ||
+      existingUser?.freezeUntil ||
       null,
+    isFrozen:
+      typeof rawUser?.isFrozen === "boolean"
+        ? rawUser.isFrozen
+        : typeof rawUser?.is_frozen === "boolean"
+        ? rawUser.is_frozen
+        : Boolean(
+            (findFirstString(["freezeUntil", "freeze_until"]) || rawUser?.freezeUntil || rawUser?.freeze_until || existingUser?.freezeUntil || existingUser?.freeze_until) &&
+            new Date(findFirstString(["freezeUntil", "freeze_until"]) || rawUser?.freezeUntil || rawUser?.freeze_until || existingUser?.freezeUntil || existingUser?.freeze_until || "").getTime() > Date.now()
+          ),
+    is_frozen:
+      typeof rawUser?.is_frozen === "boolean"
+        ? rawUser.is_frozen
+        : typeof rawUser?.isFrozen === "boolean"
+        ? rawUser.isFrozen
+        : Boolean(
+            (findFirstString(["freeze_until", "freezeUntil"]) || rawUser?.freeze_until || rawUser?.freezeUntil || existingUser?.freeze_until || existingUser?.freezeUntil) &&
+            new Date(findFirstString(["freeze_until", "freezeUntil"]) || rawUser?.freeze_until || rawUser?.freezeUntil || existingUser?.freeze_until || existingUser?.freezeUntil || "").getTime() > Date.now()
+          ),
+    freezeCount:
+      typeof rawUser?.freezeCount === "number"
+        ? rawUser.freezeCount
+        : typeof rawUser?.freeze_count === "number"
+        ? rawUser.freeze_count
+        : typeof existingUser?.freezeCount === "number"
+        ? existingUser.freezeCount
+        : typeof existingUser?.freeze_count === "number"
+        ? existingUser.freeze_count
+        : 1,
+    freeze_count:
+      typeof rawUser?.freeze_count === "number"
+        ? rawUser.freeze_count
+        : typeof rawUser?.freezeCount === "number"
+        ? rawUser.freezeCount
+        : typeof existingUser?.freeze_count === "number"
+        ? existingUser.freeze_count
+        : typeof existingUser?.freezeCount === "number"
+        ? existingUser.freezeCount
+        : 1,
     lastActiveDate:
       findFirstString(["lastActiveDate", "last_active_date"]) ||
       rawUser?.lastActiveDate ||

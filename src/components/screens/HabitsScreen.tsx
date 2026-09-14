@@ -3,6 +3,7 @@ import { HabitList } from "../HabitList";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Plus, ListFilter, BarChart3, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { useFreezeCountdown } from "../../utils/freezeUtils";
 
 const HabitTrendsView = lazy(() =>
   import("../HabitTrendsView").then((m) => ({ default: m.HabitTrendsView }))
@@ -13,7 +14,10 @@ const CreateHabitModal = lazy(() =>
 );
 
 export function HabitsScreen() {
-  const { refreshFromBackend } = useStore();
+  const { user, refreshFromBackend } = useStore();
+  const { isFrozen, formattedEndDate } = useFreezeCountdown(user, () => {
+    refreshFromBackend();
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<"list" | "trends">("list");
 
@@ -28,6 +32,32 @@ export function HabitsScreen() {
       exit={{ opacity: 0 }}
       className="p-6 md:p-8 max-w-5xl mx-auto min-h-screen relative space-y-6"
     >
+      {/* Calm Frozen Banner */}
+      {isFrozen && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#0A0E14] border border-cyan-500/25 rounded-2xl p-4 sm:p-4.5 flex items-center justify-between gap-3 text-left shadow-[0_4px_20px_rgba(6,182,212,0.06)]"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-lg shrink-0 text-cyan-300">
+              ❄️
+            </div>
+            <div>
+              <h3 className="text-xs font-mono font-bold tracking-wider text-white uppercase flex items-center gap-2">
+                STREAK PROTECTED
+                <span className="text-[9px] font-mono uppercase text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-full tracking-widest">
+                  Frozen
+                </span>
+              </h3>
+              <p className="text-zinc-300 text-xs mt-0.5">
+                Habit completions are paused while your streak is frozen. Defrosting happens automatically on <strong className="text-white font-semibold">{formattedEndDate || "expiration"}</strong>.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 mb-2">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tighter">Habits</h1>

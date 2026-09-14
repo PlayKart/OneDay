@@ -26,13 +26,12 @@ import { PrivacyPage } from "../PrivacyPage";
 import { TermsPage } from "../TermsPage";
 import { ProfileScreen } from "./ProfileScreen";
 import { getEquippedTitle } from "../../utils/titleUtils";
+import { StreakProtectionSection } from "../settings/StreakProtectionSection";
 
 export function SettingsScreen() {
   const {
     user,
     firebaseUser,
-    freezeStreak,
-    deactivateFreeze,
     resetProgress,
     deleteAccount,
     setActiveTab,
@@ -40,13 +39,6 @@ export function SettingsScreen() {
 
   // Navigation view within Settings
   const [settingsView, setSettingsView] = useState<"main" | "privacy" | "terms" | "profile">("main");
-
-  // Streak freeze modal & states
-  const [showFreezeConfirm, setShowFreezeConfirm] = useState(false);
-  const [freezeDays, setFreezeDays] = useState(7);
-  const [activating, setActivating] = useState(false);
-  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
-  const [deactivating, setDeactivating] = useState(false);
 
   // Destructive confirmation modals
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -75,15 +67,6 @@ export function SettingsScreen() {
     };
   }, []);
 
-  // Auto reset the "Confirm" unfreeze timer after 3 seconds
-  useEffect(() => {
-    if (!confirmDeactivate) return;
-    const timer = setTimeout(() => {
-      setConfirmDeactivate(false);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [confirmDeactivate]);
-
   if (!user && settingsView === "main") return null;
 
   const isFrozen = Boolean((user?.freezeUntil || user?.freeze_until) && new Date(user.freezeUntil || user.freeze_until || "") > new Date());
@@ -92,38 +75,6 @@ export function SettingsScreen() {
   const userEmail = firebaseUser?.email || user?.email || "Signed in account";
   const userLevel = user?.level || 1;
   const userStreak = user?.currentStreak ?? user?.streak ?? 0;
-
-  // Streak Shield Handlers
-  const handleActivateShield = async () => {
-    try {
-      setActivating(true);
-      await freezeStreak(freezeDays);
-      setShowFreezeConfirm(false);
-      toast.success(`Streak frozen for ${freezeDays} days.`);
-    } catch (e: any) {
-      console.error("Streak freeze activation failed", e);
-      toast.error(e?.message || "Failed to activate streak shield.");
-    } finally {
-      setActivating(false);
-    }
-  };
-
-  const handleDeactivateShield = async () => {
-    if (!confirmDeactivate) {
-      setConfirmDeactivate(true);
-      return;
-    }
-    try {
-      setDeactivating(true);
-      await deactivateFreeze();
-      toast.success("Streak Shield deactivated. Progression resumed.");
-      setConfirmDeactivate(false);
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to deactivate streak shield.");
-    } finally {
-      setDeactivating(false);
-    }
-  };
 
   // Auth & Account Handlers
   const handleSignOutConfirm = async () => {
@@ -205,13 +156,6 @@ export function SettingsScreen() {
       toast.error("Failed to export data.");
     }
   };
-
-  const previewEndDate = new Date(Date.now() + freezeDays * 24 * 60 * 60 * 1000).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 
   // SUBVIEWS: Privacy Policy
   if (settingsView === "privacy") {
@@ -368,70 +312,15 @@ export function SettingsScreen() {
         </motion.div>
       </section>
 
-      {/* 2. ONE DAY SYSTEM */}
+      {/* 2. STREAK PROTECTION */}
+      <StreakProtectionSection />
+
+      {/* 3. ONE DAY SYSTEM */}
       <section className="space-y-2.5">
         <h2 className="text-[11px] font-bold tracking-widest text-neutral-400 uppercase px-1">
           ONE DAY SYSTEM
         </h2>
         <div className="rounded-2xl bg-[#0D0D0D] border border-white/[0.08] divide-y divide-white/[0.06] overflow-hidden">
-          {/* A. Streak Protection */}
-          <div className="p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors">
-            <div className="flex items-start gap-3.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
-                <Shield size={16} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-white tracking-tight">
-                    Streak Protection
-                  </h3>
-                  {isFrozen && (
-                    <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/[0.08] text-neutral-200 border border-white/[0.1]">
-                      Active
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-neutral-400 leading-relaxed mt-0.5">
-                  {isFrozen
-                    ? `Protected until ${new Date(user?.freeze_until || "").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
-                    : "Protect your current streak when life gets in the way."}
-                </p>
-              </div>
-            </div>
-
-            <div className="shrink-0 flex items-center">
-              {isFrozen ? (
-                <button
-                  type="button"
-                  onClick={handleDeactivateShield}
-                  disabled={deactivating}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
-                    confirmDeactivate
-                      ? "bg-red-500/20 text-red-400 border-red-500/30"
-                      : "bg-white/[0.05] text-neutral-300 border-white/[0.08] hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  {deactivating ? (
-                    <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin inline-block" />
-                  ) : confirmDeactivate ? (
-                    "Confirm?"
-                  ) : (
-                    "Unfreeze"
-                  )}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowFreezeConfirm(true)}
-                  className="group inline-flex items-center gap-1 text-xs font-semibold text-neutral-300 hover:text-white bg-white/[0.05] hover:bg-white/10 border border-white/[0.08] px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-                >
-                  <span>Manage</span>
-                  <ArrowRight size={12} className="transform group-hover:translate-x-0.5 transition-transform" />
-                </button>
-              )}
-            </div>
-          </div>
-
           {/* B. Progress & Achievements */}
           <button
             type="button"
@@ -849,144 +738,6 @@ export function SettingsScreen() {
                   disabled={deleting}
                   onClick={() => setConfirmDelete(false)}
                   className="w-full bg-white/[0.05] text-neutral-400 border border-white/[0.08] font-bold py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-white/10 hover:text-white transition-all cursor-pointer h-11 flex items-center justify-center"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL 4: STREAK SHIELD CONFIGURATION */}
-      <AnimatePresence>
-        {showFreezeConfirm && (
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md"
-              onClick={() => {
-                if (!activating) setShowFreezeConfirm(false);
-              }}
-            />
-            
-            <motion.div
-              initial={{ opacity: 0, y: "100%" }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: "100%" }}
-              transition={{ type: "spring", damping: 26, stiffness: 320 }}
-              className="relative bg-[#0D0D0D] border border-white/15 rounded-t-[2rem] sm:rounded-2xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 z-10 pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:pb-7 text-left"
-            >
-              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-1 block sm:hidden" />
-              
-              {/* Header */}
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-2 text-neutral-300">
-                  <Shield size={18} />
-                  <span className="text-xs font-bold uppercase tracking-wider">
-                    Streak Protection
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  disabled={activating}
-                  onClick={() => setShowFreezeConfirm(false)}
-                  className="p-1 rounded-lg text-neutral-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Title & Description */}
-              <div className="space-y-1">
-                <h3 className="text-xl font-bold tracking-tight text-white">
-                  Activate Streak Shield
-                </h3>
-                <p className="text-neutral-400 text-xs leading-relaxed">
-                  Protect your streak from breaking while taking a planned break. Select a duration between 1 and 10 days.
-                </p>
-              </div>
-
-              {/* Slider Input & Presets */}
-              <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[11px] font-semibold uppercase text-neutral-400 tracking-wider">
-                    Freeze Duration
-                  </span>
-                  <span className="text-xs font-bold text-white bg-white/10 px-2.5 py-1 rounded-md border border-white/10">
-                    {freezeDays} {freezeDays === 1 ? "Day" : "Days"}
-                  </span>
-                </div>
-                
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={freezeDays}
-                  onChange={(e) => setFreezeDays(parseInt(e.target.value))}
-                  disabled={activating}
-                  className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white"
-                />
-
-                {/* Quick Selection Presets */}
-                <div className="grid grid-cols-4 gap-2 pt-1">
-                  {[1, 3, 7, 10].map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      disabled={activating}
-                      onClick={() => setFreezeDays(d)}
-                      className={`py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                        freezeDays === d
-                          ? "bg-white text-black border-white"
-                          : "bg-white/[0.04] text-neutral-400 border-white/[0.06] hover:text-white hover:border-white/10"
-                      }`}
-                    >
-                      {d} {d === 1 ? "Day" : "Days"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Date Preview */}
-              <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3.5 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center text-neutral-300 shrink-0">
-                  <ShieldCheck size={16} />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-neutral-400 tracking-wider">
-                    Protected Until
-                  </div>
-                  <div className="text-xs font-semibold text-white mt-0.5">
-                    {previewEndDate}
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex flex-col gap-2 pt-1">
-                <button
-                  type="button"
-                  disabled={activating}
-                  onClick={handleActivateShield}
-                  className="w-full bg-white text-black font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider hover:bg-neutral-200 transition-all active:scale-[0.99] flex items-center justify-center gap-2 h-11 cursor-pointer"
-                >
-                  {activating ? (
-                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Sparkles size={14} />
-                      Activate Shield
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  disabled={activating}
-                  onClick={() => setShowFreezeConfirm(false)}
-                  className="w-full bg-white/[0.05] text-neutral-400 border border-white/[0.08] font-bold py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-white/10 hover:text-white transition-all h-11 cursor-pointer flex items-center justify-center"
                 >
                   Cancel
                 </button>

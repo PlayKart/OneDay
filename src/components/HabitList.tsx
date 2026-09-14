@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw } from 'lucide-react';
+import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock } from 'lucide-react';
 import { useStore, Habit } from '../store/useStore';
 import { toast } from 'react-hot-toast';
 import { isHabitScheduledForToday, getScheduledDaysMessage } from '../lib/habitUtils';
@@ -8,9 +8,11 @@ import { EditHabitModal } from './EditHabitModal';
 import { getHabitIconComponent, getHabitColorTheme } from '../lib/habitIcons';
 import { getXpForDifficulty, extractXpAwarded, toDisplayDifficulty } from '../utils';
 import { perfLogger } from '../utils/perfLogger';
+import { isUserFrozen, formatFreezeDate } from '../utils/freezeUtils';
 
 export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?: boolean; onCreateClick?: () => void }) => {
-  const { habits, completeHabit, undoHabit, deleteHabit, refreshFromBackend, loading, pendingHabitIds } = useStore();
+  const { user, habits, completeHabit, undoHabit, deleteHabit, refreshFromBackend, loading, pendingHabitIds } = useStore();
+  const userFrozen = isUserFrozen(user);
   
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
@@ -157,6 +159,15 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
               <motion.button 
                 onClick={async () => {
                   if (isPending) return;
+
+                  if (userFrozen) {
+                    const formattedDate = formatFreezeDate(user?.freeze_until);
+                    toast(`Streak is frozen. Defrosting happens automatically on ${formattedDate}.`, {
+                      icon: "❄️",
+                    });
+                    return;
+                  }
+
                   if (!isToday && !habit.completedToday) {
                     toast.error(`Dude, do it on ${getScheduledDaysMessage(habit)}. Chill !!!`);
                     return;
@@ -200,16 +211,20 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                 whileTap={{ scale: 0.85 }}
                 animate={habit.completedToday ? { scale: [1, 1.25, 1], rotate: [0, 10, -10, 0] } : {}}
                 transition={{ duration: 0.4 }}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all relative ${
                   isPending
                     ? 'bg-white/10 text-white cursor-wait border border-white/20'
-                    : habit.completedToday 
-                      ? 'bg-emerald-500 text-black hover:bg-red-500 hover:text-white border border-transparent shadow-[0_0_20px_rgba(16,185,129,0.4)]' 
-                      : (isToday ? 'bg-white/5 border border-white/10 hover:border-white/30 hover:bg-white/10 text-white/30 hover:text-white transition-colors' : 'bg-white/5 border border-white/5 opacity-50 cursor-not-allowed')
+                    : userFrozen
+                      ? 'bg-cyan-950/25 border border-cyan-500/25 text-cyan-400/50 hover:border-cyan-500/40 cursor-pointer shadow-[0_0_12px_rgba(6,182,212,0.1)]'
+                      : habit.completedToday 
+                        ? 'bg-emerald-500 text-black hover:bg-red-500 hover:text-white border border-transparent shadow-[0_0_20px_rgba(16,185,129,0.4)] cursor-pointer' 
+                        : (isToday ? 'bg-white/5 border border-white/10 hover:border-white/30 hover:bg-white/10 text-white/30 hover:text-white transition-colors cursor-pointer' : 'bg-white/5 border border-white/5 opacity-50 cursor-not-allowed')
                 }`}
               >
                 {isPending ? (
                   <Loader2 size={18} className="animate-spin text-white" />
+                ) : userFrozen ? (
+                  <Lock size={16} className="text-cyan-400/70" />
                 ) : (
                   <Check size={18} className={habit.completedToday ? '' : (isToday ? 'text-white/40 sm:group-hover:text-white/20' : 'text-white/10')} />
                 )}
@@ -373,11 +388,11 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
             {/* Native sheet drag handle */}
             <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4 block sm:hidden" />
 
-            <h3 id="delete-habit-modal-title" className="text-lg font-bold text-white text-center leading-snug">
-              Delete Habit?
+            <h3 id="delete-habit-modal-title" className="text-base font-bold text-white text-center leading-snug px-2">
+              Are you sure you want to delete <span className="text-rose-400">{deleteConfirmationHabit?.name || (deleteConfirmationHabit as any)?.title || "this habit"}</span>?
             </h3>
-            <p id="delete-habit-modal-desc" className="text-xs text-slate-400 text-center mt-2 mb-6">
-              This action cannot be undone.
+            <p id="delete-habit-modal-desc" className="text-xs text-slate-400 text-center mt-2.5 mb-6 leading-relaxed">
+              Deleting this habit will deduct <span className="text-rose-400 font-mono font-bold">20 XP</span> from your profile. This action cannot be undone.
             </p>
             <div className="flex gap-3">
               <button

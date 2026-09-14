@@ -179,13 +179,28 @@ export const userService = {
     try {
       const res = await apiClient.post("/api/freeze", { days });
       const rawData = res.data || {};
-      const updatedUser = rawData.user || rawData.profile || rawData;
+      const updatedUser = rawData.user || rawData.profile || rawData.data?.user || rawData.data?.profile || rawData;
       return normalizeUser(updatedUser, useStore.getState().user || undefined);
     } catch (err: any) {
       console.warn("[USER SERVICE] POST /api/freeze failed:", err?.message || err);
       const freezeUntil = new Date();
       freezeUntil.setDate(freezeUntil.getDate() + days);
-      return this.updateProfile({ freezeUntil: freezeUntil.toISOString() });
+      const freezeUntilIso = freezeUntil.toISOString();
+      const currentUser = useStore.getState().user;
+      const currentCredits = typeof currentUser?.freeze_count === "number"
+        ? currentUser.freeze_count
+        : typeof currentUser?.freezeCount === "number"
+        ? currentUser.freezeCount
+        : 1;
+      const newCredits = Math.max(0, currentCredits - 1);
+      return this.updateProfile({ 
+        freezeUntil: freezeUntilIso,
+        freeze_until: freezeUntilIso,
+        isFrozen: true,
+        is_frozen: true,
+        freezeCount: newCredits,
+        freeze_count: newCredits,
+      });
     }
   },
 
