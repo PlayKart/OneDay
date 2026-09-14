@@ -11,7 +11,6 @@ interface UserState {
   setUser: (user: User | null) => void;
   fetchUser: () => Promise<User | null>;
   freezeStreak: (days: number) => Promise<void>;
-  deactivateFreeze: () => Promise<void>;
   resetProgress: () => Promise<void>;
   deleteAccount: () => Promise<void>;
 }
@@ -35,14 +34,6 @@ export const useUserStore = create<UserState>((set) => ({
   freezeStreak: async (days: number) => {
     try {
       const updatedUser = await userService.freezeStreak(days);
-      set({ user: updatedUser });
-    } catch (e: any) {
-      throw e;
-    }
-  },
-  deactivateFreeze: async () => {
-    try {
-      const updatedUser = await userService.deactivateFreeze();
       set({ user: updatedUser });
     } catch (e: any) {
       throw e;

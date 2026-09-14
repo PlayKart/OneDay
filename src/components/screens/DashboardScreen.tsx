@@ -15,7 +15,7 @@ import { useFreezeCountdown } from "../../utils/freezeUtils";
 
 export function DashboardScreen() {
   const { user, habits, setActiveTab, refreshFromBackend } = useStore();
-  const { isFrozen, formattedEndDate, timeRemaining } = useFreezeCountdown(user, () => {
+  const { isFrozen, formattedEndDate, timeRemaining, credits } = useFreezeCountdown(user, () => {
     refreshFromBackend();
   });
 
@@ -77,43 +77,88 @@ export function DashboardScreen() {
   return (
     <div className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-10 space-y-6 overflow-x-hidden min-h-0 relative">
       
-      {/* Subtle Radial Glows for Depth */}
-      <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-5%] w-[30%] h-[30%] bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none" />
+      {/* Subtle Radial Glows for Depth - Shifting to cool icy highlights when frozen */}
+      {isFrozen ? (
+        <>
+          <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] bg-cyan-600/10 rounded-full blur-[140px] pointer-events-none" />
+          <div className="absolute bottom-[-10%] right-[-5%] w-[35%] h-[35%] bg-blue-600/8 rounded-full blur-[120px] pointer-events-none" />
+        </>
+      ) : (
+        <>
+          <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-[-10%] right-[-5%] w-[30%] h-[30%] bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none" />
+        </>
+      )}
 
-      {/* SUBTLE FROZEN STATUS INDICATOR */}
+      {/* PREMIUM FROZEN STATE CARD */}
       {isFrozen && (
         <motion.div
-          initial={{ opacity: 0, y: -8 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 bg-[#0A0E14] border border-cyan-500/25 rounded-2xl p-4 sm:p-5 overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-[0_4px_24px_rgba(6,182,212,0.06)] backdrop-blur-xl"
+          className="relative z-10 bg-[#070A10] border border-cyan-500/35 rounded-2xl sm:rounded-3xl p-6 sm:p-7 shadow-[0_4px_35px_rgba(6,182,212,0.12)] ring-1 ring-cyan-500/20 backdrop-blur-xl overflow-hidden text-left space-y-5"
         >
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-lg shrink-0 text-cyan-300">
-              ❄️
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs font-mono font-bold tracking-wider text-white uppercase">
-                  STREAK PROTECTED
-                </h2>
-                {timeRemaining.displayRemaining && (
-                  <span className="text-[9px] font-mono uppercase text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-full tracking-widest">
-                    {timeRemaining.displayRemaining}
-                  </span>
-                )}
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/[0.08] via-transparent to-cyan-500/[0.03] pointer-events-none" />
+          
+          {/* Card Top: ❄ STREAK PROTECTION + Lock Indicator */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-cyan-500/20 relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-lg text-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.2)]">
+                ❄️
               </div>
-              <p className="text-zinc-300 text-xs mt-0.5">
-                Your habits are paused until <strong className="text-white font-semibold">{formattedEndDate || "expiration"}</strong>.
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-mono font-black tracking-widest text-white uppercase">
+                    STREAK PROTECTION
+                  </h2>
+                  <span className="text-[9px] font-mono uppercase text-cyan-300 bg-cyan-500/20 border border-cyan-500/35 px-2 py-0.5 rounded-full tracking-widest font-bold">
+                    FROZEN
+                  </span>
+                </div>
+                <p className="text-xs text-cyan-200/80 mt-0.5">
+                  Your streak is protected.
+                </p>
+              </div>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 self-start sm:self-center px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-[10px] font-mono font-bold text-cyan-300 shadow-sm">
+              <Lock size={12} className="text-cyan-400" />
+              <span className="uppercase tracking-wider">LOCKED UNTIL EXPIRATION</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-center">
-            <span className="text-[11px] font-medium text-neutral-400 bg-white/[0.04] border border-white/[0.08] px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-              <Lock size={12} className="text-cyan-400" />
-              <span>Freeze is locked until it expires.</span>
-            </span>
+          {/* Center Grid: EXPIRES & REMAINING */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
+            <div className="p-4 rounded-xl bg-white/[0.02] border border-cyan-500/20 space-y-1">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
+                EXPIRES
+              </div>
+              <div className="text-base font-bold text-white tracking-tight">
+                {formattedEndDate || "Scheduled date"}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white/[0.02] border border-cyan-500/20 space-y-1">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
+                REMAINING
+              </div>
+              <div className="text-base font-bold font-mono text-cyan-300 tracking-tight">
+                {timeRemaining.displayRemaining}
+              </div>
+            </div>
+          </div>
+
+          {/* Progress Bar & locked footer */}
+          <div className="space-y-2 relative z-10 pt-1">
+            <div className="w-full h-2 bg-white/[0.06] rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-cyan-400 to-cyan-200 rounded-full transition-all duration-500 shadow-[0_0_12px_rgba(6,182,212,0.4)]"
+                style={{ width: `${Math.min(100, Math.max(15, (timeRemaining.days / 7) * 100))}%` }}
+              />
+            </div>
+            <div className="flex justify-between items-center text-[11px] font-mono text-neutral-400">
+              <span>Freeze locked until expiration.</span>
+              <span className="text-cyan-300 font-semibold">{credits} Credits Left</span>
+            </div>
           </div>
         </motion.div>
       )}
@@ -313,11 +358,25 @@ export function DashboardScreen() {
             whileHover={{ borderColor: "rgba(255,255,255,0.15)" }}
             className="bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-7 transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)]"
           >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-zinc-200">Today's Protocol</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+              <div>
+                <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-zinc-200">
+                  Today's Protocol
+                </h2>
+                {isFrozen && (
+                  <p className="text-[11px] text-cyan-300 font-mono flex items-center gap-1.5 mt-1">
+                    <Lock size={11} className="text-cyan-400" />
+                    <span>HABITS PAUSED · Your streak is protected while Streak Freeze is active.</span>
+                  </p>
+                )}
+              </div>
               {totalHabits > 0 && (
-                <span className="text-[10px] font-mono uppercase font-medium tracking-wider text-zinc-300 bg-white/[0.04] px-2.5 py-1 rounded-md border border-white/[0.06]">
-                  {completedToday}/{totalHabits} Done
+                <span className={`text-[10px] font-mono uppercase font-medium tracking-wider px-2.5 py-1 rounded-md border self-start sm:self-auto ${
+                  isFrozen
+                    ? "text-cyan-300 bg-cyan-950/40 border-cyan-500/30"
+                    : "text-zinc-300 bg-white/[0.04] border-white/[0.06]"
+                }`}>
+                  {completedToday}/{totalHabits} {isFrozen ? "Completed (Paused)" : "Done"}
                 </span>
               )}
             </div>

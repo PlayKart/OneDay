@@ -8,7 +8,7 @@ import { EditHabitModal } from './EditHabitModal';
 import { getHabitIconComponent, getHabitColorTheme } from '../lib/habitIcons';
 import { getXpForDifficulty, extractXpAwarded, toDisplayDifficulty } from '../utils';
 import { perfLogger } from '../utils/perfLogger';
-import { isUserFrozen, formatFreezeDate } from '../utils/freezeUtils';
+import { isUserFrozen, formatFreezeDate, formatFreezeDateShort } from '../utils/freezeUtils';
 
 export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?: boolean; onCreateClick?: () => void }) => {
   const { user, habits, completeHabit, undoHabit, deleteHabit, refreshFromBackend, loading, pendingHabitIds } = useStore();
@@ -108,13 +108,48 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
 
   const guardedDisplayHabits = Array.isArray(displayHabits) ? displayHabits : [];
 
+  const totalScheduledToday = safeHabits.filter(h => isHabitScheduledForToday(h)).length;
+  const completedScheduledToday = safeHabits.filter(h => isHabitScheduledForToday(h) && h.completedToday).length;
+  const completionPercentage = totalScheduledToday > 0 ? Math.round((completedScheduledToday / totalScheduledToday) * 100) : 0;
+
   return (
     <>
     <div className="space-y-4">
       {!previewMode && (
-         <div className="mb-6 opacity-0 hidden">
-           {/* Legacy spacing, we hide this because HabitsScreen has its own header now */}
-         </div>
+        <div
+          className={`p-4 rounded-2xl border transition-all ${
+            userFrozen
+              ? "bg-[#080C14] border-cyan-500/25 ring-1 ring-cyan-500/15 shadow-[0_4px_24px_rgba(6,182,212,0.05)]"
+              : "bg-white/[0.02] border-white/[0.06]"
+          } space-y-2.5`}
+        >
+          <div className="flex justify-between items-center text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-bold uppercase tracking-wider text-white">TODAY</span>
+              {userFrozen ? (
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <Lock size={10} />
+                  <span>HABITS PAUSED</span>
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 bg-white/[0.04] px-2 py-0.5 rounded-md">
+                  ACTIVE PROTOCOL
+                </span>
+              )}
+            </div>
+            <div className="text-right font-mono text-[11px] text-zinc-300">
+              <span className="font-bold text-white">{completedScheduledToday} of {totalScheduledToday}</span> Completed ({completionPercentage}%)
+            </div>
+          </div>
+          <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                userFrozen ? "bg-cyan-400/80" : "bg-white"
+              }`}
+              style={{ width: `${Math.min(100, Math.max(0, completionPercentage))}%` }}
+            />
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-1 gap-3">
@@ -129,29 +164,48 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
             layout
             key={habit.id}
             className={`p-3.5 sm:p-4 rounded-2xl flex items-center justify-between group transition-all duration-300 border ${
-              habit.completedToday 
-                ? 'bg-white/[0.02] border-white/[0.04] opacity-50' 
-                : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/[0.12] hover:-translate-y-0.5 shadow-[0_4px_16px_rgba(0,0,0,0.2)]'
+              userFrozen
+                ? 'bg-[#080C14]/90 border-cyan-500/25 ring-1 ring-cyan-500/15 shadow-[0_4px_20px_rgba(6,182,212,0.05)] hover:border-cyan-500/40'
+                : habit.completedToday 
+                  ? 'bg-white/[0.02] border-white/[0.04] opacity-50' 
+                  : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/[0.12] hover:-translate-y-0.5 shadow-[0_4px_16px_rgba(0,0,0,0.2)]'
             }`}
           >
             <div className="flex items-center gap-3.5 min-w-0 pr-2">
-              <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-300 shrink-0 transition-all duration-300 ${habit.completedToday ? 'opacity-50 grayscale' : ''}`}>
+              <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
+                userFrozen
+                  ? 'bg-cyan-950/30 border border-cyan-500/25 text-cyan-300'
+                  : habit.completedToday ? 'bg-white/[0.04] border border-white/[0.08] text-zinc-300 opacity-50 grayscale' : 'bg-white/[0.04] border border-white/[0.08] text-zinc-300'
+              }`}>
                 <IconComp size={18} />
               </div>
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                  <h4 className={`font-semibold transition-all text-xs sm:text-sm truncate ${habit.completedToday ? 'text-zinc-500 line-through' : 'text-zinc-100'}`}>
+                  <h4 className={`font-semibold transition-all text-xs sm:text-sm truncate ${
+                    !userFrozen && habit.completedToday ? 'text-zinc-500 line-through' : 'text-zinc-100'
+                  }`}>
                     {habit.name}
                   </h4>
                   {habit.difficulty && (
-                    <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded border shrink-0 bg-white/[0.03] border-white/[0.06] text-zinc-400">
+                    <span className={`text-[9px] font-mono font-medium px-1.5 py-0.5 rounded border shrink-0 ${
+                      userFrozen
+                        ? 'bg-cyan-950/40 border-cyan-500/20 text-cyan-300/90'
+                        : 'bg-white/[0.03] border-white/[0.06] text-zinc-400'
+                    }`}>
                       {toDisplayDifficulty(habit.difficulty)} (+{getXpForDifficulty(habit.difficulty)} XP)
                     </span>
                   )}
                 </div>
-                <p className={`text-[10px] font-mono uppercase tracking-wider truncate ${habit.completedToday ? 'text-zinc-500' : 'text-zinc-400'}`}>
-                  {isPending ? 'Updating...' : (habit.completedToday ? 'Completed' : (isToday ? 'Scheduled Today' : getScheduledDaysMessage(habit)))}
-                </p>
+                {userFrozen ? (
+                  <div className="flex items-center gap-1.5 text-cyan-300 text-[10px] font-mono uppercase tracking-wider font-semibold">
+                    <Lock size={10} className="text-cyan-400" />
+                    <span>COMPLETION PAUSED</span>
+                  </div>
+                ) : (
+                  <p className={`text-[10px] font-mono uppercase tracking-wider truncate ${habit.completedToday ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                    {isPending ? 'Updating...' : (habit.completedToday ? 'Completed' : (isToday ? 'Scheduled Today' : getScheduledDaysMessage(habit)))}
+                  </p>
+                )}
               </div>
             </div>
             
@@ -161,8 +215,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   if (isPending) return;
 
                   if (userFrozen) {
-                    const formattedDate = formatFreezeDate(user?.freeze_until);
-                    toast(`Streak is frozen. Defrosting happens automatically on ${formattedDate}.`, {
+                    toast("Your habits are paused until your Streak Freeze expires.", {
                       icon: "❄️",
                     });
                     return;
@@ -209,13 +262,13 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                 }}
                 disabled={loading || isPending}
                 whileTap={{ scale: 0.85 }}
-                animate={habit.completedToday ? { scale: [1, 1.25, 1], rotate: [0, 10, -10, 0] } : {}}
+                animate={!userFrozen && habit.completedToday ? { scale: [1, 1.25, 1], rotate: [0, 10, -10, 0] } : {}}
                 transition={{ duration: 0.4 }}
                 className={`w-12 h-12 rounded-full flex items-center justify-center transition-all relative ${
                   isPending
                     ? 'bg-white/10 text-white cursor-wait border border-white/20'
                     : userFrozen
-                      ? 'bg-cyan-950/25 border border-cyan-500/25 text-cyan-400/50 hover:border-cyan-500/40 cursor-pointer shadow-[0_0_12px_rgba(6,182,212,0.1)]'
+                      ? 'bg-cyan-950/40 border border-cyan-500/35 text-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.15)] hover:border-cyan-400/60 cursor-pointer'
                       : habit.completedToday 
                         ? 'bg-emerald-500 text-black hover:bg-red-500 hover:text-white border border-transparent shadow-[0_0_20px_rgba(16,185,129,0.4)] cursor-pointer' 
                         : (isToday ? 'bg-white/5 border border-white/10 hover:border-white/30 hover:bg-white/10 text-white/30 hover:text-white transition-colors cursor-pointer' : 'bg-white/5 border border-white/5 opacity-50 cursor-not-allowed')
@@ -224,7 +277,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                 {isPending ? (
                   <Loader2 size={18} className="animate-spin text-white" />
                 ) : userFrozen ? (
-                  <Lock size={16} className="text-cyan-400/70" />
+                  <Lock size={16} className="text-cyan-300 stroke-[2.5]" />
                 ) : (
                   <Check size={18} className={habit.completedToday ? '' : (isToday ? 'text-white/40 sm:group-hover:text-white/20' : 'text-white/10')} />
                 )}

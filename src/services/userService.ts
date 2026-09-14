@@ -205,20 +205,6 @@ export const userService = {
   },
 
   /**
-   * Deactivates freeze via POST /api/freeze endpoint (0 days / unfreeze).
-   */
-  async deactivateFreeze(): Promise<User> {
-    try {
-      const res = await apiClient.post("/api/freeze", { days: 0 });
-      const rawData = res.data || {};
-      const updatedUser = rawData.user || rawData.profile || rawData;
-      return normalizeUser(updatedUser, useStore.getState().user || undefined);
-    } catch (err) {
-      return this.updateProfile({ freezeUntil: null, freeze_until: null });
-    }
-  },
-
-  /**
    * Resets progress via authoritative POST /api/reset endpoint.
    */
   async resetProgress(): Promise<void> {

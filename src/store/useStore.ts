@@ -82,7 +82,6 @@ interface StoreState {
   completeHabit: (habitId: string) => Promise<any>;
   undoHabit: (habitId: string) => Promise<any>;
   freezeStreak: (days: number) => Promise<void>;
-  deactivateFreeze: () => Promise<void>;
   updateProfile: (data: Partial<BackendUser>) => Promise<void>;
   equipTitle: (title: string) => Promise<void>;
   sendChat: (message: string) => Promise<string>;
@@ -670,12 +669,6 @@ export const useStore = create<StoreState>((set, get) => {
 
     freezeStreak: async (days) => {
       const updatedUser = await userService.freezeStreak(days);
-      set({ user: updatedUser });
-      await get().refreshFromBackend();
-    },
-
-    deactivateFreeze: async () => {
-      const updatedUser = await userService.deactivateFreeze();
       set({ user: updatedUser });
       await get().refreshFromBackend();
     },
