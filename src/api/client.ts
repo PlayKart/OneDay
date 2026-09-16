@@ -161,19 +161,33 @@ apiClient.interceptors.response.use(
     if (responseData) {
       if (typeof responseData.error === "object" && responseData.error?.message) {
         serverMessage = responseData.error.message;
-      } else if (typeof responseData.error === "string") {
+      } else if (typeof responseData.error === "string" && responseData.error.trim().length > 0) {
         serverMessage = responseData.error;
-      } else if (responseData.message) {
+      } else if (typeof responseData.message === "string" && responseData.message.trim().length > 0) {
         serverMessage = responseData.message;
+      } else if (typeof responseData.detail === "string" && responseData.detail.trim().length > 0) {
+        serverMessage = responseData.detail;
+      } else if (typeof responseData.msg === "string" && responseData.msg.trim().length > 0) {
+        serverMessage = responseData.msg;
+      } else if (typeof responseData === "string" && !responseData.includes("<html") && responseData.trim().length > 0) {
+        serverMessage = responseData.trim();
       }
-    } else if (error.message) {
+    } else if (error.message && error.message !== "Network Error") {
       serverMessage = error.message;
+    }
+
+    if (serverMessage === "A network or connection issue occurred." && status) {
+      if (status === 404) serverMessage = "Requested server endpoint was not found.";
+      else if (status === 401) serverMessage = "Session expired. Please sign in again.";
+      else if (status === 403) serverMessage = "You do not have permission to perform this action.";
+      else if (status >= 500) serverMessage = "Server encountered an error. Please try again shortly.";
     }
 
     const err = new Error(serverMessage);
     (err as any).response = error.response;
     (err as any).isAuthError = isBackendAuthError;
     (err as any).status = status;
+    (err as any).code = responseData?.code || responseData?.error?.code;
     (err as any).isNetworkError = !error.response;
     return Promise.reject(err);
   }

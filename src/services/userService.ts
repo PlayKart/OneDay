@@ -231,4 +231,55 @@ export const userService = {
       console.warn(`[USER SERVICE] deleteAccount failed:`, err?.message || err);
     }
   },
+
+  /**
+   * Equips a title using the backend's authoritative POST /api/titles/equip (or fallback POST /api/title/equip).
+   */
+  async equipTitle(title: string): Promise<any> {
+    const fbUser = auth.currentUser || useStore.getState().firebaseUser;
+    if (!fbUser) throw new Error("Not authenticated");
+
+    const normalizedTitle = title.trim();
+    let responseData: any = null;
+
+    try {
+      const res = await apiClient.post("/api/titles/equip", { title: normalizedTitle });
+      responseData = res.data;
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        // Fallback to singular endpoint if plural doesn't exist
+        const fallback = await apiClient.post("/api/title/equip", { title: normalizedTitle });
+        responseData = fallback.data;
+      } else {
+        throw err;
+      }
+    }
+
+    return responseData;
+  },
+
+  /**
+   * Fetches authoritative user titles and catalog status via GET /api/titles (or GET /api/title).
+   */
+  async getUserTitles(): Promise<{
+    currentTitle?: string;
+    activeTitle?: string;
+    equippedTitle?: any;
+    unlockedTitles?: string[];
+    titles?: any[];
+  }> {
+    const fbUser = auth.currentUser || useStore.getState().firebaseUser;
+    if (!fbUser) throw new Error("Not authenticated");
+
+    try {
+      const res = await apiClient.get("/api/titles");
+      return res.data;
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        const fallback = await apiClient.get("/api/title");
+        return fallback.data;
+      }
+      throw err;
+    }
+  },
 };

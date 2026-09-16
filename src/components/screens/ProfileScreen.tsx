@@ -54,11 +54,26 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
     }
     setFetchError(null);
     try {
-      console.log("[PROFILE SCREEN] Fetching authoritative profile from backend...");
-      const data = await userService.getUserProfile();
-      console.log("[PROFILE SCREEN] Successfully fetched profile from backend:", data);
+      console.log("[PROFILE SCREEN] Fetching authoritative profile and titles from backend...");
+      const [data, titlesData] = await Promise.all([
+        userService.getUserProfile(),
+        userService.getUserTitles().catch((e) => {
+          console.warn("[PROFILE SCREEN] getUserTitles optional notice:", e);
+          return null;
+        }),
+      ]);
+
+      const mergedUser = {
+        ...data,
+        ...(titlesData?.titles ? { titles: titlesData.titles } : {}),
+        ...(titlesData?.unlockedTitles ? { unlockedTitles: titlesData.unlockedTitles } : {}),
+        ...(titlesData?.equippedTitle ? { equippedTitle: titlesData.equippedTitle } : {}),
+        ...(titlesData?.currentTitle ? { currentTitle: titlesData.currentTitle } : {}),
+      };
+
+      console.log("[PROFILE SCREEN] Authoritative user state synced:", mergedUser);
       // Sync single authoritative user in Zustand store
-      useStore.setState({ user: data });
+      useStore.setState({ user: mergedUser });
     } catch (err: any) {
       console.error("[PROFILE SCREEN] Error fetching profile from backend:", err);
       setFetchError(err?.message || "Failed to load user profile.");
@@ -94,7 +109,12 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
       toast.success(`Equipped '${confirmedTitle}' as identity badge`);
     } catch (err: any) {
       console.error("[PROFILE SCREEN] Equip title error:", err);
-      const errMsg = err?.response?.data?.message || err?.message || "Failed to equip title. Please try again.";
+      const errMsg =
+        err?.message ||
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        "Failed to equip title. Please try again.";
       toast.error(errMsg);
     } finally {
       setEquippingTitle(null);
@@ -189,86 +209,100 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
               </span>
             </div>
 
-            <div className="space-y-2.5">
-              {unlockedTitles.map((t) => {
-                const isCurrent = equippedTitle?.toUpperCase() === t.toUpperCase();
-                const isEquipping = equippingTitle?.toUpperCase() === t.toUpperCase();
-                const isAnyEquipping = Boolean(equippingTitle);
-                const isNew = isTitleNew(t, currentUserId);
-                const desc = getTitleDescription(t);
+            {unlockedTitles.length === 0 ? (
+              <div className="p-8 rounded-2xl border border-white/5 bg-white/[0.02] text-center space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mx-auto">
+                  <Award size={18} />
+                </div>
+                <h4 className="text-white font-extrabold text-xs uppercase tracking-wider">
+                  No Titles Unlocked Yet
+                </h4>
+                <p className="text-slate-400 text-[11px] leading-relaxed max-w-xs mx-auto">
+                  Keep building your consistency to unlock your first title.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {unlockedTitles.map((t) => {
+                  const isCurrent = equippedTitle?.toUpperCase() === t.toUpperCase();
+                  const isEquipping = equippingTitle?.toUpperCase() === t.toUpperCase();
+                  const isAnyEquipping = Boolean(equippingTitle);
+                  const isNew = isTitleNew(t, currentUserId);
+                  const desc = getTitleDescription(t, null, activeUser);
 
-                return (
-                  <div
-                    key={t}
-                    onClick={() => {
-                      if (!isCurrent && !isAnyEquipping) {
-                        handleSelectTitle(t);
-                      }
-                    }}
-                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-                      isCurrent
-                        ? "bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)] cursor-default"
-                        : isAnyEquipping
-                        ? "bg-white/[0.02] border-white/5 opacity-60 cursor-not-allowed"
-                        : "bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] cursor-pointer"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className={`text-xs font-black uppercase tracking-wide ${isCurrent ? "text-amber-300" : "text-white"}`}>
-                          {t}
-                        </span>
-                        {isNew && !isCurrent && (
-                          <span className="px-1.5 py-0.2 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[8px] font-black uppercase tracking-widest rounded-full animate-pulse">
-                            NEW
-                          </span>
-                        )}
-                        {isCurrent && (
-                          <span className="px-2 py-0.2 bg-amber-400 text-black text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-1 font-mono">
-                            <Check size={8} className="stroke-[3]" />
-                            Equipped
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-slate-400 text-[11px] font-medium leading-relaxed truncate">
-                        "{desc}"
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={isCurrent || isAnyEquipping}
-                      onClick={(e) => {
-                        e.stopPropagation();
+                  return (
+                    <div
+                      key={t}
+                      onClick={() => {
                         if (!isCurrent && !isAnyEquipping) {
                           handleSelectTitle(t);
                         }
                       }}
-                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 ${
+                      className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                         isCurrent
-                          ? "bg-amber-400/20 text-amber-300 border border-amber-500/30 cursor-default"
-                          : isEquipping
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-wait"
+                          ? "bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)] cursor-default"
                           : isAnyEquipping
-                          ? "bg-white/5 text-slate-500 border border-white/5 cursor-not-allowed opacity-50"
-                          : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer active:scale-95"
+                          ? "bg-white/[0.02] border-white/5 opacity-60 cursor-not-allowed"
+                          : "bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] cursor-pointer"
                       }`}
                     >
-                      {isEquipping ? (
-                        <>
-                          <Loader2 size={10} className="animate-spin text-amber-400" />
-                          <span>Equipping...</span>
-                        </>
-                      ) : isCurrent ? (
-                        "Active"
-                      ) : (
-                        "Equip"
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`text-xs font-black uppercase tracking-wide ${isCurrent ? "text-amber-300" : "text-white"}`}>
+                            {t}
+                          </span>
+                          {isNew && !isCurrent && (
+                            <span className="px-1.5 py-0.2 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[8px] font-black uppercase tracking-widest rounded-full animate-pulse">
+                              NEW
+                            </span>
+                          )}
+                          {isCurrent && (
+                            <span className="px-2 py-0.2 bg-amber-400 text-black text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-1 font-mono">
+                              <Check size={8} className="stroke-[3]" />
+                              Equipped
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-slate-400 text-[11px] font-medium leading-relaxed truncate">
+                          "{desc}"
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isCurrent || isAnyEquipping}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isCurrent && !isAnyEquipping) {
+                            handleSelectTitle(t);
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 ${
+                          isCurrent
+                            ? "bg-amber-400/20 text-amber-300 border border-amber-500/30 cursor-default"
+                            : isEquipping
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-wait"
+                            : isAnyEquipping
+                            ? "bg-white/5 text-slate-500 border border-white/5 cursor-not-allowed opacity-50"
+                            : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer active:scale-95"
+                        }`}
+                      >
+                        {isEquipping ? (
+                          <>
+                            <Loader2 size={10} className="animate-spin text-amber-400" />
+                            <span>Equipping...</span>
+                          </>
+                        ) : isCurrent ? (
+                          "Active"
+                        ) : (
+                          "Equip"
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Personal Information Grid */}

@@ -9,40 +9,69 @@ export interface TitleMetadata {
 }
 
 export const KNOWN_TITLES: Record<string, string> = {
+  // Official OneDay Backend Catalog
+  "NEWCOMER": "Every legend begins with Day One.",
+  "PROMISE KEEPER": "You kept your word.",
+  "SELF STARTER": "Action beats intention.",
+  "CONSISTENT": "Small wins compound.",
+  "DISCIPLINED": "Discipline is becoming your identity.",
+  "FOCUSED": "Where attention goes, progress follows.",
+  "RELENTLESS": "You don't stop when it gets difficult.",
+  "IRON MIND": "Pressure no longer changes your direction.",
+  "ELITE PERFORMER": "Consistency has become your advantage.",
+  "UNBREAKABLE": "You've learned to keep moving forward.",
+  "WARRIOR": "You fight the battle most people avoid.",
+  "CHAMPION": "Excellence is becoming your habit.",
+  "ETERNAL": "Your discipline now outlives motivation.",
+  "LEGEND": "Few make it this far. Keep going.",
+  "ONEDAY ELITE": "You represent what OneDay stands for.",
+  "ASCENDED": "You've risen above ordinary.",
+  "GRANDMASTER": "Mastery is earned, never given.",
+  "VISIONARY": "You don't just follow the path—you create it.",
+  "MYTHIC": "Your journey inspires others.",
+  "DISCIPLINE INCARNATE": "Discipline is no longer something you do. It is who you are.",
+  "FOUNDER OF SELF": "You built the person you once dreamed of becoming.",
+
+  // Legacy/Custom Signatures
   "DISCIPLINE BUILDER": "Consistency is becoming your standard.",
-  "IRON MIND": "You've proven consistency isn't luck. It's your identity.",
   "HABIT MASTER": "Small daily actions compounding into monumental results.",
   "UNSTOPPABLE": "Momentum and willpower moving in perfect harmony.",
   "APEX DISCIPLINARIAN": "Operating at the pinnacle of personal standards.",
   "EARLY RISER": "Claiming victory before the rest of the world wakes.",
-  "PROMISE KEEPER": "Your word to yourself is non-negotiable.",
   "FOCUS ARCHITECT": "Distraction eliminated. Pure execution achieved.",
-  "RELENTLESS": "No excuses, no compromise, only progress.",
-  "UNBREAKABLE": "Pressure reveals strength. Standards remain intact.",
-  "GRANDMASTER": "Mastery over impulse, master of daily routine.",
-  "CONSISTENT": "Showing up every single day without hesitation.",
   "FIRST STEP": "The journey of thousands of days begins with one.",
   "DAILY ARCHITECT": "Building a disciplined life, one routine at a time.",
   "VANGUARD": "Leading from the front through relentless execution.",
   "SOVEREIGN": "Complete autonomy and mastery over daily actions.",
-  "CHAMPION": "Excellence is not an act, but a persistent habit.",
 };
 
 /**
  * Returns a confident, short description for any title.
  */
-export function getTitleDescription(title?: string | null, customSignature?: string | null): string {
+export function getTitleDescription(title?: string | null, customSignature?: string | null, user?: any): string {
   if (customSignature && customSignature.trim().length > 0) {
     return customSignature.trim();
   }
-  if (!title) return "Consistency is becoming your standard.";
+  if (!title) return "Every legend begins with Day One.";
 
   const normalized = title.trim().toUpperCase();
+
+  // If user object contains backend title metadata with signature, prefer it
+  if (user && Array.isArray(user.titles)) {
+    const found = user.titles.find((t: any) => {
+      const tName = typeof t === "string" ? t : t?.title || t?.name;
+      return typeof tName === "string" && tName.trim().toUpperCase() === normalized;
+    });
+    if (found && typeof found === "object" && found.signature) {
+      return String(found.signature).trim();
+    }
+  }
+
   if (KNOWN_TITLES[normalized]) {
     return KNOWN_TITLES[normalized];
   }
 
-  return "Consistency is becoming your standard.";
+  return "Every legend begins with Day One.";
 }
 
 function getStorageKey(userId?: string): string {
@@ -104,15 +133,32 @@ export function isTitleNew(title: string, userId?: string): boolean {
 export function getEquippedTitle(user?: any): string | null {
   if (!user) return null;
 
-  // 1. Check direct authoritative fields on user object
+  // 1. Check if equippedTitle is an object with title/name/id
+  if (user.equippedTitle && typeof user.equippedTitle === "object") {
+    const val = user.equippedTitle.title || user.equippedTitle.name || user.equippedTitle.id;
+    if (typeof val === "string" && val.trim().length > 0) {
+      return val.trim().toUpperCase();
+    }
+  }
+  if (user.equipped_title && typeof user.equipped_title === "object") {
+    const val = user.equipped_title.title || user.equipped_title.name || user.equipped_title.id;
+    if (typeof val === "string" && val.trim().length > 0) {
+      return val.trim().toUpperCase();
+    }
+  }
+
+  // 2. Check direct authoritative string fields on user object
   if (typeof user.equippedTitle === "string" && user.equippedTitle.trim().length > 0) {
     return user.equippedTitle.trim().toUpperCase();
   }
   if (typeof user.equipped_title === "string" && user.equipped_title.trim().length > 0) {
     return user.equipped_title.trim().toUpperCase();
   }
-  if (typeof user.title === "string" && user.title.trim().length > 0) {
-    return user.title.trim().toUpperCase();
+  if (typeof user.currentTitle === "string" && user.currentTitle.trim().length > 0) {
+    return user.currentTitle.trim().toUpperCase();
+  }
+  if (typeof user.current_title === "string" && user.current_title.trim().length > 0) {
+    return user.current_title.trim().toUpperCase();
   }
   if (typeof user.activeTitle === "string" && user.activeTitle.trim().length > 0) {
     return user.activeTitle.trim().toUpperCase();
@@ -120,8 +166,11 @@ export function getEquippedTitle(user?: any): string | null {
   if (typeof user.active_title === "string" && user.active_title.trim().length > 0) {
     return user.active_title.trim().toUpperCase();
   }
+  if (typeof user.title === "string" && user.title.trim().length > 0) {
+    return user.title.trim().toUpperCase();
+  }
 
-  // 2. Check if user.titles or user.unlockedTitles array contains an item with isCurrent / equipped
+  // 3. Check if user.titles or user.unlockedTitles array contains an item with isCurrent / equipped
   const titlesList = Array.isArray(user.titles)
     ? user.titles
     : (Array.isArray(user.unlockedTitles)
@@ -165,52 +214,73 @@ export function setEquippedTitle(title: string, userId?: string): void {
 }
 
 /**
- * Retrieves all unlocked titles for the user.
+ * Retrieves ONLY actually unlocked titles for the user confirmed by the backend.
+ * Under NO circumstances does this function inject titles based on level or streak,
+ * nor assume titles are unlocked simply because they exist in the catalog.
  */
 export function getAllUserTitles(user?: any): string[] {
-  const titlesStart = performance.now();
   const titlesSet = new Set<string>();
+  if (!user) return [];
 
-  // Extract from user.titles
-  if (Array.isArray(user?.titles)) {
+  // 1. Extract confirmed unlocked titles from user.unlockedTitles (or user.unlocked_titles)
+  const unlockedList = Array.isArray(user.unlockedTitles)
+    ? user.unlockedTitles
+    : (Array.isArray(user.unlocked_titles) ? user.unlocked_titles : null);
+
+  if (Array.isArray(unlockedList)) {
+    unlockedList.forEach((t: any) => {
+      if (typeof t === "string" && t.trim()) {
+        titlesSet.add(t.trim().toUpperCase());
+      } else if (t && typeof t === "object") {
+        // If it's an object in unlockedTitles, ensure it's not marked unlocked: false
+        if (t.unlocked !== false && t.isUnlocked !== false && t.is_unlocked !== false) {
+          const val = t.title || t.name || t.id;
+          if (typeof val === "string" && val.trim()) {
+            titlesSet.add(val.trim().toUpperCase());
+          }
+        }
+      }
+    });
+  }
+
+  // 2. Extract from user.titles ONLY IF explicitly confirmed unlocked by the backend
+  if (Array.isArray(user.titles)) {
     user.titles.forEach((t: any) => {
-      if (typeof t === "string" && t.trim()) titlesSet.add(t.trim().toUpperCase());
-      if (t && typeof t === "object" && t.title) titlesSet.add(String(t.title).trim().toUpperCase());
+      if (t && typeof t === "object") {
+        // Check authoritative unlock flags from backend
+        const isConfirmedUnlocked =
+          t.unlocked === true ||
+          t.isUnlocked === true ||
+          t.is_unlocked === true ||
+          t.earned === true ||
+          t.userHasTitle === true ||
+          t.isCurrent === true ||
+          t.is_current === true ||
+          Boolean(t.unlockedAt || t.unlocked_at);
+
+        if (isConfirmedUnlocked) {
+          const val = t.title || t.name || t.id;
+          if (typeof val === "string" && val.trim()) {
+            titlesSet.add(val.trim().toUpperCase());
+          }
+        }
+      } else if (typeof t === "string" && t.trim()) {
+        // Only if user.unlockedTitles is NOT present do we consider string array items
+        if (!unlockedList) {
+          titlesSet.add(t.trim().toUpperCase());
+        }
+      }
     });
   }
 
-  // Extract from user.unlockedTitles
-  if (Array.isArray(user?.unlockedTitles)) {
-    user.unlockedTitles.forEach((t: any) => {
-      if (typeof t === "string" && t.trim()) titlesSet.add(t.trim().toUpperCase());
-    });
+  // 3. The currently equipped / active title from backend is authoritatively unlocked
+  const equipped = getEquippedTitle(user);
+  if (equipped && typeof equipped === "string" && equipped.trim()) {
+    titlesSet.add(equipped.trim().toUpperCase());
   }
 
-  // Extract user's current title if available
-  if (user?.title && typeof user.title === "string") {
-    titlesSet.add(user.title.trim().toUpperCase());
-  }
-  if (user?.equippedTitle && typeof user.equippedTitle === "string") {
-    titlesSet.add(user.equippedTitle.trim().toUpperCase());
-  }
-
-  // Also include base level-unlocked title based on user level
-  const userLevel = user?.level || 1;
-  if (userLevel >= 1) titlesSet.add("DISCIPLINE BUILDER");
-  if (userLevel >= 3) titlesSet.add("IRON MIND");
-  if (userLevel >= 5) titlesSet.add("HABIT MASTER");
-  if (userLevel >= 7) titlesSet.add("UNSTOPPABLE");
-  if (userLevel >= 10) titlesSet.add("APEX DISCIPLINARIAN");
-
-  // If streak milestone reached
-  const streak = user?.currentStreak || user?.streak || 0;
-  if (streak >= 7) titlesSet.add("CONSISTENT");
-  if (streak >= 14) titlesSet.add("RELENTLESS");
-  if (streak >= 30) titlesSet.add("UNBREAKABLE");
-
-  const results = Array.from(titlesSet);
-  console.log(`[PERF] titles: ${Math.round(performance.now() - titlesStart)}ms`);
-  return results;
+  // Under NO circumstances inject titles based on user.level, user.streak, or catalog presence.
+  return Array.from(titlesSet);
 }
 
 /**

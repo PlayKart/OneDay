@@ -16,7 +16,9 @@ export interface User {
   levelProgress: number;
   title?: string;
   equippedTitle?: string;
-  titles?: string[];
+  currentTitle?: string;
+  activeTitle?: string;
+  titles?: any[];
   unlockedTitles?: string[];
   freezeUntil?: string | null;
   freeze_until?: string | null;
