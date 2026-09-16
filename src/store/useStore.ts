@@ -83,7 +83,7 @@ interface StoreState {
   undoHabit: (habitId: string) => Promise<any>;
   freezeStreak: (days: number) => Promise<void>;
   updateProfile: (data: Partial<BackendUser>) => Promise<void>;
-  equipTitle: (title: string) => Promise<void>;
+  equipTitle: (title: string) => Promise<string>;
   sendChat: (message: string) => Promise<string>;
   resetProgress: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -704,22 +704,53 @@ export const useStore = create<StoreState>((set, get) => {
       }
     },
 
-    equipTitle: async (title: string) => {
+    equipTitle: async (title: string): Promise<string> => {
       const currentUser = get().user;
-      if (!currentUser) return;
+      if (!currentUser) {
+        throw new Error("No active user session.");
+      }
       const normalizedTitle = title.trim().toUpperCase();
+
+      // 1. DO NOT update local title state optimistically. The backend is authoritative.
+
+      // 2. Clear any legacy localStorage values
       setEquippedTitle(normalizedTitle, currentUser.id || currentUser.userId);
-      const updatedUser: BackendUser = {
-        ...currentUser,
+
+      // 3. Send existing equip payload to backend via updateProfile
+      const equipPayload = {
         title: normalizedTitle,
         equippedTitle: normalizedTitle,
+        equipped_title: normalizedTitle,
+        activeTitle: normalizedTitle,
+        active_title: normalizedTitle,
       };
-      set({ user: updatedUser });
+
+      const updatedUser = await userService.updateProfile(equipPayload as any);
+
+      // 4. Refetch authoritative profile from backend to ensure persistent consistency
+      let authoritativeUser = updatedUser;
       try {
-        await userService.updateProfile({ title: normalizedTitle, equippedTitle: normalizedTitle } as any);
-      } catch (err) {
-        console.warn("Could not sync equipped title to backend API:", err);
+        const freshUser = await userService.getUserProfile(updatedUser);
+        if (freshUser) {
+          authoritativeUser = freshUser;
+        }
+      } catch (refetchErr) {
+        console.warn("[EQUIP] Background profile refetch notice:", refetchErr);
       }
+
+      // 5. Derive the confirmed equipped title strictly from backend-confirmed user state
+      const confirmedTitle = getEquippedTitle(authoritativeUser) || normalizedTitle;
+
+      // 6. Update single source of truth in store
+      set({
+        user: {
+          ...authoritativeUser,
+          title: confirmedTitle,
+          equippedTitle: confirmedTitle,
+        },
+      });
+
+      return confirmedTitle;
     },
 
     sendChat: async (messageText) => {

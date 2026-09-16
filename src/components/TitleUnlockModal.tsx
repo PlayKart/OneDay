@@ -2,15 +2,17 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, Check, Shield, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Shield, Sparkles, Loader2 } from "lucide-react";
 import { MonolithLogo } from "./MonolithLogo";
 import { useStore } from "../store/useStore";
 import { markTitleAsSeen, playTitleUnlockSound } from "../utils/titleUtils";
+import { toast } from "react-hot-toast";
 
 export function TitleUnlockModal() {
   const { titleUnlockData, setTitleUnlockData, equipTitle, user, levelUpData } = useStore();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [isEquipped, setIsEquipped] = useState(false);
+  const [equipping, setEquipping] = useState(false);
 
   // Reduced motion detection
   useEffect(() => {
@@ -56,12 +58,21 @@ export function TitleUnlockModal() {
   };
 
   const handleEquip = async () => {
-    setIsEquipped(true);
-    markTitleAsSeen(rawTitle, currentUserId);
-    await equipTitle(rawTitle);
-    setTimeout(() => {
-      setTitleUnlockData(null);
-    }, 600);
+    if (equipping || isEquipped) return;
+    setEquipping(true);
+    try {
+      await equipTitle(rawTitle);
+      setIsEquipped(true);
+      markTitleAsSeen(rawTitle, currentUserId);
+      setTimeout(() => {
+        setTitleUnlockData(null);
+      }, 600);
+    } catch (err: any) {
+      console.error("[TITLE UNLOCK MODAL] Failed to equip title:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to equip title.");
+    } finally {
+      setEquipping(false);
+    }
   };
 
   if (prefersReducedMotion) {
@@ -93,10 +104,17 @@ export function TitleUnlockModal() {
           <div className="w-full flex flex-col gap-2.5">
             <button
               onClick={handleEquip}
-              disabled={isEquipped}
-              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-black font-extrabold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer text-xs uppercase tracking-wider active:scale-95"
+              disabled={isEquipped || equipping}
+              className={`w-full bg-gradient-to-r from-amber-500 to-amber-600 text-black font-extrabold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all text-xs uppercase tracking-wider ${
+                equipping ? "opacity-75 cursor-wait" : "cursor-pointer active:scale-95"
+              }`}
             >
-              {isEquipped ? (
+              {equipping ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  Equipping...
+                </>
+              ) : isEquipped ? (
                 <>
                   <Check size={14} />
                   Equipped
@@ -253,10 +271,17 @@ export function TitleUnlockModal() {
             <button
               id="equip-title-btn"
               onClick={handleEquip}
-              disabled={isEquipped}
-              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_4px_25px_rgba(245,158,11,0.35)] active:scale-95 cursor-pointer text-xs uppercase tracking-wider"
+              disabled={isEquipped || equipping}
+              className={`w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_4px_25px_rgba(245,158,11,0.35)] text-xs uppercase tracking-wider ${
+                equipping ? "opacity-75 cursor-wait" : "cursor-pointer active:scale-95"
+              }`}
             >
-              {isEquipped ? (
+              {equipping ? (
+                <>
+                  <Loader2 size={14} className="animate-spin text-black" />
+                  Equipping...
+                </>
+              ) : isEquipped ? (
                 <>
                   <Check size={14} className="stroke-[3]" />
                   Equipped as Identity Badge

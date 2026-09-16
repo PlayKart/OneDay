@@ -132,6 +132,7 @@ export const userService = {
     const mergedUser = normalizeUser(
       {
         ...currentUser,
+        ...data,
         ...updatedBackendUser,
         id: fbUser.uid,
         userId: fbUser.uid,

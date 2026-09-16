@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useStore } from "../../store/useStore";
-import { ArrowLeft, User as UserIcon, Edit3, AlertTriangle, Sparkles, Heart, Trophy, Calendar, Shield, Check, Award } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Edit3, AlertTriangle, Sparkles, Heart, Trophy, Calendar, Shield, Check, Award, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "react-hot-toast";
 import { userService } from "../../services/userService";
@@ -42,11 +42,11 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ onBack }: ProfileScreenProps) {
-  const { user } = useStore();
+  const { user, equipTitle } = useStore();
   const [isEditing, setIsEditing] = useState(false);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(!user);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [profileData, setProfileData] = useState<any>(null);
+  const [equippingTitle, setEquippingTitle] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async (showLoading = true) => {
     if (showLoading) {
@@ -54,11 +54,10 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
     }
     setFetchError(null);
     try {
-      console.log("[PROFILE SCREEN] Fetching latest profile from backend...");
+      console.log("[PROFILE SCREEN] Fetching authoritative profile from backend...");
       const data = await userService.getUserProfile();
       console.log("[PROFILE SCREEN] Successfully fetched profile from backend:", data);
-      setProfileData(data);
-      // Sync with global store state
+      // Sync single authoritative user in Zustand store
       useStore.setState({ user: data });
     } catch (err: any) {
       console.error("[PROFILE SCREEN] Error fetching profile from backend:", err);
@@ -69,19 +68,37 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
   }, []);
 
   useEffect(() => {
-    fetchProfile(true);
-  }, [fetchProfile]);
+    fetchProfile(!user);
+  }, [fetchProfile, user]);
 
-  const activeUser = profileData || user;
+  const activeUser = user;
   const currentUserId = activeUser?.id || activeUser?.userId;
   const equippedTitle = getEquippedTitle(activeUser);
   const unlockedTitles = getAllUserTitles(activeUser);
-  const { equipTitle } = useStore();
 
   const handleSelectTitle = async (title: string) => {
-    markTitleAsSeen(title, currentUserId);
-    await equipTitle(title);
-    toast.success(`Equipped "${title.toUpperCase()}" as identity badge`);
+    const normalized = title.trim().toUpperCase();
+    if (equippingTitle) return; // Prevent duplicate requests
+    if (equippedTitle?.toUpperCase() === normalized) return; // Already equipped
+
+    setEquippingTitle(normalized);
+
+    try {
+      // 1. Send existing equip request and wait for backend confirmation
+      const confirmedTitle = await equipTitle(normalized);
+
+      // 2. Mark title as seen
+      markTitleAsSeen(confirmedTitle, currentUserId);
+
+      // 3. Show success toast ONLY after confirmed by backend
+      toast.success(`Equipped '${confirmedTitle}' as identity badge`);
+    } catch (err: any) {
+      console.error("[PROFILE SCREEN] Equip title error:", err);
+      const errMsg = err?.response?.data?.message || err?.message || "Failed to equip title. Please try again.";
+      toast.error(errMsg);
+    } finally {
+      setEquippingTitle(null);
+    }
   };
 
   return (
@@ -175,17 +192,25 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
             <div className="space-y-2.5">
               {unlockedTitles.map((t) => {
                 const isCurrent = equippedTitle?.toUpperCase() === t.toUpperCase();
+                const isEquipping = equippingTitle?.toUpperCase() === t.toUpperCase();
+                const isAnyEquipping = Boolean(equippingTitle);
                 const isNew = isTitleNew(t, currentUserId);
                 const desc = getTitleDescription(t);
 
                 return (
                   <div
                     key={t}
-                    onClick={() => handleSelectTitle(t)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                    onClick={() => {
+                      if (!isCurrent && !isAnyEquipping) {
+                        handleSelectTitle(t);
+                      }
+                    }}
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                       isCurrent
-                        ? "bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)]"
-                        : "bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04]"
+                        ? "bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)] cursor-default"
+                        : isAnyEquipping
+                        ? "bg-white/[0.02] border-white/5 opacity-60 cursor-not-allowed"
+                        : "bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] cursor-pointer"
                     }`}
                   >
                     <div className="min-w-0 flex-1">
@@ -199,7 +224,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
                           </span>
                         )}
                         {isCurrent && (
-                          <span className="px-2 py-0.2 bg-amber-400 text-black text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-1">
+                          <span className="px-2 py-0.2 bg-amber-400 text-black text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-1 font-mono">
                             <Check size={8} className="stroke-[3]" />
                             Equipped
                           </span>
@@ -212,17 +237,33 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
 
                     <button
                       type="button"
+                      disabled={isCurrent || isAnyEquipping}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleSelectTitle(t);
+                        if (!isCurrent && !isAnyEquipping) {
+                          handleSelectTitle(t);
+                        }
                       }}
-                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 ${
                         isCurrent
-                          ? "bg-amber-400/20 text-amber-300 border border-amber-500/30"
-                          : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10"
+                          ? "bg-amber-400/20 text-amber-300 border border-amber-500/30 cursor-default"
+                          : isEquipping
+                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-wait"
+                          : isAnyEquipping
+                          ? "bg-white/5 text-slate-500 border border-white/5 cursor-not-allowed opacity-50"
+                          : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer active:scale-95"
                       }`}
                     >
-                      {isCurrent ? "Active" : "Equip"}
+                      {isEquipping ? (
+                        <>
+                          <Loader2 size={10} className="animate-spin text-amber-400" />
+                          <span>Equipping...</span>
+                        </>
+                      ) : isCurrent ? (
+                        "Active"
+                      ) : (
+                        "Equip"
+                      )}
                     </button>
                   </div>
                 );

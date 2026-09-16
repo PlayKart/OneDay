@@ -98,29 +98,69 @@ export function isTitleNew(title: string, userId?: string): boolean {
 }
 
 /**
- * Retrieves the currently equipped title from user profile or local preference.
+ * Retrieves the currently equipped title from the user profile.
+ * The backend is authoritative. Does NOT use localStorage or hardcoded fallbacks.
  */
 export function getEquippedTitle(user?: any): string | null {
-  if (user?.equippedTitle) return user.equippedTitle;
-  if (user?.title && typeof user.title === "string") return user.title;
-  try {
-    const stored = localStorage.getItem(getEquippedKey(user?.id || user?.userId));
-    if (stored && stored.trim().length > 0) return stored.trim();
-  } catch {
-    // fallback
+  if (!user) return null;
+
+  // 1. Check direct authoritative fields on user object
+  if (typeof user.equippedTitle === "string" && user.equippedTitle.trim().length > 0) {
+    return user.equippedTitle.trim().toUpperCase();
   }
+  if (typeof user.equipped_title === "string" && user.equipped_title.trim().length > 0) {
+    return user.equipped_title.trim().toUpperCase();
+  }
+  if (typeof user.title === "string" && user.title.trim().length > 0) {
+    return user.title.trim().toUpperCase();
+  }
+  if (typeof user.activeTitle === "string" && user.activeTitle.trim().length > 0) {
+    return user.activeTitle.trim().toUpperCase();
+  }
+  if (typeof user.active_title === "string" && user.active_title.trim().length > 0) {
+    return user.active_title.trim().toUpperCase();
+  }
+
+  // 2. Check if user.titles or user.unlockedTitles array contains an item with isCurrent / equipped
+  const titlesList = Array.isArray(user.titles)
+    ? user.titles
+    : (Array.isArray(user.unlockedTitles)
+      ? user.unlockedTitles
+      : (Array.isArray(user.unlocked_titles) ? user.unlocked_titles : []));
+
+  if (Array.isArray(titlesList)) {
+    for (const item of titlesList) {
+      if (item && typeof item === "object") {
+        if (item.isCurrent || item.is_current || item.isEquipped || item.equipped || item.active || item.isActive) {
+          const val = item.title || item.name || item.id;
+          if (typeof val === "string" && val.trim().length > 0) {
+            return val.trim().toUpperCase();
+          }
+        }
+      }
+    }
+  }
+
+  // Frontend must NEVER decide the equipped title locally or fall back to localStorage.
   return null;
 }
 
 /**
- * Persists the user's equipped title.
+ * Clears any legacy localStorage title state to avoid stale client-side fallback bugs.
  */
 export function setEquippedTitle(title: string, userId?: string): void {
-  if (!title) return;
   try {
-    localStorage.setItem(getEquippedKey(userId), title.trim());
+    localStorage.removeItem(getEquippedKey(userId));
+    if (typeof window !== "undefined") {
+      // Remove any generic oneday_equipped_title keys
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith("oneday_equipped_title_")) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
   } catch (err) {
-    console.warn("Failed to persist equipped title:", err);
+    console.warn("Failed to clear legacy equipped title key:", err);
   }
 }
 

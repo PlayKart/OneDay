@@ -274,16 +274,71 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
     currentStreak: typeof streakVal === "number" ? streakVal : (existingUser?.currentStreak ?? existingUser?.streak ?? 0),
     level: finalLevel,
     levelProgress: calculatedLevelProgress,
-    title:
-      findFirstString(["title", "equippedTitle", "equipped_title", "activeTitle", "active_title"]) ||
-      existingUser?.title ||
-      existingUser?.equippedTitle ||
-      (finalLevel >= 3 ? "IRON MIND" : "DISCIPLINE BUILDER"),
-    equippedTitle:
-      findFirstString(["equippedTitle", "equipped_title", "title", "activeTitle", "active_title"]) ||
-      existingUser?.equippedTitle ||
-      existingUser?.title ||
-      (finalLevel >= 3 ? "IRON MIND" : "DISCIPLINE BUILDER"),
+    title: (() => {
+      // 1. Direct title/equippedTitle from incoming backend payload
+      let backendTitle = findFirstString(["equippedTitle", "equipped_title", "title", "activeTitle", "active_title"]);
+
+      // 2. Check if any title object in titles / unlockedTitles has isCurrent / is_current / isEquipped
+      if (!backendTitle) {
+        const titlesToCheck = Array.isArray(rawUser?.titles)
+          ? rawUser.titles
+          : (Array.isArray(rawUser?.unlockedTitles)
+            ? rawUser.unlockedTitles
+            : (Array.isArray(rawUser?.unlocked_titles)
+              ? rawUser.unlocked_titles
+              : (Array.isArray(u?.titles) ? u.titles : [])));
+
+        for (const item of titlesToCheck) {
+          if (item && typeof item === "object") {
+            if (item.isCurrent || item.is_current || item.isEquipped || item.equipped || item.active || item.isActive) {
+              const val = item.title || item.name || item.id;
+              if (typeof val === "string" && val.trim().length > 0) {
+                backendTitle = val.trim().toUpperCase();
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (backendTitle && backendTitle.trim().length > 0) {
+        return backendTitle.trim().toUpperCase();
+      }
+
+      // Backend is authoritative: do NOT fall back to hardcoded "IRON MIND"
+      return existingUser?.equippedTitle || existingUser?.title || undefined;
+    })(),
+    equippedTitle: (() => {
+      let backendTitle = findFirstString(["equippedTitle", "equipped_title", "title", "activeTitle", "active_title"]);
+
+      if (!backendTitle) {
+        const titlesToCheck = Array.isArray(rawUser?.titles)
+          ? rawUser.titles
+          : (Array.isArray(rawUser?.unlockedTitles)
+            ? rawUser.unlockedTitles
+            : (Array.isArray(rawUser?.unlocked_titles)
+              ? rawUser.unlocked_titles
+              : (Array.isArray(u?.titles) ? u.titles : [])));
+
+        for (const item of titlesToCheck) {
+          if (item && typeof item === "object") {
+            if (item.isCurrent || item.is_current || item.isEquipped || item.equipped || item.active || item.isActive) {
+              const val = item.title || item.name || item.id;
+              if (typeof val === "string" && val.trim().length > 0) {
+                backendTitle = val.trim().toUpperCase();
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (backendTitle && backendTitle.trim().length > 0) {
+        return backendTitle.trim().toUpperCase();
+      }
+
+      return existingUser?.equippedTitle || existingUser?.title || undefined;
+    })(),
     titles: Array.isArray(rawUser?.titles) ? rawUser.titles : (Array.isArray(rawUser?.unlocked_titles) ? rawUser.unlocked_titles : existingUser?.titles),
     unlockedTitles: Array.isArray(rawUser?.unlockedTitles) ? rawUser.unlockedTitles : (Array.isArray(rawUser?.unlocked_titles) ? rawUser.unlocked_titles : existingUser?.unlockedTitles),
     freezeUntil:
