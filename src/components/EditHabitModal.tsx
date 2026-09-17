@@ -5,6 +5,7 @@ import { X, Calendar, Flag, AlignLeft, Check, Trash } from "lucide-react";
 import { useStore, Habit } from "../store/useStore";
 import { toCanonicalDifficulty, toDisplayDifficulty } from "../utils";
 import { HabitIconPicker } from "./HabitIconPicker";
+import { habitService } from "../services/habitService";
 import { toast } from "react-hot-toast";
 
 interface EditHabitModalProps {
@@ -13,20 +14,70 @@ interface EditHabitModalProps {
 }
 
 export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
-  const { editHabit, deleteHabit, refreshFromBackend } = useStore();
+  const { editHabit, deleteHabit, resetHabitEditorState } = useStore();
   const [name, setName] = useState(habit.name || "");
   const [repeatType, setRepeatType] = useState<"every_day" | "weekdays" | "weekends" | "custom_days">(habit.repeatType || "every_day");
   const [customDays, setCustomDays] = useState<string[]>(() => {
     return Array.isArray(habit.customDays) ? habit.customDays : [];
   });
   const [difficulty, setDifficulty] = useState(toDisplayDifficulty(habit.difficulty));
-  const [notes, setNotes] = useState(habit.notes || "");
+  const [notes, setNotes] = useState(habit.notes || (habit as any).description || "");
   const [selectedIcon, setSelectedIcon] = useState(habit.icon || "dumbbell");
   const [selectedColor, setSelectedColor] = useState(habit.category || "emerald");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isLoadingBackendHabit, setIsLoadingBackendHabit] = useState(true);
+
+  // Clear stale state on mount and unmount
+  useEffect(() => {
+    resetHabitEditorState();
+    return () => {
+      resetHabitEditorState();
+    };
+  }, [resetHabitEditorState]);
+
+  // Request authoritative habit record from backend using habitId
+  useEffect(() => {
+    let isMounted = true;
+    const targetId = habit?.id;
+    if (!targetId) {
+      setIsLoadingBackendHabit(false);
+      return;
+    }
+
+    async function loadAuthoritativeHabit() {
+      try {
+        setIsLoadingBackendHabit(true);
+        console.log("[EditHabitModal] Fetching authoritative habit record from backend for ID:", targetId);
+        const dbHabit = await habitService.getHabit(targetId);
+        if (!isMounted || !dbHabit) return;
+
+        console.log("[EditHabitModal] Database habit retrieved:", dbHabit);
+        setName(dbHabit.name || "");
+        setRepeatType(dbHabit.repeatType || "every_day");
+        setCustomDays(Array.isArray(dbHabit.customDays) ? dbHabit.customDays : []);
+        setDifficulty(toDisplayDifficulty(dbHabit.difficulty));
+
+        // CRITICAL REQUIREMENT: Populate notes from habit.notes, never leave blank if database contains notes
+        const dbNotes = dbHabit.notes || (dbHabit as any).description || (dbHabit as any).reasonPurpose || "";
+        setNotes(dbNotes);
+
+        if (dbHabit.icon) setSelectedIcon(dbHabit.icon);
+        if (dbHabit.category) setSelectedColor(dbHabit.category);
+      } catch (err) {
+        console.warn("[EditHabitModal] Failed to load fresh habit from backend:", err);
+      } finally {
+        if (isMounted) setIsLoadingBackendHabit(false);
+      }
+    }
+
+    loadAuthoritativeHabit();
+    return () => {
+      isMounted = false;
+    };
+  }, [habit?.id]);
 
   useEffect(() => {
     setMounted(true);
@@ -51,6 +102,11 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
     );
   };
 
+  const handleClose = () => {
+    resetHabitEditorState();
+    onClose();
+  };
+
   const handleSave = async (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault();
     if (isSubmitting || isDeleting) return;
@@ -67,12 +123,14 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
       return;
     }
 
+    const trimmedNotes = notes.trim();
     const payload = {
       name: trimmedName,
       repeatType,
       customDays: repeatType === "custom_days" ? customDays : [],
       difficulty: toCanonicalDifficulty(difficulty),
-      notes: notes.trim(),
+      notes: trimmedNotes,
+      description: trimmedNotes,
       icon: selectedIcon,
       category: selectedColor
     };
@@ -82,14 +140,23 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
 
     try {
       await editHabit(habit.id, payload);
+      resetHabitEditorState();
       toast.success("Habit updated successfully!");
       onClose();
     } catch (err: any) {
       console.error("Failed to update habit:", err);
-      const errorMessage = err?.response?.data?.error 
-        || err?.response?.data?.message 
-        || err?.message 
-        || "Failed to update habit";
+      const isDuplicate =
+        err?.action === "DUPLICATE_HABIT" ||
+        err?.response?.data?.action === "DUPLICATE_HABIT" ||
+        err?.message?.toLowerCase().includes("duplicate") ||
+        err?.message?.toLowerCase().includes("already have a habit with this name");
+
+      const errorMessage = isDuplicate
+        ? "You already have a habit with this name."
+        : (err?.response?.data?.error 
+          || err?.response?.data?.message 
+          || err?.message 
+          || "Failed to update habit");
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -100,6 +167,7 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
     setIsDeleting(true);
     try {
       await deleteHabit(habit.id);
+      resetHabitEditorState();
       toast.success("Habit deleted (-20 XP)");
       onClose();
     } catch (err: any) {
@@ -121,7 +189,7 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleClose}
       />
       
       <motion.form
@@ -141,7 +209,7 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
             <button type="button" onClick={() => setShowDeleteConfirm(true)} disabled={isDeleting} className="p-2 bg-red-500/10 rounded-full hover:bg-red-500/20 text-red-500 transition-colors disabled:opacity-50" title="Delete Habit">
               <Trash size={20} />
             </button>
-            <button type="button" onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
+            <button type="button" onClick={handleClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
               <X size={20} />
             </button>
           </div>

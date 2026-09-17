@@ -363,8 +363,59 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
 
       return existingUser?.equippedTitle || existingUser?.title || undefined;
     })(),
-    titles: Array.isArray(rawUser?.titles) ? rawUser.titles : (Array.isArray(rawUser?.unlocked_titles) ? rawUser.unlocked_titles : existingUser?.titles),
-    unlockedTitles: Array.isArray(rawUser?.unlockedTitles) ? rawUser.unlockedTitles : (Array.isArray(rawUser?.unlocked_titles) ? rawUser.unlocked_titles : existingUser?.unlockedTitles),
+    titles: Array.isArray(rawUser?.titles) ? rawUser.titles : existingUser?.titles,
+    unlockedTitles: (() => {
+      // 1. Check explicit backend unlocked arrays
+      const explicitUnlocked =
+        rawUser?.unlockedTitles ||
+        rawUser?.unlocked_titles ||
+        rawUser?.unlocked ||
+        rawUser?.earnedTitles ||
+        rawUser?.earned_titles ||
+        rawUser?.userTitles;
+
+      if (Array.isArray(explicitUnlocked)) {
+        return explicitUnlocked
+          .map((t: any) => {
+            if (typeof t === "string") return t.trim().toUpperCase();
+            if (t && typeof t === "object") {
+              if (t.unlocked !== false && t.isUnlocked !== false && t.is_unlocked !== false && t.earned !== false) {
+                const val = t.title || t.name || t.id;
+                return typeof val === "string" ? val.trim().toUpperCase() : "";
+              }
+            }
+            return "";
+          })
+          .filter(Boolean);
+      }
+
+      // 2. Check if rawUser.titles has objects explicitly flagged as unlocked by backend
+      if (Array.isArray(rawUser?.titles)) {
+        const confirmedFromTitles = rawUser.titles
+          .filter((t: any) => {
+            if (!t || typeof t !== "object") return false;
+            return (
+              t.unlocked === true ||
+              t.isUnlocked === true ||
+              t.is_unlocked === true ||
+              t.earned === true ||
+              t.userHasTitle === true ||
+              Boolean(t.unlockedAt || t.unlocked_at)
+            );
+          })
+          .map((t: any) => {
+            const val = t.title || t.name || t.id;
+            return typeof val === "string" ? val.trim().toUpperCase() : "";
+          })
+          .filter(Boolean);
+
+        if (confirmedFromTitles.length > 0) {
+          return confirmedFromTitles;
+        }
+      }
+
+      return existingUser?.unlockedTitles || undefined;
+    })(),
     freezeUntil:
       findFirstString(["freezeUntil", "freeze_until"]) ||
       rawUser?.freezeUntil ||

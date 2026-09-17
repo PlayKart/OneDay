@@ -159,7 +159,9 @@ apiClient.interceptors.response.use(
 
     let serverMessage = "A network or connection issue occurred.";
     if (responseData) {
-      if (typeof responseData.error === "object" && responseData.error?.message) {
+      if (responseData.action === "DUPLICATE_HABIT" || responseData.error?.action === "DUPLICATE_HABIT") {
+        serverMessage = responseData.message || responseData.error?.message || "You already have a habit with this name.";
+      } else if (typeof responseData.error === "object" && responseData.error?.message) {
         serverMessage = responseData.error.message;
       } else if (typeof responseData.error === "string" && responseData.error.trim().length > 0) {
         serverMessage = responseData.error;
@@ -188,6 +190,8 @@ apiClient.interceptors.response.use(
     (err as any).isAuthError = isBackendAuthError;
     (err as any).status = status;
     (err as any).code = responseData?.code || responseData?.error?.code;
+    (err as any).action = responseData?.action || responseData?.error?.action;
+    (err as any).existingHabit = responseData?.existingHabit || responseData?.existing_habit || responseData?.error?.existingHabit;
     (err as any).isNetworkError = !error.response;
     return Promise.reject(err);
   }

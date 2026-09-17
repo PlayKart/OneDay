@@ -7,6 +7,7 @@ import { X, Calendar, Flag, AlignLeft, Check, Loader2 } from "lucide-react";
 import { useStore, Habit } from "../../../store/useStore";
 import { toCanonicalDifficulty, toDisplayDifficulty, getXpForDifficulty } from "../../../utils";
 import { HabitIconPicker } from "../../HabitIconPicker";
+import { habitService } from "../../../services/habitService";
 import { toast } from "react-hot-toast";
 import { UpdateHabitActionPayload } from "./types";
 
@@ -21,7 +22,7 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const { habits, editHabit, refreshFromBackend } = useStore();
+  const { habits, editHabit, refreshFromBackend, resetHabitEditorState } = useStore();
 
   const habitId = initialPayload.habitId;
 
@@ -35,11 +36,60 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
   const [difficulty, setDifficulty] = useState(
     toDisplayDifficulty(initialPayload.difficulty || "Medium")
   );
-  const [notes, setNotes] = useState(initialPayload.notes || "");
+  const [notes, setNotes] = useState(initialPayload.notes || (initialPayload as any).reasonPurpose || "");
   const [selectedIcon, setSelectedIcon] = useState(initialPayload.icon || "dumbbell");
   const [selectedColor, setSelectedColor] = useState(initialPayload.category || "emerald");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isLoadingBackendHabit, setIsLoadingBackendHabit] = useState(true);
+
+  // Clear stale state on mount and unmount
+  useEffect(() => {
+    resetHabitEditorState();
+    return () => {
+      resetHabitEditorState();
+    };
+  }, [resetHabitEditorState]);
+
+  // Request authoritative habit record from backend using habitId
+  useEffect(() => {
+    let isMounted = true;
+    if (!habitId) {
+      setIsLoadingBackendHabit(false);
+      return;
+    }
+
+    async function loadAuthoritativeHabit() {
+      try {
+        setIsLoadingBackendHabit(true);
+        console.log("[CoachEditHabitModal] Fetching authoritative habit record from backend for ID:", habitId);
+        const dbHabit = await habitService.getHabit(habitId);
+        if (!isMounted || !dbHabit) return;
+
+        console.log("[CoachEditHabitModal] Database habit retrieved:", dbHabit);
+        setName(dbHabit.name || "");
+        setRepeatType(dbHabit.repeatType || "every_day");
+        setCustomDays(Array.isArray(dbHabit.customDays) ? dbHabit.customDays : []);
+        setDifficulty(toDisplayDifficulty(dbHabit.difficulty));
+
+        // CRITICAL REQUIREMENT: Populate notes from habit.notes, never leave blank if database contains notes
+        const dbNotes = dbHabit.notes || (dbHabit as any).description || (dbHabit as any).reasonPurpose || "";
+        setNotes(dbNotes);
+
+        if (dbHabit.icon) setSelectedIcon(dbHabit.icon);
+        if (dbHabit.category) setSelectedColor(dbHabit.category);
+      } catch (err) {
+        console.warn("[CoachEditHabitModal] Failed to load fresh habit from backend:", err);
+      } finally {
+        if (isMounted) setIsLoadingBackendHabit(false);
+      }
+    }
+
+    loadAuthoritativeHabit();
+    return () => {
+      isMounted = false;
+    };
+  }, [habitId]);
 
   useEffect(() => {
     setMounted(true);
@@ -62,6 +112,11 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
     );
   };
 
+  const handleClose = () => {
+    resetHabitEditorState();
+    onClose();
+  };
+
   const handleSave = async (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault();
     if (isSubmitting) return;
@@ -77,18 +132,19 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
       return;
     }
 
-    const habitId = initialPayload.habitId;
     if (!habitId) {
       toast.error("Habit record identifier not found. Please verify the habit exists.");
       return;
     }
 
+    const trimmedNotes = notes.trim();
     const payload = {
       name: trimmedName,
       repeatType,
       customDays: repeatType === "custom_days" ? customDays : [],
       difficulty: toCanonicalDifficulty(difficulty),
-      notes: notes.trim(),
+      notes: trimmedNotes,
+      description: trimmedNotes,
       icon: selectedIcon,
       category: selectedColor,
     };
@@ -97,6 +153,7 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
 
     try {
       await editHabit(habitId, payload);
+      resetHabitEditorState();
       toast.success("✓ Habit updated.");
 
       const rawInitialPayload = initialPayload as any;
@@ -119,12 +176,19 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error("[CoachEditHabitModal] Failed to update habit:", err);
-      const errorMessage =
-        err?.response?.data?.error?.message ||
-        err?.response?.data?.error ||
-        err?.response?.data?.message ||
-        err?.message ||
-        "Failed to update habit";
+      const isDuplicate =
+        err?.action === "DUPLICATE_HABIT" ||
+        err?.response?.data?.action === "DUPLICATE_HABIT" ||
+        err?.message?.toLowerCase().includes("duplicate") ||
+        err?.message?.toLowerCase().includes("already have a habit with this name");
+
+      const errorMessage = isDuplicate
+        ? "You already have a habit with this name."
+        : (err?.response?.data?.error?.message ||
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to update habit");
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -139,7 +203,7 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="absolute inset-0 bg-black/85 backdrop-blur-md"
-        onClick={() => !isSubmitting && onClose()}
+        onClick={() => !isSubmitting && handleClose()}
       />
 
       {/* Modal / Sheet */}
@@ -169,7 +233,7 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isSubmitting}
             className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer disabled:opacity-40"
           >

@@ -154,10 +154,25 @@ export const chatService = {
       console.log("Response:", res.data);
 
       const body = res.data;
+      if (body && (body.action === "DUPLICATE_HABIT" || body.data?.action === "DUPLICATE_HABIT")) {
+        const duplicateMsg = body.message || body.data?.message || "You already have a habit with this name.";
+        return {
+          type: "coach_response",
+          status: "complete",
+          intent: "DUPLICATE_HABIT",
+          action: "DUPLICATE_HABIT",
+          reply: duplicateMsg,
+          sessionId: body?.sessionId || sessionId || undefined,
+          data: body.data || body,
+        };
+      }
+
       if (body && body.success === false) {
-        const errMsg = body.error?.message || (typeof body.error === "string" ? body.error : "Backend returned an error");
+        const errMsg = body.error?.message || (typeof body.error === "string" ? body.error : body.message || "Backend returned an error");
         console.error("[AI Coach] Backend error response:", body);
-        throw new Error(errMsg);
+        const err = new Error(errMsg);
+        if (body.action) (err as any).action = body.action;
+        throw err;
       }
 
       const replyText =
@@ -200,6 +215,29 @@ export const chatService = {
     } catch (err: any) {
       const errorData = err?.response?.data || err.message;
       console.error("[AI Coach / Chat Error] Endpoint:", fullUrl, "Method:", method, "Status:", err?.response?.status, "Error:", errorData);
+
+      const resData = err?.response?.data;
+      if (
+        err?.action === "DUPLICATE_HABIT" ||
+        resData?.action === "DUPLICATE_HABIT" ||
+        resData?.error?.action === "DUPLICATE_HABIT"
+      ) {
+        const duplicateMsg =
+          resData?.message ||
+          resData?.error?.message ||
+          err?.message ||
+          "You already have a habit with this name.";
+        return {
+          type: "coach_response",
+          status: "complete",
+          intent: "DUPLICATE_HABIT",
+          action: "DUPLICATE_HABIT",
+          reply: duplicateMsg,
+          sessionId: sessionId || undefined,
+          data: resData,
+        };
+      }
+
       throw err;
     }
   },

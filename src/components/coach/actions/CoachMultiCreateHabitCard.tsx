@@ -53,12 +53,14 @@ export const CoachMultiCreateHabitCard: React.FC<CoachMultiCreateHabitCardProps>
       const habitName = (habit.name || "Habit").trim();
       const colorTheme = getHabitColorTheme(habit.category, habitName);
 
+      const habitNotes = ((habit as any).reasonPurpose || habit.notes || "").trim();
       const payload = {
         name: habitName,
         difficulty: toCanonicalDifficulty(displayDifficulty),
         repeatType: repeatType as any,
         customDays: habit.customDays || [],
-        notes: (habit.notes || "").trim(),
+        notes: habitNotes,
+        reasonPurpose: habitNotes,
         icon: habit.icon || "dumbbell",
         category: habit.category || colorTheme.id || "emerald",
       };
@@ -76,7 +78,12 @@ export const CoachMultiCreateHabitCard: React.FC<CoachMultiCreateHabitCardProps>
     } catch (err: any) {
       console.error("[CoachMultiCreateHabitCard] Add single habit error:", err);
       setHabitStates((prev) => ({ ...prev, [index]: "error" }));
-      toast.error(err?.message || "Failed to add habit");
+      const isDuplicate =
+        err?.action === "DUPLICATE_HABIT" ||
+        err?.response?.data?.action === "DUPLICATE_HABIT" ||
+        err?.message?.toLowerCase().includes("duplicate") ||
+        err?.message?.toLowerCase().includes("already have a habit with this name");
+      toast.error(isDuplicate ? "You already have a habit with this name." : (err?.message || "Failed to add habit"));
     }
   };
 

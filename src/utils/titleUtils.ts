@@ -216,64 +216,85 @@ export function setEquippedTitle(title: string, userId?: string): void {
 /**
  * Retrieves ONLY actually unlocked titles for the user confirmed by the backend.
  * Under NO circumstances does this function inject titles based on level or streak,
- * nor assume titles are unlocked simply because they exist in the catalog.
+ * nor assume titles are unlocked simply because they exist in the catalog, global database,
+ * or default title array.
  */
 export function getAllUserTitles(user?: any): string[] {
   const titlesSet = new Set<string>();
   if (!user) return [];
 
-  // 1. Extract confirmed unlocked titles from user.unlockedTitles (or user.unlocked_titles)
-  const unlockedList = Array.isArray(user.unlockedTitles)
-    ? user.unlockedTitles
-    : (Array.isArray(user.unlocked_titles) ? user.unlocked_titles : null);
+  // Helper to extract clean uppercase title name from string or object
+  const extractTitleName = (item: any): string | null => {
+    if (typeof item === "string" && item.trim().length > 0) {
+      return item.trim().toUpperCase();
+    }
+    if (item && typeof item === "object") {
+      const val = item.title || item.name || item.id;
+      if (typeof val === "string" && val.trim().length > 0) {
+        return val.trim().toUpperCase();
+      }
+    }
+    return null;
+  };
 
-  if (Array.isArray(unlockedList)) {
-    unlockedList.forEach((t: any) => {
-      if (typeof t === "string" && t.trim()) {
-        titlesSet.add(t.trim().toUpperCase());
-      } else if (t && typeof t === "object") {
-        // If it's an object in unlockedTitles, ensure it's not marked unlocked: false
-        if (t.unlocked !== false && t.isUnlocked !== false && t.is_unlocked !== false) {
-          const val = t.title || t.name || t.id;
-          if (typeof val === "string" && val.trim()) {
-            titlesSet.add(val.trim().toUpperCase());
+  // 1. Extract confirmed unlocked titles from explicit unlocked arrays provided by backend:
+  // user.unlockedTitles, user.unlocked_titles, user.unlocked, user.earnedTitles, user.earned_titles, user.userTitles
+  const candidateUnlockedArrays = [
+    user.unlockedTitles,
+    user.unlocked_titles,
+    user.unlocked,
+    user.earnedTitles,
+    user.earned_titles,
+    user.userTitles,
+  ];
+
+  for (const arr of candidateUnlockedArrays) {
+    if (Array.isArray(arr)) {
+      arr.forEach((t: any) => {
+        if (typeof t === "string" && t.trim()) {
+          titlesSet.add(t.trim().toUpperCase());
+        } else if (t && typeof t === "object") {
+          // If object is in an unlocked array, verify it is not explicitly marked locked
+          if (
+            t.unlocked !== false &&
+            t.isUnlocked !== false &&
+            t.is_unlocked !== false &&
+            t.earned !== false
+          ) {
+            const name = extractTitleName(t);
+            if (name) titlesSet.add(name);
           }
         }
-      }
-    });
+      });
+    }
   }
 
-  // 2. Extract from user.titles ONLY IF explicitly confirmed unlocked by the backend
+  // 2. Extract from user.titles ONLY IF an object explicitly contains a positive unlock confirmation from backend.
+  // CRITICAL: Strings in user.titles are CATALOG entries (e.g. all available titles in the database)
+  // and MUST NEVER be treated as unlocked titles.
+  // Furthermore, level requirements or local user level MUST NEVER be used to infer unlocks.
   if (Array.isArray(user.titles)) {
     user.titles.forEach((t: any) => {
       if (t && typeof t === "object") {
-        // Check authoritative unlock flags from backend
-        const isConfirmedUnlocked =
+        const isExplicitlyUnlocked =
           t.unlocked === true ||
           t.isUnlocked === true ||
           t.is_unlocked === true ||
           t.earned === true ||
           t.userHasTitle === true ||
-          t.isCurrent === true ||
-          t.is_current === true ||
           Boolean(t.unlockedAt || t.unlocked_at);
 
-        if (isConfirmedUnlocked) {
-          const val = t.title || t.name || t.id;
-          if (typeof val === "string" && val.trim()) {
-            titlesSet.add(val.trim().toUpperCase());
-          }
-        }
-      } else if (typeof t === "string" && t.trim()) {
-        // Only if user.unlockedTitles is NOT present do we consider string array items
-        if (!unlockedList) {
-          titlesSet.add(t.trim().toUpperCase());
+        if (isExplicitlyUnlocked) {
+          const name = extractTitleName(t);
+          if (name) titlesSet.add(name);
         }
       }
+      // CRITICAL: If t is a string, DO NOT add it.
+      // Plain strings in user.titles belong to the global title catalog, NOT unlocked titles.
     });
   }
 
-  // 3. The currently equipped / active title from backend is authoritatively unlocked
+  // 3. The currently equipped / active title confirmed by backend is authoritatively unlocked
   const equipped = getEquippedTitle(user);
   if (equipped && typeof equipped === "string" && equipped.trim()) {
     titlesSet.add(equipped.trim().toUpperCase());

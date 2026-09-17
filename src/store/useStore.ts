@@ -77,8 +77,9 @@ interface StoreState {
   setLevelUpData: (data: { previousLevel: number; currentLevel: number; xp: number; progress: number } | null) => void;
   refreshFromBackend: () => Promise<void>;
   addHabit: (habitData: Partial<Habit>) => Promise<void>;
-  editHabit: (habitId: string, habitData: Partial<Habit>) => Promise<void>;
+  editHabit: (habitId: string, habitData: Partial<Habit>) => Promise<Habit>;
   deleteHabit: (habitId: string) => Promise<void>;
+  resetHabitEditorState: () => void;
   completeHabit: (habitId: string) => Promise<any>;
   undoHabit: (habitId: string) => Promise<any>;
   freezeStreak: (days: number) => Promise<void>;
@@ -265,15 +266,40 @@ export const useStore = create<StoreState>((set, get) => {
 
     editHabit: async (habitId, habitData) => {
       try {
-        await habitService.updateHabit(habitId, habitData);
-        // Authoritative: refetch fresh habits list from backend
+        const updatedHabit = await habitService.updateHabit(habitId, habitData);
+        // Requirement 5: use the backend returned habit as the new UI state
+        set((state) => ({
+          habits: state.habits.map((h) => (h.id === habitId ? { ...h, ...updatedHabit } : h)),
+          editingHabit: null,
+          editingHabitId: null,
+          selectedHabit: null,
+          selectedHabitId: null,
+          pendingHabit: null,
+          previewHabit: null,
+          proposedHabit: null,
+        }));
+        // Then refetch the habit from backend to ensure persistent consistency
         const freshHabits = await habitService.getHabits();
         set({ habits: safeArray(freshHabits) });
         syncService.syncUserData(true).catch((e) => console.warn("[SYNC] post-edit sync:", e));
+        return updatedHabit;
       } catch (e) {
         console.error("[useStore] editHabit error:", e);
         throw e;
       }
+    },
+
+    resetHabitEditorState: () => {
+      set({
+        selectedHabit: null,
+        selectedHabitId: null,
+        pendingHabit: null,
+        previewHabit: null,
+        editingHabit: null,
+        editingHabitId: null,
+        proposedHabit: null,
+        pendingHabitAction: null,
+      });
     },
 
     deleteHabit: async (habitId) => {
@@ -1221,6 +1247,47 @@ export const useStore = create<StoreState>((set, get) => {
           }
         } else if (e?.message) {
           errorMessage = e.message;
+        }
+
+        const isDuplicate =
+          e?.action === "DUPLICATE_HABIT" ||
+          e?.response?.data?.action === "DUPLICATE_HABIT" ||
+          e?.response?.data?.error?.action === "DUPLICATE_HABIT" ||
+          errorMessage.toLowerCase().includes("duplicate") ||
+          errorMessage.toLowerCase().includes("already have a habit with this name") ||
+          errorMessage.toLowerCase().includes("already exists");
+
+        if (isDuplicate) {
+          const duplicateMsg =
+            e?.response?.data?.message ||
+            e?.response?.data?.error?.message ||
+            (errorMessage.includes("already have a habit") ? errorMessage : "You already have a habit with this name.");
+
+          set((state) => {
+            const hasTemp = state.chatMessages.some((m) => m.id === tempAssistantMsgId);
+            const duplicateReplyMsg: ChatMessage = {
+              id: tempAssistantMsgId,
+              sessionId: activeId || "",
+              role: "assistant",
+              content: duplicateMsg,
+              isStreaming: false,
+              intent: "DUPLICATE_HABIT",
+              action: "DUPLICATE_HABIT",
+            };
+
+            const nextMsgs = hasTemp
+              ? state.chatMessages.map((m) => (m.id === tempAssistantMsgId ? duplicateReplyMsg : m))
+              : [...state.chatMessages, duplicateReplyMsg];
+
+            return {
+              chatMessages: nextMsgs,
+              isSendingMessage: false,
+              isGeneratingCoachResponse: false,
+              chatLoading: false,
+              pendingHabitAction: null,
+            };
+          });
+          return;
         }
 
         const isAccountFrozen =

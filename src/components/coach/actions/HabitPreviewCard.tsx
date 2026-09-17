@@ -1,13 +1,14 @@
 // src/components/coach/actions/HabitPreviewCard.tsx
 
 import React, { useState, useEffect, useRef } from "react";
-import { Check, Loader2, AlertCircle, RefreshCw, X } from "lucide-react";
+import { Check, Loader2, AlertCircle, RefreshCw, X, Edit3 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useStore } from "../../../store/useStore";
 import { CreateHabitActionPayload, HabitPreviewState } from "./types";
 import { getHabitIconComponent, getHabitColorTheme } from "../../../lib/habitIcons";
 import { getStandardActionDifficulty, normalizeSchedule, cleanHabitName } from "./actionParser";
 import { toCanonicalDifficulty } from "../../../utils";
+import { CoachCreatePreviewEditModal } from "./CoachCreatePreviewEditModal";
 import { toast } from "react-hot-toast";
 
 export interface HabitPreviewCardProps {
@@ -41,18 +42,41 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
   const trackedAction = pendingActions[actionId];
   const currentState: HabitPreviewState = trackedAction?.state || "PENDING";
 
+  // Editable local preview state — allows editing preview details before confirmation
+  const [currentPreview, setCurrentPreview] = useState<CreateHabitActionPayload>(payload);
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(trackedAction?.errorMessage || null);
   const isSubmittingRef = useRef<boolean>(false);
 
-  // Exact values extracted directly from payload/preview
-  const habitName = cleanHabitName(payload.name || "") || "Habit";
-  const { displayDifficulty, xp } = getStandardActionDifficulty(payload.difficulty, habitName);
-  const { repeatType, displaySchedule, customDays } = normalizeSchedule(payload.repeatType, payload.customDays);
-  const finalXp = payload.xp && typeof payload.xp === "number" ? payload.xp : xp;
-  const notes = payload.notes || "Keep the habit routine consistent.";
+  // Sync if initial payload changes and user hasn't edited yet
+  useEffect(() => {
+    setCurrentPreview(payload);
+  }, [payload]);
 
-  const rawColor = payload.category || (payload as any).color || (payload as any).colour || "emerald";
-  const IconComp = getHabitIconComponent(payload.icon, habitName);
+  // Exact dynamic values extracted directly from current preview state
+  const rawPreview = currentPreview as any;
+  const habitName = cleanHabitName(currentPreview.name || rawPreview.title || "") || "Habit";
+  const { displayDifficulty, xp } = getStandardActionDifficulty(currentPreview.difficulty, habitName);
+  const { repeatType, displaySchedule, customDays } = normalizeSchedule(
+    currentPreview.repeatType || rawPreview.repeat_type,
+    currentPreview.customDays || rawPreview.custom_days
+  );
+  const finalXp = currentPreview.xp && typeof currentPreview.xp === "number" ? currentPreview.xp : xp;
+
+  // Mapping rule: preview.reasonPurpose -> create payload notes
+  const reasonPurpose =
+    currentPreview.reasonPurpose ||
+    rawPreview.reason_purpose ||
+    rawPreview.reasonPurposeText ||
+    currentPreview.notes ||
+    rawPreview.reason ||
+    rawPreview.purpose ||
+    rawPreview.description ||
+    "";
+  const notes = currentPreview.notes || reasonPurpose;
+
+  const rawColor = currentPreview.category || rawPreview.color || rawPreview.colour || "emerald";
+  const IconComp = getHabitIconComponent(currentPreview.icon, habitName);
   const colorTheme = getHabitColorTheme(rawColor, habitName);
 
   useEffect(() => {
@@ -67,14 +91,14 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
         sessionId,
         type: "CREATE_HABIT",
         state: "PENDING",
-        payload,
+        payload: currentPreview,
         createdAt: Date.now(),
       });
       console.log("[COACH PREVIEW] created", actionId);
       console.log("[COACH PREVIEW] actionId", actionId);
       console.log("[COACH PREVIEW] sessionId", sessionId);
     }
-  }, [actionId, sessionId, payload, pendingActions, currentState, setPendingAction]);
+  }, [actionId, sessionId, currentPreview, pendingActions, currentState, setPendingAction]);
 
   // Session isolation: If this preview belongs to another session, do not render in the active session
   if (sessionId && activeChatId && sessionId !== activeChatId) {
@@ -99,14 +123,23 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
     console.log("[COACH CONFIRM] started", actionId);
 
     try {
+      // Send CURRENT edited preview object to backend, not original AI-generated object
       const habitPayload = {
         name: habitName.trim(),
+        title: habitName.trim(),
         difficulty: toCanonicalDifficulty(displayDifficulty),
         repeatType: repeatType as any,
-        customDays: customDays || payload.customDays || [],
+        repeat_type: repeatType as any,
+        customDays: customDays || currentPreview.customDays || [],
+        custom_days: customDays || currentPreview.customDays || [],
         notes: notes.trim(),
-        icon: payload.icon || (habitName.toLowerCase().includes("plant") ? "sprout" : "dumbbell"),
+        reasonPurpose: reasonPurpose.trim() || notes.trim(),
+        reason_purpose: reasonPurpose.trim() || notes.trim(),
+        description: notes.trim() || reasonPurpose.trim(),
+        icon: currentPreview.icon || (habitName.toLowerCase().includes("plant") ? "sprout" : "dumbbell"),
         category: colorTheme.id || "emerald",
+        color: colorTheme.id || "emerald",
+        reminderTime: currentPreview.reminderTime || rawPreview.reminder || "",
       };
 
       console.log("[HabitPreviewCard] Confirming and creating habit:", habitPayload);
@@ -130,20 +163,32 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
       }
     } catch (err: any) {
       console.error("[HabitPreviewCard] Create habit failed:", err);
+      const resData = err?.response?.data;
       const errMsg = err?.message || String(err || "");
       const isDuplicate =
+        err?.action === "DUPLICATE_HABIT" ||
+        resData?.action === "DUPLICATE_HABIT" ||
+        resData?.error?.action === "DUPLICATE_HABIT" ||
         errMsg.toLowerCase().includes("duplicate") ||
+        errMsg.toLowerCase().includes("already have a habit with this name") ||
         errMsg.toLowerCase().includes("already exists") ||
         errMsg.toLowerCase().includes("unique constraint");
 
       if (isDuplicate) {
-        updatePendingActionState(actionId, "DUPLICATE");
-        setErrorMessage("This habit already exists.");
-        toast.error("This habit already exists.");
+        const duplicateMsg =
+          resData?.message ||
+          resData?.error?.message ||
+          (errMsg && !errMsg.includes("Network") && !errMsg.includes("failed") && !errMsg.includes("error")
+            ? errMsg
+            : "You already have a habit with this name.");
+        updatePendingActionState(actionId, "DUPLICATE", { errorMessage: duplicateMsg });
+        setErrorMessage(duplicateMsg);
+        // Do NOT display generic error toast or "Couldn't add this habit." for DUPLICATE_HABIT
       } else {
-        updatePendingActionState(actionId, "FAILED", { errorMessage: "Couldn't add this habit." });
-        setErrorMessage("Couldn't add this habit.");
-        toast.error("Couldn't add this habit.");
+        const failureMsg = errMsg || "Couldn't add this habit.";
+        updatePendingActionState(actionId, "FAILED", { errorMessage: failureMsg });
+        setErrorMessage(failureMsg);
+        toast.error(failureMsg);
       }
     } finally {
       isSubmittingRef.current = false;
@@ -161,160 +206,195 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
   };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2 }}
-        className="mt-3.5 w-full rounded-2xl bg-[#0c0c10] border border-white/[0.12] p-4 sm:p-5 shadow-2xl space-y-4 select-none relative overflow-hidden backdrop-blur-md"
-      >
-        {/* Top subtle sheen */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+    <>
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+          className="mt-3.5 w-full rounded-2xl bg-[#0c0c10] border border-white/[0.12] p-4 sm:p-5 shadow-2xl space-y-4 select-none relative overflow-hidden backdrop-blur-md"
+        >
+          {/* Top subtle sheen */}
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-        {/* 1. HEADER TAG */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${currentState === "DUPLICATE" ? "bg-amber-400" : currentState === "FAILED" ? "bg-rose-400" : "bg-emerald-400 animate-pulse"}`} />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 font-mono">
-              CREATE HABIT
-            </span>
-          </div>
-
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/[0.05] text-zinc-300 border border-white/10 font-mono">
-            Preview
-          </span>
-        </div>
-
-        {/* 2. HERO BADGE (Icon + Habit Name) */}
-        <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
-          <div
-            className={`w-11 h-11 rounded-xl ${colorTheme.bg} border ${colorTheme.border} ${colorTheme.text} flex items-center justify-center shrink-0 shadow-md`}
-          >
-            <IconComp size={22} strokeWidth={2.2} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
-              {habitName}
-            </h3>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs font-black uppercase tracking-wider text-zinc-300 font-mono">
-                {displayDifficulty.toUpperCase()}
-              </span>
-              <span className="text-zinc-600 font-mono">•</span>
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-400 font-mono">
-                +{finalXp} XP
+          {/* 1. HEADER TAG */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  currentState === "DUPLICATE"
+                    ? "bg-amber-400"
+                    : currentState === "FAILED"
+                    ? "bg-rose-400"
+                    : "bg-emerald-400 animate-pulse"
+                }`}
+              />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 font-mono">
+                CREATE HABIT
               </span>
             </div>
-          </div>
-        </div>
 
-        {/* 3. SCHEDULE & REPEAT TYPE */}
-        <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 font-mono">
-            Schedule
-          </span>
-          <span className="text-xs font-bold text-white tracking-tight font-mono">
-            {displaySchedule}
-          </span>
-        </div>
-
-        {/* 4. NOTES / PURPOSE */}
-        {notes && (
-          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3.5 space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 font-mono block">
-              Reason / Purpose
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/[0.05] text-zinc-300 border border-white/10 font-mono">
+              Preview
             </span>
-            <p className="text-xs text-zinc-300 leading-relaxed italic">
-              "{notes}"
-            </p>
           </div>
-        )}
 
-        {/* 5. DIVIDER */}
-        <div className="border-t border-white/[0.08]" />
-
-        {/* 6. DUPLICATE STATE */}
-        {currentState === "DUPLICATE" && (
-          <div className="space-y-3">
-            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-semibold flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <AlertCircle size={16} className="shrink-0 text-amber-400" />
-                <span>This habit already exists.</span>
+          {/* 2. HERO BADGE (Icon + Habit Name) */}
+          <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+            <div
+              className={`w-11 h-11 rounded-xl ${colorTheme.bg} border ${colorTheme.border} ${colorTheme.text} flex items-center justify-center shrink-0 shadow-md`}
+            >
+              <IconComp size={22} strokeWidth={2.2} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
+                {habitName}
+              </h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs font-black uppercase tracking-wider text-zinc-300 font-mono">
+                  {displayDifficulty.toUpperCase()}
+                </span>
+                <span className="text-zinc-600 font-mono">•</span>
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-400 font-mono">
+                  +{finalXp} XP
+                </span>
               </div>
             </div>
+          </div>
+
+          {/* 3. SCHEDULE & REPEAT TYPE */}
+          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 font-mono">
+              Schedule
+            </span>
+            <span className="text-xs font-bold text-white tracking-tight font-mono">
+              {displaySchedule}
+            </span>
+          </div>
+
+          {/* 4. NOTES / PURPOSE */}
+          {(reasonPurpose || notes) && (
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3.5 space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 font-mono block">
+                Reason / Purpose
+              </span>
+              <p className="text-xs text-zinc-300 leading-relaxed italic">
+                "{reasonPurpose || notes}"
+              </p>
+            </div>
+          )}
+
+          {/* 5. EDIT DETAILS BUTTON (Directly below preview details) */}
+          {currentState !== "DUPLICATE" && (
             <button
               type="button"
-              onClick={handleCancel}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-colors cursor-pointer h-10 min-h-[40px] flex items-center justify-center gap-2"
+              onClick={() => setShowEditModal(true)}
+              disabled={currentState === "CONFIRMING"}
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-colors cursor-pointer flex items-center justify-center gap-2 font-mono min-h-[40px]"
             >
-              <X size={14} />
-              <span>Dismiss</span>
+              <Edit3 size={14} className="text-zinc-400" />
+              <span>Edit Details</span>
             </button>
-          </div>
-        )}
+          )}
 
-        {/* 7. FAILED STATE */}
-        {currentState === "FAILED" && (
-          <div className="space-y-3">
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle size={15} className="shrink-0 text-rose-400" />
-              <span className="text-xs font-medium">{errorMessage || "Couldn't add this habit."}</span>
-            </div>
-            <div className="flex items-center gap-2.5">
+          {/* 6. DIVIDER */}
+          <div className="border-t border-white/[0.08]" />
+
+          {/* 7. DUPLICATE STATE */}
+          {currentState === "DUPLICATE" && (
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-semibold flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle size={16} className="shrink-0 text-amber-400" />
+                  <span>{errorMessage || "You already have a habit with this name."}</span>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={handleCancel}
-                className="flex-1 py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-colors cursor-pointer h-11 min-h-[44px] flex items-center justify-center"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-colors cursor-pointer h-10 min-h-[40px] flex items-center justify-center gap-2"
+              >
+                <X size={14} />
+                <span>Dismiss</span>
+              </button>
+            </div>
+          )}
+
+          {/* 8. FAILED STATE */}
+          {currentState === "FAILED" && (
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle size={15} className="shrink-0 text-rose-400" />
+                <span className="text-xs font-medium">{errorMessage || "Couldn't add this habit."}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="flex-1 py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-colors cursor-pointer h-11 min-h-[44px] flex items-center justify-center"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  className="flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer shadow-lg h-11 min-h-[44px] flex items-center justify-center gap-2"
+                >
+                  <RefreshCw size={14} className="stroke-[2.5]" />
+                  <span>Try Again</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 9. PENDING / CONFIRMING STATES */}
+          {(currentState === "PENDING" || currentState === "CONFIRMING") && (
+            <div className="flex items-center gap-2.5 pt-0.5">
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={currentState === "CONFIRMING"}
+                className="flex-1 py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed h-11 min-h-[44px] flex items-center justify-center"
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 onClick={handleConfirm}
-                className="flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer shadow-lg h-11 min-h-[44px] flex items-center justify-center gap-2"
+                disabled={currentState === "CONFIRMING"}
+                className="flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider bg-white text-black hover:bg-zinc-200 active:scale-[0.99] transition-all cursor-pointer shadow-lg disabled:opacity-60 disabled:cursor-not-allowed h-11 min-h-[44px] flex items-center justify-center gap-2"
               >
-                <RefreshCw size={14} className="stroke-[2.5]" />
-                <span>Try Again</span>
+                {currentState === "CONFIRMING" ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin text-black stroke-[2.5]" />
+                    <span>Adding...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={14} className="stroke-[2.5]" />
+                    <span>Confirm & Add</span>
+                  </>
+                )}
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </motion.div>
+      </AnimatePresence>
 
-        {/* 8. PENDING / CONFIRMING STATES */}
-        {(currentState === "PENDING" || currentState === "CONFIRMING") && (
-          <div className="flex items-center gap-2.5 pt-0.5">
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={currentState === "CONFIRMING"}
-              className="flex-1 py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed h-11 min-h-[44px] flex items-center justify-center"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={currentState === "CONFIRMING"}
-              className="flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider bg-white text-black hover:bg-zinc-200 active:scale-[0.99] transition-all cursor-pointer shadow-lg disabled:opacity-60 disabled:cursor-not-allowed h-11 min-h-[44px] flex items-center justify-center gap-2"
-            >
-              {currentState === "CONFIRMING" ? (
-                <>
-                  <Loader2 size={14} className="animate-spin text-black stroke-[2.5]" />
-                  <span>Adding...</span>
-                </>
-              ) : (
-                <>
-                  <Check size={14} className="stroke-[2.5]" />
-                  <span>Confirm & Add</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
-      </motion.div>
-    </AnimatePresence>
+      {/* CREATE PREVIEW EDIT MODAL */}
+      {showEditModal && (
+        <CoachCreatePreviewEditModal
+          initialPreview={currentPreview}
+          onClose={() => setShowEditModal(false)}
+          onSave={(updated) => {
+            setCurrentPreview(updated);
+            setShowEditModal(false);
+          }}
+        />
+      )}
+    </>
   );
 };
 

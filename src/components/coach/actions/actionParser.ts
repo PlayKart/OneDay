@@ -31,6 +31,7 @@ export function cleanHabitName(raw: string = ""): string {
     .replace(/^(?:create|add|set\s+up|start|build|track|log|make|delete|remove|edit|update)(?:\s+a|\s+an|\s+new|\s+the)?\s+(?:habit\s+(?:for|to|called|named)\s+|routine\s+(?:for|to|called|named)\s+|habit\s+|routine\s+)?/i, "")
     .replace(/^(?:habit\s+for|habit\s+to|routine\s+for|routine\s+to)\s+/i, "")
     .replace(/\s+habit$/i, "")
+    .replace(/\s+(?:i\s+only.*|only\s+on.*|on\s+weekdays.*|on\s+weekends.*|every\s+day.*)$/i, "")
     .replace(/[.!?]+$/, "")
     .trim();
 
@@ -75,22 +76,106 @@ export function normalizeSchedule(
   schedule?: string,
   customDays?: string[]
 ): { repeatType: string; displaySchedule: string; customDays: string[] } {
+  // 1. Process customDays array if provided
   if (customDays && Array.isArray(customDays) && customDays.length > 0) {
-    const formattedDays = customDays.map((d) => d.slice(0, 3).toUpperCase());
-    return {
-      repeatType: "custom_days",
-      displaySchedule: formattedDays.join(" · "),
-      customDays,
+    const dayMap: Record<string, string> = {
+      mon: "Mon", monday: "Mon",
+      tue: "Tue", tues: "Tue", tuesday: "Tue",
+      wed: "Wed", wednesday: "Wed",
+      thu: "Thu", thur: "Thu", thurs: "Thu", thursday: "Thu",
+      fri: "Fri", friday: "Fri",
+      sat: "Sat", saturday: "Sat",
+      sun: "Sun", sunday: "Sun",
     };
+
+    const parsedDays: string[] = [];
+    for (const d of customDays) {
+      if (!d) continue;
+      const key = String(d).toLowerCase().trim();
+      const mapped = dayMap[key] || (key.length >= 3 ? key.charAt(0).toUpperCase() + key.slice(1, 3).toLowerCase() : "");
+      if (mapped && !parsedDays.includes(mapped)) {
+        parsedDays.push(mapped);
+      }
+    }
+
+    const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    parsedDays.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+
+    const weekdaysList = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+    const weekendsList = ["Sat", "Sun"];
+
+    const isAllWeekdays =
+      parsedDays.length === 5 &&
+      weekdaysList.every((d) => parsedDays.includes(d)) &&
+      !parsedDays.includes("Sat") &&
+      !parsedDays.includes("Sun");
+
+    const isAllWeekends =
+      parsedDays.length === 2 &&
+      parsedDays.includes("Sat") &&
+      parsedDays.includes("Sun");
+
+    const isAllDays = parsedDays.length === 7;
+
+    if (isAllDays) {
+      return { repeatType: "every_day", displaySchedule: "Daily", customDays: [] };
+    }
+    if (isAllWeekdays) {
+      return { repeatType: "weekdays", displaySchedule: "Weekdays", customDays: weekdaysList };
+    }
+    if (isAllWeekends) {
+      return { repeatType: "weekends", displaySchedule: "Weekends", customDays: weekendsList };
+    }
+
+    if (parsedDays.length > 0) {
+      return {
+        repeatType: "custom_days",
+        displaySchedule: parsedDays.join(" · "),
+        customDays: parsedDays,
+      };
+    }
   }
 
+  // 2. Process string schedule if provided
   if (!schedule) {
     return { repeatType: "every_day", displaySchedule: "Daily", customDays: [] };
   }
 
-  const s = schedule.toLowerCase();
+  const s = schedule.toLowerCase().trim();
 
-  // Check specific day mentions e.g. "Monday Wednesday Friday" / "Mon Wed Fri"
+  if (
+    s === "weekdays" ||
+    s === "weekday" ||
+    s.includes("weekday") ||
+    s.includes("mon-fri") ||
+    s.includes("mon to fri") ||
+    s.includes("monday-friday") ||
+    s.includes("monday to friday")
+  ) {
+    return { repeatType: "weekdays", displaySchedule: "Weekdays", customDays: ["Mon", "Tue", "Wed", "Thu", "Fri"] };
+  }
+
+  if (
+    s === "weekends" ||
+    s === "weekend" ||
+    s.includes("weekend") ||
+    s.includes("sat-sun") ||
+    s.includes("sat and sun") ||
+    s.includes("saturday-sunday") ||
+    s.includes("saturday and sunday")
+  ) {
+    return { repeatType: "weekends", displaySchedule: "Weekends", customDays: ["Sat", "Sun"] };
+  }
+
+  if (s.includes("weekly") || s.includes("once a week")) {
+    return { repeatType: "weekly", displaySchedule: "Weekly", customDays: [] };
+  }
+
+  if (s === "every_day" || s === "daily" || s === "everyday" || s.includes("every day") || s.includes("each day")) {
+    return { repeatType: "every_day", displaySchedule: "Daily", customDays: [] };
+  }
+
+  // Check specific day mentions e.g. "Mon, Wed, Fri"
   const hasMon = s.includes("mon");
   const hasTue = s.includes("tue");
   const hasWed = s.includes("wed");
@@ -108,22 +193,16 @@ export function normalizeSchedule(
   if (hasSat) matchedDays.push("Sat");
   if (hasSun) matchedDays.push("Sun");
 
+  if (matchedDays.length === 5 && !hasSat && !hasSun) {
+    return { repeatType: "weekdays", displaySchedule: "Weekdays", customDays: ["Mon", "Tue", "Wed", "Thu", "Fri"] };
+  }
+
   if (matchedDays.length > 0 && matchedDays.length < 7) {
     return {
       repeatType: "custom_days",
-      displaySchedule: matchedDays.map((d) => d.toUpperCase()).join(" · "),
+      displaySchedule: matchedDays.join(" · "),
       customDays: matchedDays,
     };
-  }
-
-  if (s.includes("weekday") || s.includes("mon-fri") || s.includes("mon to fri")) {
-    return { repeatType: "weekdays", displaySchedule: "Weekdays (Mon-Fri)", customDays: ["Mon", "Tue", "Wed", "Thu", "Fri"] };
-  }
-  if (s.includes("weekend") || s.includes("sat-sun") || s.includes("sat and sun")) {
-    return { repeatType: "weekends", displaySchedule: "Weekends (Sat-Sun)", customDays: ["Sat", "Sun"] };
-  }
-  if (s.includes("weekly") || s.includes("once a week")) {
-    return { repeatType: "weekly", displaySchedule: "Weekly", customDays: [] };
   }
 
   return { repeatType: "every_day", displaySchedule: "Daily", customDays: [] };
@@ -159,7 +238,16 @@ export function parseCoachActionFromMessage(
     const rawStatus = (msg.status || msg.data?.status || "").toLowerCase().trim();
     const rawIntent = (msg.intent || msg.data?.intent || "").toUpperCase().trim();
     const rawActionName = (msg.action || msg.data?.action || msg.intent_action || "").toUpperCase().trim();
-    const rawPreview = msg.preview || msg.actionPayload || msg.habit || msg.data?.preview || msg.data?.habit;
+    const rawPreview =
+      msg.preview ||
+      msg.actionPayload ||
+      msg.habit ||
+      msg.data?.preview ||
+      msg.data?.habit ||
+      msg.data?.payload ||
+      msg.payload ||
+      (msg.data && typeof msg.data === "object" && (msg.data.name || msg.data.title || msg.data.habit_name) ? msg.data : undefined) ||
+      (msg.title || msg.name || msg.habit_name ? msg : undefined);
     const actionId = msg.actionId || msg.data?.actionId || rawPreview?.actionId;
     const sessionId = msg.sessionId || msg.session_id;
 
@@ -181,8 +269,19 @@ export function parseCoachActionFromMessage(
     // AND (status === "pending" OR status === "awaiting_confirmation")
     // AND (intent === "CREATE_HABIT" || action === "CREATE_HABIT" || type === "habit_creation_preview")
     // AND habit name provided from backend
-    const isPending = rawStatus === "pending" || rawStatus === "awaiting_confirmation";
-    const isCreateHabit = rawIntent === "CREATE_HABIT" || rawIntent === "CREATE_HABITS" || rawType === "habit_creation_preview" || rawType === "create_habit";
+    const isPending = rawStatus === "pending" || rawStatus === "awaiting_confirmation" || !rawStatus;
+    const isCreateHabit =
+      rawIntent === "CREATE_HABIT" ||
+      rawIntent === "CREATE_HABITS" ||
+      rawIntent === "CREATE_HABIT_PREVIEW" ||
+      rawType === "habit_creation_preview" ||
+      rawType === "create_habit" ||
+      rawType === "create_habit_preview" ||
+      rawActionName === "CREATE_HABIT_PREVIEW" ||
+      rawActionName === "CREATE_HABIT" ||
+      rawActionName === "CREATE_HABITS" ||
+      msg.action === "CREATE_HABIT_PREVIEW" ||
+      msg.action === "CREATE_HABIT";
 
     if (isPending && isCreateHabit && rawPreview && typeof rawPreview === "object") {
       const isMulti = rawIntent === "CREATE_HABITS" || Array.isArray(rawPreview?.habits);
@@ -238,7 +337,17 @@ export function parseCoachActionFromMessage(
         rawPreview?.repeat_type || rawPreview?.repeatType || rawPreview?.schedule,
         rawPreview?.custom_days || rawPreview?.customDays
       );
-      const notes = rawPreview?.notes || rawPreview?.description || rawPreview?.note || rawPreview?.reason || getDefaultNotesForHabit(cleanName);
+      const reasonPurpose =
+        rawPreview?.reasonPurpose ||
+        rawPreview?.reason_purpose ||
+        rawPreview?.reasonPurposeText ||
+        rawPreview?.reason ||
+        rawPreview?.purpose ||
+        rawPreview?.notes ||
+        rawPreview?.description ||
+        rawPreview?.note ||
+        getDefaultNotesForHabit(cleanName);
+      const notes = reasonPurpose;
       const icon = rawPreview?.icon || rawPreview?.icon_id || rawPreview?.iconId || "dumbbell";
       const category = rawPreview?.colour || rawPreview?.color || rawPreview?.category || "emerald";
 
@@ -257,6 +366,7 @@ export function parseCoachActionFromMessage(
           repeatType,
           customDays,
           notes,
+          reasonPurpose,
           icon,
           category,
         },
@@ -385,13 +495,23 @@ function extractPayload(actionType: CoachActionType, data: any, existingHabits: 
       const diff = h.difficulty || "Medium";
       const { displayDifficulty, xp } = getStandardActionDifficulty(diff, cleanName);
       const { repeatType, customDays } = normalizeSchedule(h.repeatType || h.schedule, h.customDays);
+      const reasonPurpose =
+        h.reasonPurpose ||
+        h.reason_purpose ||
+        h.reasonPurposeText ||
+        h.reason ||
+        h.purpose ||
+        h.notes ||
+        h.description ||
+        getDefaultNotesForHabit(cleanName);
       return {
         name: cleanName,
         difficulty: displayDifficulty,
         xp: h.xp || xp,
         repeatType,
         customDays,
-        notes: h.notes || h.description || getDefaultNotesForHabit(cleanName),
+        notes: reasonPurpose,
+        reasonPurpose: reasonPurpose,
         icon: h.icon || "dumbbell",
         category: h.category || h.color || "emerald",
       } as CreateHabitActionPayload;
@@ -408,13 +528,24 @@ function extractPayload(actionType: CoachActionType, data: any, existingHabits: 
     const diff = habitData.difficulty || undefined;
     const { displayDifficulty, xp } = getStandardActionDifficulty(diff, cleanName);
     const { repeatType, customDays } = normalizeSchedule(habitData.repeatType || habitData.schedule, habitData.customDays);
+    const reasonPurpose =
+      habitData.reasonPurpose ||
+      habitData.reason_purpose ||
+      habitData.reasonPurposeText ||
+      habitData.reason ||
+      habitData.purpose ||
+      habitData.notes ||
+      habitData.description ||
+      habitData.note ||
+      getDefaultNotesForHabit(cleanName);
     return {
       name: cleanName,
       difficulty: displayDifficulty,
       xp: habitData.xp || xp,
       repeatType,
       customDays,
-      notes: habitData.notes || habitData.description || habitData.note || getDefaultNotesForHabit(cleanName),
+      notes: reasonPurpose,
+      reasonPurpose: reasonPurpose,
       icon: habitData.icon || "dumbbell",
       category: habitData.category || habitData.color || "emerald",
     } as CreateHabitActionPayload;
@@ -531,6 +662,16 @@ function parseStructuredCreateHabit(text: string): CreateHabitActionPayload {
       i++;
     } else if (lower.includes("note:") || lower.includes("notes:")) {
       notes = line.split(/notes?:/i)[1]?.trim() || notes;
+    } else if (
+      lower.includes("reason / purpose:") ||
+      lower.includes("reason/purpose:") ||
+      lower.includes("reason:") ||
+      lower.includes("purpose:")
+    ) {
+      notes = line.split(/reason\s*\/?\s*purpose:|purpose:|reason:/i)[1]?.trim() || notes;
+    } else if ((lower.startsWith("reason") || lower.startsWith("purpose")) && lines[i + 1]) {
+      notes = lines[i + 1].trim();
+      i++;
     } else if (!line.includes(":") && i === 0 && !lower.includes("create")) {
       name = line.replace(/^[^\w\s]+/, "").trim();
     }
@@ -547,6 +688,7 @@ function parseStructuredCreateHabit(text: string): CreateHabitActionPayload {
     repeatType: normRepeat,
     customDays,
     notes: notes || getDefaultNotesForHabit(cleanName),
+    reasonPurpose: notes || getDefaultNotesForHabit(cleanName),
     icon: "dumbbell",
     category: "emerald",
   };

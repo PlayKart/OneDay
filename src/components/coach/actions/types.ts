@@ -46,13 +46,17 @@ export interface CreateHabitActionPayload {
   actionId?: string;
   sessionId?: string;
   name: string;
+  title?: string;
   difficulty?: string;
   xp?: number;
   repeatType?: "every_day" | "weekdays" | "weekends" | "custom_days" | string;
   customDays?: string[];
   notes?: string;
+  reasonPurpose?: string;
+  description?: string;
   icon?: string;
   category?: string;
+  reminderTime?: string;
 }
 
 export interface MultiCreateHabitActionPayload {
@@ -69,6 +73,7 @@ export interface UpdateHabitActionPayload {
   repeatType?: "every_day" | "weekdays" | "weekends" | "custom_days" | string;
   customDays?: string[];
   notes?: string;
+  reasonPurpose?: string;
   icon?: string;
   category?: string;
   action?: string;

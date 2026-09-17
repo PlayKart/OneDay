@@ -63,12 +63,109 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
         }),
       ]);
 
+      // Extract confirmed unlocked titles from titlesData (object or array)
+      const confirmedFromTitlesData: string[] = [];
+      if (Array.isArray(titlesData)) {
+        titlesData.forEach((item: any) => {
+          if (item && typeof item === "object") {
+            if (
+              item.unlocked === true ||
+              item.isUnlocked === true ||
+              item.is_unlocked === true ||
+              item.earned === true ||
+              Boolean(item.unlockedAt || item.unlocked_at)
+            ) {
+              const val = item.title || item.name || item.id;
+              if (typeof val === "string" && val.trim()) {
+                confirmedFromTitlesData.push(val.trim().toUpperCase());
+              }
+            }
+          }
+        });
+      } else if (titlesData && typeof titlesData === "object") {
+        const rawUnlocked =
+          titlesData.unlockedTitles ||
+          titlesData.unlocked_titles ||
+          titlesData.unlocked ||
+          titlesData.earnedTitles ||
+          titlesData.earned_titles ||
+          titlesData.userTitles;
+
+        if (Array.isArray(rawUnlocked)) {
+          rawUnlocked.forEach((item: any) => {
+            if (typeof item === "string" && item.trim()) {
+              confirmedFromTitlesData.push(item.trim().toUpperCase());
+            } else if (item && typeof item === "object") {
+              if (
+                item.unlocked !== false &&
+                item.isUnlocked !== false &&
+                item.is_unlocked !== false &&
+                item.earned !== false
+              ) {
+                const val = item.title || item.name || item.id;
+                if (typeof val === "string" && val.trim()) {
+                  confirmedFromTitlesData.push(val.trim().toUpperCase());
+                }
+              }
+            }
+          });
+        }
+
+        if (Array.isArray(titlesData.titles)) {
+          titlesData.titles.forEach((item: any) => {
+            if (item && typeof item === "object") {
+              if (
+                item.unlocked === true ||
+                item.isUnlocked === true ||
+                item.is_unlocked === true ||
+                item.earned === true ||
+                Boolean(item.unlockedAt || item.unlocked_at)
+              ) {
+                const val = item.title || item.name || item.id;
+                if (typeof val === "string" && val.trim()) {
+                  confirmedFromTitlesData.push(val.trim().toUpperCase());
+                }
+              }
+            }
+          });
+        }
+      }
+
+      // Combine confirmed unlocked titles from data and titlesData
+      const combinedUnlockedSet = new Set<string>();
+      if (Array.isArray(data?.unlockedTitles)) {
+        data.unlockedTitles.forEach((t: string) => {
+          if (typeof t === "string" && t.trim()) combinedUnlockedSet.add(t.trim().toUpperCase());
+        });
+      }
+      confirmedFromTitlesData.forEach((t) => combinedUnlockedSet.add(t));
+
+      const backendEquipped =
+        (typeof titlesData?.equippedTitle === "object"
+          ? titlesData.equippedTitle?.title || titlesData.equippedTitle?.name
+          : titlesData?.equippedTitle) ||
+        titlesData?.equipped_title ||
+        titlesData?.currentTitle ||
+        titlesData?.current_title ||
+        titlesData?.activeTitle ||
+        titlesData?.active_title ||
+        data?.equippedTitle ||
+        data?.currentTitle;
+
       const mergedUser = {
         ...data,
-        ...(titlesData?.titles ? { titles: titlesData.titles } : {}),
-        ...(titlesData?.unlockedTitles ? { unlockedTitles: titlesData.unlockedTitles } : {}),
-        ...(titlesData?.equippedTitle ? { equippedTitle: titlesData.equippedTitle } : {}),
-        ...(titlesData?.currentTitle ? { currentTitle: titlesData.currentTitle } : {}),
+        ...(titlesData && typeof titlesData === "object" && Array.isArray(titlesData.titles)
+          ? { titles: titlesData.titles }
+          : {}),
+        unlockedTitles: Array.from(combinedUnlockedSet),
+        ...(backendEquipped
+          ? {
+              equippedTitle:
+                typeof backendEquipped === "string"
+                  ? backendEquipped.trim().toUpperCase()
+                  : backendEquipped,
+            }
+          : {}),
       };
 
       console.log("[PROFILE SCREEN] Authoritative user state synced:", mergedUser);

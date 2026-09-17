@@ -38,31 +38,109 @@ export const habitService = {
 
       const today = getLocalCalendarDate();
 
-      return habitsList.map((h: any) => {
-        const id = String(h.id || h.habitId || h.habit_id);
-        const rawCompletedDates = safeArray<string>(h.completedDates || h.completed_dates);
-        const completedDates = rawCompletedDates.map((d) => getLocalCalendarDate(d)).filter(Boolean);
-        const completedToday = Boolean(h.completedToday || h.completed_today || completedDates.includes(today));
-
-        return {
-          id,
-          name: h.title || h.name || "Unnamed Habit",
-          completedToday,
-          completedDates,
-          repeatType: h.repeatType || h.repeat_type || "every_day",
-          customDays: safeArray<string>(h.customDays || h.custom_days),
-          difficulty: h.difficulty || "Medium",
-          notes: h.notes ?? h.description ?? "",
-          icon: h.icon || "dumbbell",
-          category: h.category || h.color || "emerald",
-          reminderTime: h.reminderTime || h.reminder_time || "",
-        };
-      });
+      return habitsList.map((h: any) => habitService.normalizeHabit(h));
     } catch (err: any) {
       console.warn(`[HABIT SERVICE] Backend getHabits failed:`, err?.message || err);
       // Do NOT fabricate or return an empty array [] if request failed - rethrow to protect state
       throw err;
     }
+  },
+
+  /**
+   * Normalizes any backend habit object into standard Habit interface.
+   * Authoritatively guarantees notes/description are mapped properly.
+   */
+  normalizeHabit(h: any): Habit {
+    const today = getLocalCalendarDate();
+    const id = String(h.id || h.habitId || h.habit_id);
+    const rawCompletedDates = safeArray<string>(h.completedDates || h.completed_dates);
+    const completedDates = rawCompletedDates.map((d) => getLocalCalendarDate(d)).filter(Boolean);
+    const completedToday = Boolean(h.completedToday || h.completed_today || completedDates.includes(today));
+
+    const notesValue =
+      h.notes !== undefined && h.notes !== null
+        ? String(h.notes)
+        : (h.description !== undefined && h.description !== null
+            ? String(h.description)
+            : (h.reasonPurpose !== undefined && h.reasonPurpose !== null
+                ? String(h.reasonPurpose)
+                : (h.reason_purpose !== undefined && h.reason_purpose !== null
+                    ? String(h.reason_purpose)
+                    : "")));
+
+    return {
+      id,
+      name: h.title || h.name || "Unnamed Habit",
+      completedToday,
+      completedDates,
+      repeatType: h.repeatType || h.repeat_type || "every_day",
+      customDays: safeArray<string>(h.customDays || h.custom_days),
+      difficulty: h.difficulty || "Medium",
+      notes: notesValue,
+      icon: h.icon || "dumbbell",
+      category: h.category || h.color || "emerald",
+      reminderTime: h.reminderTime || h.reminder_time || "",
+    };
+  },
+
+  /**
+   * Authoritatively fetches a single habit from the backend database by habitId.
+   * Single source of truth: ensures all fields (especially notes) are fresh from the DB.
+   */
+  async getHabit(habitId: string): Promise<Habit> {
+    const fbUser = auth.currentUser || useStore.getState().firebaseUser;
+    if (!fbUser) throw new Error("Not authenticated");
+    if (!habitId) throw new Error("Habit identifier is required");
+
+    console.log(`[HABIT SERVICE] Fetching single habit ${habitId} from backend...`);
+
+    // 1. Try GET /api/habit/:habitId
+    try {
+      const response = await apiClient.get(`/api/habit/${habitId}`);
+      const rawData = response.data || {};
+      const h = rawData.data || rawData.habit || rawData;
+      if (h && (h.id || h.title || h.name)) {
+        return habitService.normalizeHabit(h);
+      }
+    } catch (err: any) {
+      console.log(`[HABIT SERVICE] GET /api/habit/${habitId} attempt failed:`, err?.message);
+    }
+
+    // 2. Try GET /api/habits/:habitId
+    try {
+      const response = await apiClient.get(`/api/habits/${habitId}`);
+      const rawData = response.data || {};
+      const h = rawData.data || rawData.habit || rawData;
+      if (h && (h.id || h.title || h.name)) {
+        return habitService.normalizeHabit(h);
+      }
+    } catch (err: any) {
+      console.log(`[HABIT SERVICE] GET /api/habits/${habitId} attempt failed:`, err?.message);
+    }
+
+    // 3. Try GET /api/habit?id=:habitId
+    try {
+      const response = await apiClient.get(`/api/habit`, { params: { id: habitId } });
+      const rawData = response.data || {};
+      const h = rawData.data || rawData.habit || rawData;
+      if (h && (h.id || h.title || h.name)) {
+        return habitService.normalizeHabit(h);
+      }
+    } catch (err: any) {
+      console.log(`[HABIT SERVICE] GET /api/habit?id=${habitId} attempt failed:`, err?.message);
+    }
+
+    // 4. Authoritative fallback: fetch full list directly from backend GET /api/habits
+    console.log(`[HABIT SERVICE] Requesting fresh habits list from backend for habit ${habitId}...`);
+    const allHabits = await habitService.getHabits();
+    const matched = allHabits.find(
+      (h) => h.id === habitId || (h.id && String(h.id) === String(habitId))
+    );
+    if (matched) {
+      return matched;
+    }
+
+    throw new Error(`Habit with ID ${habitId} not found on backend.`);
   },
 
   /**
@@ -76,14 +154,19 @@ export const habitService = {
       throw new Error("Habit name is required");
     }
 
+    const notesValue =
+      habitData.notes !== undefined && habitData.notes !== null
+        ? habitData.notes
+        : (habitData.reasonPurpose || habitData.reason_purpose || habitData.description || "");
+
     const payload = {
       name: habitData.name.trim(),
       title: habitData.name.trim(),
       repeatType: habitData.repeatType || "every_day",
       customDays: habitData.customDays || [],
       difficulty: habitData.difficulty || "Medium",
-      notes: habitData.notes || "",
-      description: habitData.notes || "",
+      notes: typeof notesValue === "string" ? notesValue.trim() : notesValue,
+      description: typeof notesValue === "string" ? notesValue.trim() : notesValue,
       icon: habitData.icon || "dumbbell",
       category: habitData.category || "emerald",
       color: habitData.category || "emerald",
@@ -105,21 +188,23 @@ export const habitService = {
       console.log("[HABIT CREATE] RESPONSE:", response.data);
 
       const rawData = response.data || {};
+
+      if (rawData.success === false || rawData.action === "DUPLICATE_HABIT") {
+        const error = new Error(rawData.message || "You already have a habit with this name.");
+        (error as any).action = rawData.action || "DUPLICATE_HABIT";
+        (error as any).existingHabit = rawData.existingHabit || rawData.existing_habit;
+        (error as any).response = response;
+        throw error;
+      }
+
       const created = rawData.data || rawData.habit || rawData;
 
-      return {
+      return habitService.normalizeHabit({
+        ...payload,
+        ...(created && typeof created === "object" ? created : {}),
         id: String(created.id || created.habitId || Date.now()),
-        name: created.title || created.name || payload.name,
-        completedToday: false,
-        completedDates: [],
-        repeatType: created.repeatType || created.repeat_type || payload.repeatType,
-        customDays: safeArray<string>(created.customDays || created.custom_days || payload.customDays),
-        difficulty: created.difficulty || payload.difficulty,
         notes: created.notes ?? created.description ?? payload.notes,
-        icon: created.icon || payload.icon,
-        category: created.category || created.color || payload.category,
-        reminderTime: created.reminderTime || created.reminder_time || payload.reminderTime,
-      };
+      });
     } catch (err: any) {
       console.error("[HABIT CREATE] ERROR:", err?.message || err);
       throw err;
@@ -152,12 +237,15 @@ export const habitService = {
     if (habitData.repeatType) payload.repeatType = habitData.repeatType;
     if (habitData.customDays) payload.customDays = habitData.customDays;
     if (habitData.difficulty) payload.difficulty = habitData.difficulty;
-    if (habitData.notes !== undefined) { payload.notes = habitData.notes; payload.description = habitData.notes; }
+    if (habitData.notes !== undefined) { 
+      payload.notes = habitData.notes; 
+      payload.description = habitData.notes; 
+    }
     if (habitData.icon) payload.icon = habitData.icon;
     if (habitData.category) { payload.category = habitData.category; payload.color = habitData.category; }
     if (habitData.reminderTime !== undefined) payload.reminderTime = habitData.reminderTime;
 
-    console.log(`[HABIT SERVICE] Updating habit ${targetId} via PUT /api/habit...`);
+    console.log(`[HABIT SERVICE] Updating habit ${targetId} via PUT /api/habit...`, payload);
     try {
       const response = await apiClient.put(`/api/habit`, payload);
       if (response.data && response.data.success === false) {
@@ -166,19 +254,12 @@ export const habitService = {
       const rawData = response.data || {};
       const updated = rawData.data || rawData.habit || rawData;
 
-      return {
+      return habitService.normalizeHabit({
+        ...payload,
+        ...(updated && typeof updated === "object" ? updated : {}),
         id: targetId,
-        name: updated.title || updated.name || habitData.name || "Updated Habit",
-        completedToday: Boolean(updated.completedToday),
-        completedDates: safeArray(updated.completedDates),
-        repeatType: updated.repeatType || habitData.repeatType || "every_day",
-        customDays: safeArray(updated.customDays || habitData.customDays),
-        difficulty: updated.difficulty || habitData.difficulty || "Medium",
-        notes: updated.notes ?? updated.description ?? habitData.notes ?? "",
-        icon: updated.icon || habitData.icon || "dumbbell",
-        category: updated.category || habitData.category || "emerald",
-        reminderTime: updated.reminderTime || habitData.reminderTime || "",
-      };
+        notes: updated?.notes ?? updated?.description ?? payload.notes,
+      });
     } catch (err: any) {
       console.error(`[HABIT SERVICE] Backend updateHabit failed:`, err?.response?.data || err?.message || err);
       const errMsg =
