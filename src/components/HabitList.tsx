@@ -536,7 +536,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
     {confirmModal.isOpen && mounted && createPortal(
       <AnimatePresence>
         <div
-          className="fixed inset-x-0 top-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-0 z-[100] flex items-end sm:items-center justify-center p-3 sm:p-4 select-none"
+          className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,16px))] sm:pb-4 select-none"
           role="dialog"
           aria-modal="true"
           aria-labelledby="undo-completion-title"
@@ -547,7 +547,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-pointer"
+            className="absolute inset-0 bg-black/85 backdrop-blur-md cursor-pointer"
             onClick={() => {
               if (!isSubmittingModal) {
                 setConfirmModal({ ...confirmModal, isOpen: false });
@@ -560,7 +560,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
             transition={{ type: "spring", damping: 30, stiffness: 350 }}
-            className="bg-[#0c0c0e] p-5 sm:p-6 rounded-2xl sm:rounded-2xl border border-white/15 w-full max-w-sm sm:max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.9)] relative z-10 flex flex-col max-h-[calc(80dvh-5.75rem)] sm:max-h-[85dvh]"
+            className="bg-[#0c0c0e] p-5 sm:p-6 rounded-2xl border border-white/15 w-full max-w-sm sm:max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.95)] relative z-10 flex flex-col max-h-[85dvh]"
           >
             {/* Native sheet drag handle */}
             <div className="w-10 h-1 bg-white/25 rounded-full mx-auto mb-4 block sm:hidden shrink-0" />

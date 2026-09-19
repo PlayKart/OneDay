@@ -34,6 +34,10 @@ export interface User {
   gender?: string;
   hobbies?: string[];
   favouriteSports?: string[];
+  improvement_focus?: string[];
+  improvementFocus?: string[];
+  improvement_focus_other?: string;
+  improvementFocusOther?: string;
   reasonForJoining?: string;
   why_oneday?: string;
   whyOneday?: string;

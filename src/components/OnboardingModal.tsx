@@ -9,6 +9,7 @@ import { User } from '../types';
 import { userService } from '../services/userService';
 import { toast } from 'react-hot-toast';
 import { VALID_GENDERS, normalizeGenderValue, countWords, getOnboardingStatus, resolveOnboardingStatus } from '../utils';
+import { IMPROVEMENT_FOCUS_OPTIONS } from '../constants/improvementFocus';
 import { OnboardingTransition, TransitionVariant, TransitionStatus } from './OnboardingTransition';
 
 const HOBBIES_LIST = [
@@ -49,12 +50,12 @@ interface OnboardingModalProps {
 }
 
 function parseStepNumber(val: any): number | null {
-  if (typeof val === "number" && !isNaN(val) && val >= 1 && val <= 6) {
+  if (typeof val === "number" && !isNaN(val) && val >= 1 && val <= 7) {
     return val;
   }
   if (typeof val === "string") {
     const parsed = parseInt(val, 10);
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 6) {
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 7) {
       return parsed;
     }
   }
@@ -113,7 +114,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
   const draftData = useMemo(() => getSavedDraftData(isEditing), [isEditing]);
 
   const [step, setStep] = useState<number>(() => getInitialOnboardingStep(user, isEditing));
-  const totalSteps = 6;
+  const totalSteps = 7;
 
   // Track if backend step has synced
   const hasSyncedBackendStep = React.useRef<boolean>(parseStepNumber(user?.onboardingStep) !== null);
@@ -145,6 +146,32 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
   const [customHobbyInput, setCustomHobbyInput] = useState("");
   const [sports, setSports] = useState<string[]>(draftData?.favouriteSports || draftData?.sports || initialData?.favouriteSports || initialData?.sports || []);
   const [sportSearch, setSportSearch] = useState("");
+  const [improvementFocus, setImprovementFocus] = useState<string[]>(() => {
+    const raw =
+      draftData?.improvement_focus ||
+      draftData?.improvementFocus ||
+      initialData?.improvement_focus ||
+      initialData?.improvementFocus ||
+      user?.improvement_focus ||
+      user?.improvementFocus ||
+      [];
+    return Array.isArray(raw)
+      ? raw.map((s: string) => String(s).toLowerCase().trim()).filter(Boolean)
+      : [];
+  });
+  const [improvementFocusOther, setImprovementFocusOther] = useState<string>(() => {
+    return (
+      draftData?.improvement_focus_other ||
+      draftData?.improvementFocusOther ||
+      initialData?.improvement_focus_other ||
+      initialData?.improvementFocusOther ||
+      user?.improvement_focus_other ||
+      user?.improvementFocusOther ||
+      ""
+    );
+  });
+  const [improvementValidationError, setImprovementValidationError] = useState<string | null>(null);
+
   const [whyOneday, setWhyOneday] = useState<string>(() => {
     return (
       draftData?.why_oneday ||
@@ -172,14 +199,14 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
 
   // Save current step to localStorage
   useEffect(() => {
-    if (!isEditing && step >= 1 && step <= 6) {
+    if (!isEditing && step >= 1 && step <= totalSteps) {
       try {
         localStorage.setItem("oneday_onboarding_step", JSON.stringify({ step }));
       } catch (e) {
         console.warn("[Onboarding] Failed to save step to localStorage:", e);
       }
     }
-  }, [step, isEditing]);
+  }, [step, isEditing, totalSteps]);
 
   // Save form state draft to localStorage
   useEffect(() => {
@@ -191,6 +218,8 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
           gender,
           hobbies,
           favouriteSports: sports,
+          improvement_focus: improvementFocus,
+          improvement_focus_other: improvementFocusOther,
           why_oneday: whyOneday,
           whyOneday: whyOneday,
           reasonForJoining: whyOneday,
@@ -199,7 +228,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
         console.warn("[Onboarding] Failed to save draft data to localStorage:", e);
       }
     }
-  }, [name, dob, gender, hobbies, sports, whyOneday, isEditing]);
+  }, [name, dob, gender, hobbies, sports, improvementFocus, improvementFocusOther, whyOneday, isEditing]);
 
   // Accurate calendar-aware age calculation considering exact birthday occurrence this year
   const age = useMemo(() => {
@@ -287,6 +316,15 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
         // Optional step but has a limit
         return sports.length <= 5;
       case 6: {
+        if (!improvementFocus || improvementFocus.length === 0) {
+          return false;
+        }
+        if (improvementFocus.includes("other") && !improvementFocusOther.trim()) {
+          return false;
+        }
+        return true;
+      }
+      case 7: {
         const nonSpaceCount = (whyOneday || "").replace(/\s/g, '').length;
         const totalCount = (whyOneday || "").length;
         return nonSpaceCount >= 5 && totalCount <= 500;
@@ -308,6 +346,16 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
     }
   };
 
+  const toggleImprovementFocus = (id: string) => {
+    const canonicalId = id.toLowerCase().trim();
+    setImprovementValidationError(null);
+    if (improvementFocus.includes(canonicalId)) {
+      setImprovementFocus(improvementFocus.filter(item => item !== canonicalId));
+    } else {
+      setImprovementFocus([...improvementFocus, canonicalId]);
+    }
+  };
+
   const handleNext = () => {
     if (!validateStep(step)) {
       if (step === 1) toast.error("Please enter a valid name (at least 2 characters).");
@@ -325,6 +373,15 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
       if (step === 3) toast.error("Please select a gender option.");
       if (step === 5) toast.error("Maximum 5 favorite sports allowed.");
       if (step === 6) {
+        if (!improvementFocus || improvementFocus.length === 0) {
+          setImprovementValidationError("Choose at least one area to continue.");
+          toast.error("Choose at least one area to continue.");
+        } else if (improvementFocus.includes("other") && !improvementFocusOther.trim()) {
+          setImprovementValidationError("Tell us what you want to improve.");
+          toast.error("Tell us what you want to improve.");
+        }
+      }
+      if (step === 7) {
         const nonSpaceCount = whyOneday.replace(/\s/g, '').length;
         const totalCount = whyOneday.length;
         if (nonSpaceCount < 5) {
@@ -335,6 +392,8 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
       }
       return;
     }
+
+    setImprovementValidationError(null);
 
     if (step < totalSteps) {
       updateAndSaveStep(step + 1);
@@ -380,6 +439,10 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
     console.log("[ONBOARDING] submit started");
 
     try {
+      const canonicalImprovementFocus = improvementFocus
+        .map((v) => String(v).toLowerCase().trim())
+        .filter(Boolean);
+
       const payload = {
         name: name.trim(),
         full_name: name.trim(),
@@ -390,6 +453,8 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
         hobbies,
         favouriteSports: sports,
         sports,
+        improvement_focus: canonicalImprovementFocus,
+        improvement_focus_other: canonicalImprovementFocus.includes("other") ? improvementFocusOther.trim() : "",
         why_oneday: cleanWhyOneday,
         whyOneday: cleanWhyOneday,
         reasonForJoining: cleanWhyOneday,
@@ -820,10 +885,105 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
                 </motion.div>
               )}
 
-              {/* STEP 6: Why did you choose OneDay? */}
+              {/* STEP 6: WHAT DO YOU WANT TO IMPROVE? */}
               {step === 6 && (
                 <motion.div
                   key="step6"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400">Personal Growth & Focus</span>
+                    <h2 className="text-2xl font-black text-white tracking-tight uppercase">WHAT DO YOU WANT TO IMPROVE?</h2>
+                    <p className="text-slate-400 text-xs">Choose the areas you want OneDay to help you improve.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[290px] overflow-y-auto pr-1">
+                      {IMPROVEMENT_FOCUS_OPTIONS.map((opt) => {
+                        const isSelected = improvementFocus.includes(opt.id);
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => toggleImprovementFocus(opt.id)}
+                            className={`p-3.5 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer select-none ${
+                              isSelected
+                                ? 'bg-white/15 border-white/40 text-white shadow-[0_0_20px_rgba(255,255,255,0.08)]'
+                                : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                            }`}
+                          >
+                            <span className="text-xs font-bold uppercase tracking-wider">{opt.label}</span>
+                            <div
+                              className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
+                                isSelected ? 'bg-white text-black border-white' : 'border-white/20 bg-transparent'
+                              }`}
+                            >
+                              {isSelected && <Check size={12} strokeWidth={3} />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Conditional Custom Input for Something Else */}
+                    <AnimatePresence>
+                      {improvementFocus.includes('other') && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0, y: -4 }}
+                          animate={{ opacity: 1, height: 'auto', y: 0 }}
+                          exit={{ opacity: 0, height: 0, y: -4 }}
+                          transition={{ duration: 0.2 }}
+                          className="pt-1.5 space-y-1.5"
+                        >
+                          <label className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                            What specifically do you want to improve?
+                          </label>
+                          <input
+                            type="text"
+                            value={improvementFocusOther}
+                            onChange={(e) => {
+                              setImprovementFocusOther(e.target.value);
+                              if (improvementValidationError) setImprovementValidationError(null);
+                            }}
+                            placeholder="e.g. public speaking, music production, reading"
+                            className={`w-full bg-white/5 border rounded-2xl px-4 py-3 text-white text-xs font-semibold outline-none transition-all placeholder:text-slate-600 ${
+                              improvementFocus.includes('other') && !improvementFocusOther.trim() && improvementValidationError
+                                ? 'border-rose-500/50 focus:border-rose-500 bg-rose-500/[0.04]'
+                                : 'border-white/10 focus:border-white/30'
+                            }`}
+                            autoFocus
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Inline Validation Feedback */}
+                    <AnimatePresence>
+                      {improvementValidationError && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex items-center gap-1.5 text-xs font-medium text-rose-400 mt-1 px-1"
+                        >
+                          <AlertCircle size={13} className="shrink-0 text-rose-400" />
+                          <span>{improvementValidationError}</span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* STEP 7: Why did you choose OneDay? */}
+              {step === 7 && (
+                <motion.div
+                  key="step7"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}

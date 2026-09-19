@@ -2,6 +2,7 @@
 
 export * from "./camelCase";
 export * from "./streakUtils";
+export * from "../constants/improvementFocus";
 import { User } from "../types";
 
 export const VALID_GENDERS = ["Male", "Female", "Prefer not to say", "Other"] as const;
@@ -479,6 +480,30 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
     gender: normalizeGenderValue(rawUser?.gender || existingUser?.gender),
     hobbies: Array.isArray(rawUser?.hobbies) ? rawUser.hobbies : (Array.isArray(rawUser?.hobbies_list) ? rawUser.hobbies_list : existingUser?.hobbies),
     favouriteSports: Array.isArray(rawUser?.sports) ? rawUser.sports : (Array.isArray(rawUser?.favouriteSports) ? rawUser.favouriteSports : (Array.isArray(rawUser?.favourite_sports) ? rawUser.favourite_sports : existingUser?.favouriteSports)),
+    improvement_focus: Array.isArray(rawUser?.improvement_focus)
+      ? rawUser.improvement_focus.map((s: any) => String(s).toLowerCase().trim()).filter(Boolean)
+      : (Array.isArray(rawUser?.improvementFocus)
+        ? rawUser.improvementFocus.map((s: any) => String(s).toLowerCase().trim()).filter(Boolean)
+        : (Array.isArray(existingUser?.improvement_focus) ? existingUser.improvement_focus : (Array.isArray(existingUser?.improvementFocus) ? existingUser.improvementFocus : []))),
+    improvementFocus: Array.isArray(rawUser?.improvement_focus)
+      ? rawUser.improvement_focus.map((s: any) => String(s).toLowerCase().trim()).filter(Boolean)
+      : (Array.isArray(rawUser?.improvementFocus)
+        ? rawUser.improvementFocus.map((s: any) => String(s).toLowerCase().trim()).filter(Boolean)
+        : (Array.isArray(existingUser?.improvement_focus) ? existingUser.improvement_focus : (Array.isArray(existingUser?.improvementFocus) ? existingUser.improvementFocus : []))),
+    improvement_focus_other:
+      findFirstString(["improvement_focus_other", "improvementFocusOther", "improvement_other"]) ||
+      rawUser?.improvement_focus_other ||
+      rawUser?.improvementFocusOther ||
+      existingUser?.improvement_focus_other ||
+      existingUser?.improvementFocusOther ||
+      "",
+    improvementFocusOther:
+      findFirstString(["improvement_focus_other", "improvementFocusOther", "improvement_other"]) ||
+      rawUser?.improvement_focus_other ||
+      rawUser?.improvementFocusOther ||
+      existingUser?.improvement_focus_other ||
+      existingUser?.improvementFocusOther ||
+      "",
     why_oneday:
       findFirstString(["why_oneday", "whyOneday", "why_oneday_reason", "reasonForJoining", "reason_for_joining", "reason"]) ||
       rawUser?.why_oneday ||
