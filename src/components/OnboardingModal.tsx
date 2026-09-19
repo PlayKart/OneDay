@@ -35,10 +35,10 @@ const INDOOR_SPORTS = [
 const ALL_SPORTS = [...OUTDOOR_SPORTS, ...INDOOR_SPORTS];
 
 const GENDER_OPTIONS = [
-  { id: "Male", label: "Male", icon: "👨", value: "Male" },
-  { id: "Female", label: "Female", icon: "👩", value: "Female" },
-  { id: "Prefer not to say", label: "Prefer not to say", icon: "🔒", value: "Prefer not to say" },
-  { id: "Other", label: "Other", icon: "✨", value: "Other" },
+  { id: "Male", label: "Male", iconKey: "Male", value: "Male" },
+  { id: "Female", label: "Female", iconKey: "Female", value: "Female" },
+  { id: "Prefer not to say", label: "Prefer not to say", iconKey: "Privacy", value: "Prefer not to say" },
+  { id: "Other", label: "Other", iconKey: "Other", value: "Other" },
 ];
 
 interface OnboardingModalProps {
@@ -752,7 +752,9 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
                               : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-200'
                           }`}
                         >
-                          <span className="text-2xl">{opt.icon}</span>
+                          <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                            <UserIcon className="w-4 h-4 text-zinc-300" />
+                          </div>
                           <span className="text-xs font-bold uppercase tracking-wider">{opt.label}</span>
                         </button>
                       );

@@ -88,7 +88,7 @@ export const CoachHeader: React.FC<CoachHeaderProps> = ({
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-[10px] font-black tracking-[0.18em] uppercase text-zinc-300 font-mono leading-none truncate">
-              ✦ ONE DAY COACH
+              ONE DAY COACH
             </span>
             <div className="flex items-center gap-1 shrink-0">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />

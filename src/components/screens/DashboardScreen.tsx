@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useStore } from "../../store/useStore";
 import { MotivationalQuote } from "../MotivationalQuote";
 import { HabitList } from "../HabitList";
-import { Target, Zap, Activity, ArrowRight, Trophy, Plus, Shield, CheckCircle2, Lock } from "lucide-react";
+import { Target, Zap, Activity, ArrowRight, Trophy, Plus, Shield, CheckCircle2, Lock, Snowflake } from "lucide-react";
 import { AICoachIcon } from "../AICoachIcon";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
@@ -103,7 +103,7 @@ export function DashboardScreen() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-cyan-500/20 relative z-10">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-lg text-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.2)]">
-                ❄️
+                <Snowflake size={20} className="text-cyan-300" />
               </div>
               <div>
                 <div className="flex items-center gap-2">

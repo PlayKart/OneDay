@@ -2,7 +2,10 @@
 
 import React from "react";
 import { motion } from "motion/react";
-import { ArrowUpRight, Flame, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import { 
+  ArrowUpRight, Flame, CheckCircle2, AlertCircle, Sparkles, 
+  Zap, Target, Shield, BarChart2, Timer, Trophy, Compass 
+} from "lucide-react";
 import { MonolithLogo } from "../MonolithLogo";
 import { User, Habit } from "../../types";
 import { getSmartGreeting, getContextAwarePrompts } from "../../utils/coachUtils";
@@ -123,7 +126,18 @@ export const CoachEmptyState: React.FC<CoachEmptyStateProps> = ({
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm select-none shrink-0">{item.icon}</span>
+                  {(() => {
+                    const iconName = item.icon;
+                    if (iconName === "Zap") return <Zap size={14} className="text-zinc-400 shrink-0" />;
+                    if (iconName === "Target") return <Target size={14} className="text-zinc-400 shrink-0" />;
+                    if (iconName === "Shield") return <Shield size={14} className="text-zinc-400 shrink-0" />;
+                    if (iconName === "BarChart2") return <BarChart2 size={14} className="text-zinc-400 shrink-0" />;
+                    if (iconName === "Timer") return <Timer size={14} className="text-zinc-400 shrink-0" />;
+                    if (iconName === "Flame") return <Flame size={14} className="text-zinc-400 shrink-0" />;
+                    if (iconName === "Trophy") return <Trophy size={14} className="text-zinc-400 shrink-0" />;
+                    if (iconName === "Compass") return <Compass size={14} className="text-zinc-400 shrink-0" />;
+                    return <Sparkles size={14} className="text-zinc-400 shrink-0" />;
+                  })()}
                   <p className="text-xs font-bold text-white group-hover:text-zinc-100 transition-colors tracking-tight">
                     {item.label}
                   </p>

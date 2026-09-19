@@ -1,7 +1,7 @@
 import { useStore } from "../../store/useStore";
 import { HabitList } from "../HabitList";
 import { useState, useEffect, lazy, Suspense } from "react";
-import { Plus, ListFilter, BarChart3, Loader2, Lock, Shield } from "lucide-react";
+import { Plus, ListFilter, BarChart3, Loader2, Lock, Shield, Snowflake } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useFreezeCountdown } from "../../utils/freezeUtils";
 
@@ -54,7 +54,7 @@ export function HabitsScreen() {
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start sm:items-center gap-3.5">
               <div className="w-11 h-11 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-xl shrink-0 text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
-                ❄️
+                <Snowflake size={20} className="text-cyan-300" />
               </div>
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
@@ -104,8 +104,9 @@ export function HabitsScreen() {
             {isFrozen && (
               <>
                 <span className="w-1 h-1 rounded-full bg-cyan-500/50" />
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                  ❄ STREAK PROTECTED · HABITS PAUSED
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                  <Snowflake size={11} className="text-cyan-300" />
+                  <span>STREAK PROTECTED · HABITS PAUSED</span>
                 </span>
               </>
             )}

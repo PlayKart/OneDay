@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock } from 'lucide-react';
+import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, Sprout } from 'lucide-react';
 import { useStore, Habit } from '../store/useStore';
 import { toast } from 'react-hot-toast';
 import { isHabitScheduledForToday, getScheduledDaysMessage } from '../lib/habitUtils';

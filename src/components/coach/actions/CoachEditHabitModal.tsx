@@ -338,11 +338,11 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
-                { level: "Easy", xp: "20 XP", dot: "🟢", bg: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" },
-                { level: "Medium", xp: "40 XP", dot: "🔵", bg: "bg-blue-500/10 border-blue-500/30 text-blue-400" },
-                { level: "Hard", xp: "60 XP", dot: "🟠", bg: "bg-amber-500/10 border-amber-500/30 text-amber-400" },
-                { level: "Elite", xp: "80 XP", dot: "🔴", bg: "bg-red-500/10 border-red-500/30 text-red-400" },
-              ].map(({ level, xp, dot, bg }) => {
+                { level: "Easy", xp: "20 XP", bg: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" },
+                { level: "Medium", xp: "40 XP", bg: "bg-blue-500/10 border-blue-500/30 text-blue-400" },
+                { level: "Hard", xp: "60 XP", bg: "bg-amber-500/10 border-amber-500/30 text-amber-400" },
+                { level: "Elite", xp: "80 XP", bg: "bg-red-500/10 border-red-500/30 text-red-400" },
+              ].map(({ level, xp, bg }) => {
                 const isSelected = difficulty.toLowerCase() === level.toLowerCase();
                 return (
                   <button
@@ -357,7 +357,7 @@ export const CoachEditHabitModal: React.FC<CoachEditHabitModalProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-1.5 mb-1">
-                      <span className="text-xs">{dot}</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
                       <span>{level}</span>
                     </div>
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${bg}`}>

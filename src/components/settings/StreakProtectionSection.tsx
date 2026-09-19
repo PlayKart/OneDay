@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Shield, ShieldAlert, Lock, Check, X, AlertTriangle, Sparkles, Clock, AlertCircle } from "lucide-react";
+import { Shield, ShieldAlert, Lock, Check, X, AlertTriangle, Sparkles, Clock, AlertCircle, Snowflake } from "lucide-react";
 import { useStore } from "../../store/useStore";
 import { useFreezeCountdown, formatFreezeDate } from "../../utils/freezeUtils";
 import toast from "react-hot-toast";
@@ -92,7 +92,7 @@ export function StreakProtectionSection() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-cyan-500/15">
               <div className="flex items-center gap-3.5">
                 <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-xl shrink-0 text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-                  ❄️
+                  <Snowflake size={22} className="text-cyan-300" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export function StreakProtectionSection() {
               <Lock size={18} className="text-cyan-400 shrink-0 mt-0.5" />
               <div className="space-y-0.5 text-left">
                 <div className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-200">
-                  🔒 FREEZE LOCKED
+                  FREEZE LOCKED
                 </div>
                 <p className="text-xs text-neutral-300 leading-relaxed">
                   Once activated, your freeze cannot be deactivated in the middle of the protection period. Normal habit completion resumes after the freeze expires.
@@ -224,7 +224,7 @@ export function StreakProtectionSection() {
             {/* Header / Intro */}
             <div className="flex items-start gap-3.5">
               <div className="w-11 h-11 rounded-2xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-xl shrink-0">
-                ❄️
+                <Snowflake size={20} className="text-zinc-300" />
               </div>
               <div className="min-w-0 text-left">
                 <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
@@ -357,7 +357,7 @@ export function StreakProtectionSection() {
                 <div className="flex items-center gap-2 text-amber-400">
                   <AlertTriangle size={18} />
                   <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                    ⚠ STREAK FREEZE
+                    STREAK FREEZE
                   </span>
                 </div>
                 <button
@@ -495,7 +495,7 @@ export function StreakProtectionSection() {
               <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 via-transparent to-transparent pointer-events-none" />
 
               <div className="w-16 h-16 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center mx-auto text-3xl text-cyan-300 shadow-[0_0_30px_rgba(6,182,212,0.3)]">
-                ❄️
+                <Snowflake size={32} className="text-cyan-300" />
               </div>
 
               <div className="space-y-1.5">

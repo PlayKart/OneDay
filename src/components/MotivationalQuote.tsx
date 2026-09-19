@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sparkles } from "lucide-react";
 import { useStore, apiRequest } from "../store/useStore";
 
 const FALLBACK_MINDSETS = [
@@ -151,12 +150,11 @@ export const MotivationalQuote = () => {
         
         {/* Small label & Timer Row */}
         <div className="relative z-10 flex flex-row items-center justify-between mb-4 sm:mb-6 text-[10px] font-bold uppercase tracking-widest text-zinc-500 select-none">
-          <div className="flex items-center gap-1.5">
-            <Sparkles size={12} className="text-zinc-400 animate-pulse" />
-            <span className="text-[9px] text-zinc-400 tracking-[0.2em] font-extrabold">AI Mindset</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-zinc-300 tracking-[0.25em] font-black uppercase">MINDSET</span>
           </div>
-          <div className="font-mono text-[8px] text-zinc-500 tracking-wider">
-            Next in <span className="text-zinc-400 font-bold">{formatTime(timeLeft)}</span>
+          <div className="font-mono text-[9px] text-zinc-500 tracking-wider">
+            Next in <span className="text-zinc-300 font-semibold">{formatTime(timeLeft)}</span>
           </div>
         </div>
 
@@ -189,8 +187,6 @@ export const MotivationalQuote = () => {
                 </h2>
                 <div className="mt-4 sm:mt-6 flex items-center gap-3 text-[8px] text-zinc-500 font-bold tracking-[0.2em] uppercase select-none">
                   <span>Protocol OneDay.v1</span>
-                  <span className="w-1 h-1 rounded-full bg-zinc-800" />
-                  <span>Mindset Feed</span>
                 </div>
               </motion.div>
             )}
