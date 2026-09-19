@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock } from 'lucide-react';
 import { useStore, Habit } from '../store/useStore';
@@ -23,9 +24,15 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const [mounted, setMounted] = useState(false);
+
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
+    description?: string;
+    actionText?: string;
+    cancelText?: string;
+    habitName?: string;
     action: () => Promise<void>;
   }>({
     isOpen: false,
@@ -34,10 +41,30 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
   });
 
   useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  // Lock background scroll when modal or bottom sheet is open
+  useEffect(() => {
+    if (confirmModal.isOpen || Boolean(deleteConfirmationHabit)) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [confirmModal.isOpen, deleteConfirmationHabit]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setActiveDropdownId(null);
         setDeleteConfirmationHabit(null);
+        if (!isSubmittingModal) {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
       }
     };
 
@@ -53,7 +80,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isSubmittingModal]);
 
   const handleConfirmDelete = async (habit: Habit) => {
     setIsDeleting(true);
@@ -227,9 +254,14 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   }
                   
                   if (habit.completedToday) {
+                    const habitXp = extractXpAwarded(null, habit.difficulty);
                     setConfirmModal({
                       isOpen: true,
                       title: "Lied to Yourself ?",
+                      habitName: habit.name,
+                      actionText: "Undo Completion",
+                      cancelText: "Keep Completed",
+                      description: `Revert completion for "${habit.name}"? Today's progress and earned XP (-${habitXp} XP) will be deducted.`,
                       action: async () => {
                         try {
                           const res = await undoHabit(habit.id);
@@ -419,40 +451,62 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
     </AnimatePresence>
 
     {/* Delete Habit Confirmation Modal */}
-    <AnimatePresence>
-      {deleteConfirmationHabit && (
+    {deleteConfirmationHabit && mounted && createPortal(
+      <AnimatePresence>
         <div
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-sm"
+          className="fixed inset-x-0 top-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-0 z-[100] flex items-end sm:items-center justify-center p-3 sm:p-4 select-none"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-habit-modal-title"
           aria-describedby="delete-habit-modal-desc"
         >
           {/* Backdrop overlay clickable to dismiss */}
-          <div className="absolute inset-0" onClick={() => setDeleteConfirmationHabit(null)} />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-pointer"
+            onClick={() => {
+              if (!isDeleting) {
+                setDeleteConfirmationHabit(null);
+              }
+            }}
+          />
           
           <motion.div
             initial={{ y: "100%", opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
             transition={{ type: "spring", damping: 30, stiffness: 350 }}
-            className="bg-[#0c0c0c] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 rounded-t-[2rem] sm:rounded-2xl border border-white/10 w-full sm:max-w-sm shadow-2xl relative z-10"
+            className="bg-[#0c0c0e] p-5 sm:p-6 rounded-2xl sm:rounded-2xl border border-white/15 w-full max-w-sm sm:max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.9)] relative z-10 flex flex-col max-h-[calc(80dvh-5.75rem)] sm:max-h-[85dvh]"
           >
             {/* Native sheet drag handle */}
-            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4 block sm:hidden" />
+            <div className="w-10 h-1 bg-white/25 rounded-full mx-auto mb-4 block sm:hidden shrink-0" />
 
-            <h3 id="delete-habit-modal-title" className="text-base font-bold text-white text-center leading-snug px-2">
-              Are you sure you want to delete <span className="text-rose-400">{deleteConfirmationHabit?.name || (deleteConfirmationHabit as any)?.title || "this habit"}</span>?
-            </h3>
-            <p id="delete-habit-modal-desc" className="text-xs text-slate-400 text-center mt-2.5 mb-6 leading-relaxed">
-              Deleting this habit will deduct <span className="text-rose-400 font-mono font-bold">20 XP</span> from your profile. This action cannot be undone.
-            </p>
-            <div className="flex gap-3">
+            <div className="overflow-y-auto space-y-3 scrollbar-hide flex-1 pb-1">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0 shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+                  <Trash2 size={18} strokeWidth={2.5} />
+                </div>
+              </div>
+
+              <div className="text-center space-y-1.5 px-2">
+                <h3 id="delete-habit-modal-title" className="text-lg font-bold text-white tracking-tight leading-snug">
+                  Delete Habit?
+                </h3>
+                <p id="delete-habit-modal-desc" className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
+                  Are you sure you want to delete <span className="text-white font-semibold">{deleteConfirmationHabit?.name || (deleteConfirmationHabit as any)?.title || "this habit"}</span>? This will deduct <span className="text-rose-400 font-mono font-bold">20 XP</span>.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-4 mt-2 border-t border-white/10 shrink-0">
               <button
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setDeleteConfirmationHabit(null)}
-                className="flex-1 py-3 focus:outline-none rounded-xl bg-white/5 text-white font-bold hover:bg-white/10 transition-all uppercase tracking-wider text-xs border border-white/10 disabled:opacity-50 cursor-pointer h-12"
+                className="flex-1 py-3 px-3 focus:outline-none rounded-xl bg-white/5 text-slate-300 font-bold hover:bg-white/10 transition-all uppercase tracking-wider text-xs border border-white/10 disabled:opacity-50 cursor-pointer h-12 flex items-center justify-center text-center truncate"
               >
                 Cancel
               </button>
@@ -460,46 +514,83 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                 type="button"
                 disabled={isDeleting}
                 onClick={() => handleConfirmDelete(deleteConfirmationHabit)}
-                className="flex-1 py-3 focus:outline-none rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 transition-all uppercase tracking-wider text-xs shadow-lg shadow-red-600/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer h-12"
+                className="flex-1 py-3 px-3 focus:outline-none rounded-xl bg-red-600 text-white font-extrabold hover:bg-red-500 transition-all uppercase tracking-wider text-xs shadow-lg shadow-red-600/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer h-12 text-center"
               >
                 {isDeleting ? (
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  <Loader2 size={16} className="animate-spin text-white" />
                 ) : (
-                  "Delete"
+                  <>
+                    <Trash2 size={14} strokeWidth={2.5} className="shrink-0" />
+                    <span className="truncate">Delete</span>
+                  </>
                 )}
               </button>
             </div>
           </motion.div>
         </div>
-      )}
-    </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
     
-    {/* Custom Confirm Modal */}
-    <AnimatePresence>
-      {confirmModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-sm">
+    {/* Custom Confirm Modal (Undo Completion Bottom Sheet) */}
+    {confirmModal.isOpen && mounted && createPortal(
+      <AnimatePresence>
+        <div
+          className="fixed inset-x-0 top-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-0 z-[100] flex items-end sm:items-center justify-center p-3 sm:p-4 select-none"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="undo-completion-title"
+        >
           {/* Backdrop overlay clickable to dismiss */}
-          <div className="absolute inset-0" onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })} />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-pointer"
+            onClick={() => {
+              if (!isSubmittingModal) {
+                setConfirmModal({ ...confirmModal, isOpen: false });
+              }
+            }}
+          />
 
           <motion.div 
             initial={{ y: "100%", opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
             transition={{ type: "spring", damping: 30, stiffness: 350 }}
-            className="bg-[#0c0c0c] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 rounded-t-[2rem] sm:rounded-2xl border border-white/10 w-full sm:max-w-sm shadow-2xl relative z-10"
+            className="bg-[#0c0c0e] p-5 sm:p-6 rounded-2xl sm:rounded-2xl border border-white/15 w-full max-w-sm sm:max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.9)] relative z-10 flex flex-col max-h-[calc(80dvh-5.75rem)] sm:max-h-[85dvh]"
           >
             {/* Native sheet drag handle */}
-            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4 block sm:hidden" />
+            <div className="w-10 h-1 bg-white/25 rounded-full mx-auto mb-4 block sm:hidden shrink-0" />
 
-            <h3 className="text-base font-bold mb-6 text-white text-center leading-snug px-4">{confirmModal.title}</h3>
-            <div className="flex gap-3">
+            <div className="overflow-y-auto space-y-3.5 scrollbar-hide flex-1 pb-1">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+                  <RotateCcw size={18} strokeWidth={2.5} />
+                </div>
+              </div>
+
+              <div className="text-center space-y-1.5 px-2">
+                <h3 id="undo-completion-title" className="text-lg font-bold text-white tracking-tight leading-snug">
+                  {confirmModal.title || "Lied to Yourself ?"}
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
+                  {confirmModal.description ||
+                    `Undo completion for this habit? Today's progress and earned XP will be deducted.`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-4 mt-2 border-t border-white/10 shrink-0">
               <button 
                 type="button"
                 disabled={isSubmittingModal}
                 onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })} 
-                className="flex-1 py-3 focus:outline-none rounded-xl bg-white/5 text-white font-bold hover:bg-white/10 transition-all uppercase tracking-wider text-xs border border-white/10 disabled:opacity-50 cursor-pointer h-12"
+                className="flex-1 py-3 px-3 focus:outline-none rounded-xl bg-white/5 text-slate-300 font-bold hover:bg-white/10 transition-all uppercase tracking-wider text-xs border border-white/10 disabled:opacity-50 cursor-pointer h-12 flex items-center justify-center text-center truncate"
               >
-                Nope
+                {confirmModal.cancelText || "Keep Completed"}
               </button>
               <button 
                 type="button"
@@ -513,19 +604,23 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                     setIsSubmittingModal(false);
                   }
                 }} 
-                className="flex-1 py-3 focus:outline-none rounded-xl bg-white text-black font-bold hover:bg-slate-200 transition-all uppercase tracking-wider text-xs disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer h-12"
+                className="flex-1 py-3 px-3 focus:outline-none rounded-xl bg-white text-black font-extrabold hover:bg-slate-200 transition-all uppercase tracking-wider text-xs shadow-[0_4px_20px_rgba(255,255,255,0.15)] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer h-12 text-center"
               >
                 {isSubmittingModal ? (
                   <Loader2 size={16} className="animate-spin text-black" />
                 ) : (
-                  "Yes"
+                  <>
+                    <RotateCcw size={14} strokeWidth={2.5} className="shrink-0" />
+                    <span className="truncate">{confirmModal.actionText || "Undo Completion"}</span>
+                  </>
                 )}
               </button>
             </div>
           </motion.div>
         </div>
-      )}
-    </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
     </>
   );
 };
