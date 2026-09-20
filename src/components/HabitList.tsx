@@ -86,7 +86,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
     setIsDeleting(true);
     try {
       await deleteHabit(habit.id);
-      toast.success("Habit deleted (-20 XP)");
+      toast.success("Habit deleted");
       setDeleteConfirmationHabit(null);
     } catch (err: any) {
       console.error("Failed to delete habit:", err);
@@ -419,24 +419,21 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
         )})}
 
         {(guardedDisplayHabits || []).length === 0 && (
-          <div className="col-span-full py-16 px-6 text-center bg-white/[0.01] rounded-[2rem] border border-white/5 border-dashed flex flex-col items-center justify-center min-h-[340px]">
-            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl mb-4 shadow-[0_0_30px_rgba(255,255,255,0.02)] select-none">
-              🌱
-            </div>
-            <h3 className="text-zinc-300 font-extrabold uppercase tracking-[0.25em] text-xs mb-2">
+          <div className="col-span-full py-14 px-6 text-center bg-white/[0.01] rounded-[2rem] border border-white/5 border-dashed flex flex-col items-center justify-center min-h-[300px]">
+            <h3 className="text-zinc-300 font-extrabold uppercase tracking-[0.25em] text-xs mb-3">
               NO ACTIVE HABITS
             </h3>
-            <p className="text-slate-500 text-xs max-w-[280px] mx-auto leading-relaxed mb-8">
+            <p className="text-slate-500 text-xs max-w-[320px] mx-auto leading-relaxed mb-8">
               Every master was once a beginner. Establish your daily discipline protocol today and build your streak, one day at a time.
             </p>
             {onCreateClick && (
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={onCreateClick}
-                className="w-full max-w-[260px] py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-xl shadow-xl hover:bg-slate-200 transition-all cursor-pointer flex items-center justify-center gap-2 h-14"
+                className="w-full max-w-[280px] py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-xl shadow-xl hover:bg-slate-200 transition-all cursor-pointer flex items-center justify-center gap-2 h-14"
               >
                 <Plus size={16} strokeWidth={3} />
-                <span>Create your first habit</span>
+                <span>CREATE YOUR FIRST HABIT</span>
               </motion.button>
             )}
           </div>
@@ -496,7 +493,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   Delete Habit?
                 </h3>
                 <p id="delete-habit-modal-desc" className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
-                  Are you sure you want to delete <span className="text-white font-semibold">{deleteConfirmationHabit?.name || (deleteConfirmationHabit as any)?.title || "this habit"}</span>? This will deduct <span className="text-rose-400 font-mono font-bold">20 XP</span>.
+                  Are you sure you want to delete <span className="text-white font-semibold">{deleteConfirmationHabit?.name || (deleteConfirmationHabit as any)?.title || "this habit"}</span>? This action cannot be undone.
                 </p>
               </div>
             </div>

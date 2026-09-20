@@ -182,8 +182,7 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
         // 2. Only show successful deletion after backend confirms success
         setIsDeleted(true);
         setDeletedHabitSnapshot(habitSnapshot as Habit);
-        const penalty = action.payload.xpPenalty || 20;
-        toast.success(`✓ ${habitName} deleted (-${penalty} XP)`);
+        toast.success(`✓ ${habitName} deleted`);
 
         // 3. Clear all stale coach/habit states
         useStore.setState({

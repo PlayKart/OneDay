@@ -14,12 +14,14 @@ const CreateHabitModal = lazy(() =>
 );
 
 export function HabitsScreen() {
-  const { user, refreshFromBackend } = useStore();
+  const { user, habits, refreshFromBackend } = useStore();
   const { isFrozen, formattedEndDate, timeRemaining } = useFreezeCountdown(user, () => {
     refreshFromBackend();
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<"list" | "trends">("list");
+
+  const hasActiveHabits = Array.isArray(habits) && habits.length > 0;
 
   useEffect(() => {
     refreshFromBackend().catch((e) => console.warn("[HabitsScreen] initial sync:", e));
@@ -172,18 +174,20 @@ export function HabitsScreen() {
         </section>
       )}
 
-      {/* Mobile Floating Action Button (Creation remains available) */}
-      <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-5 z-30 sm:hidden">
-        <motion.button
-          whileTap={{ scale: 0.92 }}
-          onClick={() => setIsModalOpen(true)}
-          className="w-13 h-13 bg-white text-black rounded-full shadow-[0_8px_30px_rgba(255,255,255,0.25)] flex items-center justify-center border border-white/20 hover:bg-slate-200 transition-all cursor-pointer active:scale-95"
-          title="Create New Habit"
-          aria-label="Create New Habit"
-        >
-          <Plus size={22} strokeWidth={2.5} />
-        </motion.button>
-      </div>
+      {/* Mobile Floating Action Button (Only shown when active habits exist to avoid overlapping empty-state CTA) */}
+      {hasActiveHabits && (
+        <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-5 z-30 sm:hidden">
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setIsModalOpen(true)}
+            className="w-13 h-13 bg-white text-black rounded-full shadow-[0_8px_30px_rgba(255,255,255,0.25)] flex items-center justify-center border border-white/20 hover:bg-slate-200 transition-all cursor-pointer active:scale-95"
+            title="Create New Habit"
+            aria-label="Create New Habit"
+          >
+            <Plus size={22} strokeWidth={2.5} />
+          </motion.button>
+        </div>
+      )}
 
       <AnimatePresence>
         {isModalOpen && (

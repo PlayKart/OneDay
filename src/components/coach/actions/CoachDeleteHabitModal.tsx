@@ -93,8 +93,7 @@ export const CoachDeleteHabitModal: React.FC<CoachDeleteHabitModalProps> = ({
       console.log(`[CoachDeleteHabitModal] Deleting habit ${habitId} (${habitName})...`);
       await deleteHabit(habitId);
 
-      const penalty = (payload as any)?.xpPenalty || 20;
-      toast.success(`✓ ${habitName} deleted (-${penalty} XP)`);
+      toast.success(`✓ ${habitName} deleted`);
 
       const actionPayload = payload as any;
       if (actionPayload?.actionId) {

@@ -317,15 +317,8 @@ export const useStore = create<StoreState>((set, get) => {
               ? null
               : state.pendingHabitAction;
               
-          const currentUser = state.user;
-          const nextUser = currentUser ? {
-            ...currentUser,
-            xp: Math.max(0, (currentUser.xp || 0) - 20)
-          } : null;
-
           return {
             habits: safeArray(freshHabits),
-            user: nextUser,
             pendingHabitAction: nextPendingHabit,
             isPreparingHabit: false,
             isConfirmingHabit: false,

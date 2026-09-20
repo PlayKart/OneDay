@@ -168,7 +168,7 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
     try {
       await deleteHabit(habit.id);
       resetHabitEditorState();
-      toast.success("Habit deleted (-20 XP)");
+      toast.success("Habit deleted");
       onClose();
     } catch (err: any) {
       console.error("Failed to delete habit:", err);
