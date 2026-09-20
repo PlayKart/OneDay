@@ -47,6 +47,11 @@ import {
   FlaskConical,
   Dna,
   Palette,
+  Globe,
+  Users,
+  Landmark,
+  TrendingUp,
+  Scale,
   CheckCircle2,
   LucideIcon,
   LucideProps
@@ -356,6 +361,11 @@ export const STUDIES_OPTIONS: HabitIconOption[] = [
   { id: "sanskrit", label: "Sanskrit", icon: SanskritIcon, category: "Studies", subcategory: "Sanskrit" },
   { id: "hindi", label: "Hindi", icon: HindiIcon, category: "Studies", subcategory: "Hindi" },
   { id: "art", label: "Art", icon: Palette, category: "Studies", subcategory: "Art" },
+  { id: "geography", label: "Geography", icon: Globe, category: "Studies", subcategory: "Geography" },
+  { id: "social_studies", label: "Social Studies", icon: Users, category: "Studies", subcategory: "Social Studies" },
+  { id: "history", label: "History", icon: Landmark, category: "Studies", subcategory: "History" },
+  { id: "economics", label: "Economics", icon: TrendingUp, category: "Studies", subcategory: "Economics" },
+  { id: "civics", label: "Civics", icon: Scale, category: "Studies", subcategory: "Civics" },
 ];
 
 // Complete combined catalog of habit icons
@@ -455,6 +465,31 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   palette: Palette,
   drawing: Palette,
   painting: Palette,
+  geography: Globe,
+  geo: Globe,
+  globe: Globe,
+  map: Globe,
+  social_studies: Users,
+  "social-studies": Users,
+  socialstudies: Users,
+  "social studies": Users,
+  society: Users,
+  community: Users,
+  history: Landmark,
+  landmark: Landmark,
+  historical: Landmark,
+  scroll: Landmark,
+  heritage: Landmark,
+  economics: TrendingUp,
+  economy: TrendingUp,
+  eco: TrendingUp,
+  "trending-up": TrendingUp,
+  trending_up: TrendingUp,
+  civics: Scale,
+  civic: Scale,
+  scale: Scale,
+  polity: Scale,
+  government: Scale,
 
   // Generic and existing
   dumbbell: Dumbbell,
@@ -545,6 +580,11 @@ export function getHabitIconComponent(iconId?: string, habitName: string = "", s
   if (nameLower.includes("hindi")) return HindiIcon;
   if (nameLower.includes("english") || nameLower.includes("grammar") || nameLower.includes("vocab") || nameLower.includes("essay")) return BookOpen;
   if (nameLower.includes("art") || nameLower.includes("sketch") || nameLower.includes("paint") || nameLower.includes("draw")) return Palette;
+  if (nameLower.includes("geography") || nameLower.includes("geo")) return Globe;
+  if (nameLower.includes("social studies") || nameLower.includes("social-studies") || nameLower.includes("social science") || nameLower.includes("civics & history")) return Users;
+  if (nameLower.includes("history") || nameLower.includes("historical") || nameLower.includes("ancient")) return Landmark;
+  if (nameLower.includes("economics") || nameLower.includes("economy") || nameLower.includes("microeconomics") || nameLower.includes("macroeconomics") || nameLower.includes("finance")) return TrendingUp;
+  if (nameLower.includes("civics") || nameLower.includes("civic") || nameLower.includes("polity") || nameLower.includes("political science") || nameLower.includes("constitution")) return Scale;
 
   // Lifestyle / Health keywords
   if (nameLower.includes("plant") || nameLower.includes("garden") || nameLower.includes("flower") || nameLower.includes("sprout") || (nameLower.includes("water") && nameLower.includes("plant"))) return Sprout;
@@ -587,7 +627,7 @@ export function getHabitColorTheme(colorId?: string, habitName: string = ""): Ha
   const nameLower = habitName.toLowerCase();
   if (nameLower.includes("cricket") || nameLower.includes("football") || nameLower.includes("sport") || nameLower.includes("gym") || nameLower.includes("workout") || nameLower.includes("run") || nameLower.includes("fit")) return HABIT_COLORS[0]; // emerald
   if (nameLower.includes("water") || nameLower.includes("drink") || nameLower.includes("hydrate") || nameLower.includes("clean") || nameLower.includes("dish")) return HABIT_COLORS[1]; // cyan
-  if (nameLower.includes("math") || nameLower.includes("physics") || nameLower.includes("chem") || nameLower.includes("bio") || nameLower.includes("study") || nameLower.includes("read") || nameLower.includes("code")) return HABIT_COLORS[2]; // blue
+  if (nameLower.includes("math") || nameLower.includes("physics") || nameLower.includes("chem") || nameLower.includes("bio") || nameLower.includes("study") || nameLower.includes("read") || nameLower.includes("code") || nameLower.includes("geography") || nameLower.includes("history") || nameLower.includes("civic") || nameLower.includes("economic") || nameLower.includes("social")) return HABIT_COLORS[2]; // blue
   if (nameLower.includes("meditat") || nameLower.includes("journal") || nameLower.includes("mind") || nameLower.includes("sleep") || nameLower.includes("bed")) return HABIT_COLORS[3]; // purple
   if (nameLower.includes("heart") || nameLower.includes("love") || nameLower.includes("gratitude")) return HABIT_COLORS[4]; // rose
   if (nameLower.includes("sun") || nameLower.includes("morning") || nameLower.includes("eat") || nameLower.includes("food")) return HABIT_COLORS[5]; // amber

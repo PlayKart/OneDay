@@ -93,7 +93,10 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
     if (subcategory) {
       const isSport = ["cricket", "football", "soccer", "basketball", "badminton", "swimming", "swim", "tennis", "running", "run", "cycling", "bike", "athletics", "volleyball"].includes(subcategory.toLowerCase());
       if (isSport) return "Sports";
-      const isStudy = ["maths", "math", "english", "physics", "chemistry", "biology", "sanskrit", "hindi", "art"].includes(subcategory.toLowerCase());
+      const isStudy = [
+        "maths", "math", "english", "physics", "chemistry", "biology", "sanskrit", "hindi", "art",
+        "geography", "social studies", "social_studies", "socialstudies", "history", "economics", "civics"
+      ].includes(subcategory.toLowerCase());
       if (isStudy) return "Studies";
     }
     return null;
