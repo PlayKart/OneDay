@@ -42,6 +42,7 @@ interface StoreState {
   backendError: string | null;
   activeTab: TabState;
   pendingHabitIds: Set<string>;
+  titleUnlockQueue: Array<{ title: string; signature: string; level: number }>;
   titleUnlockData: { title: string; signature: string; level: number } | null;
   titleLossData: { title: string; signature: string; reason?: string } | null;
   levelUpData: { previousLevel: number; currentLevel: number; xp: number; progress: number } | null;
@@ -194,6 +195,7 @@ export const useStore = create<StoreState>((set, get) => {
     backendError: null,
     activeTab: "dashboard",
     pendingHabitIds: new Set<string>(),
+    titleUnlockQueue: [],
     titleUnlockData: null,
     titleLossData: null,
     levelUpData: null,
@@ -227,7 +229,23 @@ export const useStore = create<StoreState>((set, get) => {
         get().refreshFromBackend().catch((e) => console.warn("[TAB SWITCH] refresh error:", e));
       }
     },
-    setTitleUnlockData: (data) => set({ titleUnlockData: data }),
+    setTitleUnlockData: (data) => {
+      if (data === null) {
+        set((state) => {
+          if (state.titleUnlockQueue && state.titleUnlockQueue.length > 0) {
+            const nextUnlock = state.titleUnlockQueue[0];
+            const remainingQueue = state.titleUnlockQueue.slice(1);
+            return {
+              titleUnlockData: nextUnlock,
+              titleUnlockQueue: remainingQueue
+            };
+          }
+          return { titleUnlockData: null };
+        });
+      } else {
+        set({ titleUnlockData: data });
+      }
+    },
     setTitleLossData: (data) => set({ titleLossData: data }),
     setLevelUpData: (data) => set({ levelUpData: data }),
 
@@ -383,18 +401,62 @@ export const useStore = create<StoreState>((set, get) => {
         const targetTitle = root?.title || userObj?.title || root?.unlockedTitle;
         const currentUserId = userObj?.id || userObj?.userId || get().user?.id || get().user?.userId;
 
-        if ((root?.titleUnlocked || userObj?.titleUnlocked) && targetTitle) {
-          const isGenuinelyNew = isTitleNew(targetTitle, currentUserId);
-          if (isGenuinelyNew) {
-            set({
-              titleUnlockData: {
-                title: targetTitle,
-                signature: getTitleDescription(targetTitle, root?.signature || userObj?.signature),
-                level: root?.level || userObj?.level || 1,
-              }
+        // Check for newlyUnlockedTitles from backend
+        let newTitlesToProcess: any[] = [];
+        if (Array.isArray(root?.newlyUnlockedTitles)) {
+          newTitlesToProcess = root.newlyUnlockedTitles;
+        } else if (Array.isArray(userObj?.newlyUnlockedTitles)) {
+          newTitlesToProcess = userObj.newlyUnlockedTitles;
+        } else if (Array.isArray(root?.newly_unlocked_titles)) {
+          newTitlesToProcess = root.newly_unlocked_titles;
+        } else if (Array.isArray(userObj?.newly_unlocked_titles)) {
+          newTitlesToProcess = userObj.newly_unlocked_titles;
+        } else if (root?.newlyUnlockedTitle) {
+          newTitlesToProcess = [root.newlyUnlockedTitle];
+        } else if (userObj?.newlyUnlockedTitle) {
+          newTitlesToProcess = [userObj.newlyUnlockedTitle];
+        } else if (targetTitle && (root?.titleUnlocked || userObj?.titleUnlocked)) {
+          newTitlesToProcess = [targetTitle];
+        }
+
+        if (newTitlesToProcess.length > 0) {
+          const normalizeNewlyUnlockedTitle = (item: any, uObj?: any): { title: string; signature: string; level: number } => {
+            if (typeof item === "string") {
+              const t = item.trim();
+              return {
+                title: t,
+                signature: getTitleDescription(t, null, uObj),
+                level: uObj?.level || 1,
+              };
+            }
+            const t = (item?.title || item?.name || "").trim();
+            const sig = item?.signature || item?.description || getTitleDescription(t, null, uObj);
+            const lvl = item?.level || item?.levelRequired || uObj?.level || 1;
+            return {
+              title: t,
+              signature: sig,
+              level: lvl,
+            };
+          };
+
+          const formattedTitles = newTitlesToProcess
+            .map((t) => normalizeNewlyUnlockedTitle(t, userObj))
+            .filter((t) => t.title && isTitleNew(t.title, currentUserId));
+
+          if (formattedTitles.length > 0) {
+            set((state) => {
+              const currentQueue = state.titleUnlockQueue || [];
+              const updatedQueue = [...currentQueue, ...formattedTitles];
+              const activeUnlock = state.titleUnlockData || updatedQueue[0];
+              const nextQueue = state.titleUnlockData ? updatedQueue : updatedQueue.slice(1);
+              return {
+                titleUnlockQueue: nextQueue,
+                titleUnlockData: activeUnlock,
+              };
             });
           }
         }
+
         if (root?.titleLost || userObj?.titleLost) {
           set({
             titleLossData: {

@@ -147,6 +147,20 @@ export function getEquippedTitle(user?: any): string | null {
     }
   }
 
+  // 1.5 Check if currentTitle / current_title is an object with title/name/id
+  if (user.currentTitle && typeof user.currentTitle === "object") {
+    const val = user.currentTitle.title || user.currentTitle.name || user.currentTitle.id;
+    if (typeof val === "string" && val.trim().length > 0) {
+      return val.trim().toUpperCase();
+    }
+  }
+  if (user.current_title && typeof user.current_title === "object") {
+    const val = user.current_title.title || user.current_title.name || user.current_title.id;
+    if (typeof val === "string" && val.trim().length > 0) {
+      return val.trim().toUpperCase();
+    }
+  }
+
   // 2. Check direct authoritative string fields on user object
   if (typeof user.equippedTitle === "string" && user.equippedTitle.trim().length > 0) {
     return user.equippedTitle.trim().toUpperCase();

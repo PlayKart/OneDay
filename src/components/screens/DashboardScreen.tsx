@@ -54,10 +54,12 @@ export function DashboardScreen() {
   const totalHabits = stats.totalTodayCount;
   const completionPercentage = stats.completionPercentage;
 
-  const currentXP = typeof user.xp === "number" && !isNaN(user.xp) ? Math.max(0, user.xp) : 0;
-  const currentLevel = typeof user.level === "number" && !isNaN(user.level) && user.level >= 1 ? Math.floor(user.level) : 1;
+  const rawXP = typeof user.xp === "number" && !isNaN(user.xp) ? Math.max(0, user.xp) : 0;
+  const rawLevel = typeof user.level === "number" && !isNaN(user.level) && user.level >= 1 ? Math.floor(user.level) : 1;
+  const currentLevel = rawLevel >= 1000 ? 1000 : rawLevel;
+  const currentXP = rawLevel >= 1000 ? 49950 : rawXP;
   const xpRequiredForNextLevel = 100;
-  const progressPercentage = calculateLevelProgress(currentXP, currentLevel, xpRequiredForNextLevel);
+  const progressPercentage = rawLevel >= 1000 ? 100 : calculateLevelProgress(rawXP, rawLevel, xpRequiredForNextLevel);
 
   const equippedTitle = getEquippedTitle(user);
   const isStreakLoading = typeof user.currentStreak !== "number" && typeof user.streak !== "number";

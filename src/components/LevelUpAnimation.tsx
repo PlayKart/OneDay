@@ -121,12 +121,12 @@ export function LevelUpAnimation({
           <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 text-left">
             <div className="flex justify-between items-center text-xs font-bold mb-2">
               <span className="text-slate-400 uppercase tracking-widest text-[9px]">Authoritative XP</span>
-              <span className="text-white">{xp} XP</span>
+              <span className="text-white">{level >= 1000 ? 49950 : xp} XP</span>
             </div>
             <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
               <div 
                 className="bg-amber-400 h-full rounded-full" 
-                style={{ width: `${safeProgress}%` }}
+                style={{ width: `${level >= 1000 ? 100 : safeProgress}%` }}
               />
             </div>
           </div>
@@ -314,7 +314,7 @@ export function LevelUpAnimation({
                 Total XP
               </span>
               <span className="text-white font-mono text-xs">
-                {xp} <span className="text-slate-500 text-[10px]">XP</span>
+                {level >= 1000 ? 49950 : xp} <span className="text-slate-500 text-[10px]">XP</span>
               </span>
             </div>
 
@@ -322,15 +322,19 @@ export function LevelUpAnimation({
             <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden mb-2">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: `${safeProgress}%` }}
+                animate={{ width: `${level >= 1000 ? 100 : safeProgress}%` }}
                 transition={{ duration: 0.9, delay: 1.45, ease: "easeOut" }}
                 className="bg-gradient-to-r from-amber-500 to-amber-300 h-full rounded-full"
               />
             </div>
 
             <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-widest text-slate-500">
-              <span>{Math.round(safeProgress)}% to Level {level + 1}</span>
-              <span>100 XP Target</span>
+              {level >= 1000 ? (
+                <span>MAX LEVEL REACHED</span>
+              ) : (
+                <span>{Math.round(safeProgress)}% to Level {level + 1}</span>
+              )}
+              <span>{level >= 1000 ? "49,950 XP Cap" : "100 XP Target"}</span>
             </div>
           </motion.div>
 

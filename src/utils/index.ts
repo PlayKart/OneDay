@@ -364,6 +364,60 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
 
       return existingUser?.equippedTitle || existingUser?.title || undefined;
     })(),
+    currentTitle: (() => {
+      if (rawUser?.currentTitle) {
+        if (typeof rawUser.currentTitle === "object") {
+          const val = rawUser.currentTitle.title || rawUser.currentTitle.name || rawUser.currentTitle.id;
+          if (typeof val === "string" && val.trim().length > 0) {
+            return {
+              ...rawUser.currentTitle,
+              title: val.trim().toUpperCase()
+            };
+          }
+        } else if (typeof rawUser.currentTitle === "string" && rawUser.currentTitle.trim().length > 0) {
+          return { title: rawUser.currentTitle.trim().toUpperCase() };
+        }
+      }
+
+      if (rawUser?.equippedTitle && typeof rawUser.equippedTitle === "object") {
+        const val = rawUser.equippedTitle.title || rawUser.equippedTitle.name || rawUser.equippedTitle.id;
+        if (typeof val === "string" && val.trim().length > 0) {
+          return {
+            ...rawUser.equippedTitle,
+            title: val.trim().toUpperCase()
+          };
+        }
+      }
+
+      const backendTitleStr = findFirstString(["currentTitle", "current_title", "equippedTitle", "equipped_title", "activeTitle", "active_title", "title"]);
+      if (backendTitleStr && backendTitleStr.trim().length > 0) {
+        return { title: backendTitleStr.trim().toUpperCase() };
+      }
+
+      const titlesToCheck = Array.isArray(rawUser?.titles)
+        ? rawUser.titles
+        : (Array.isArray(rawUser?.unlockedTitles)
+          ? rawUser.unlockedTitles
+          : (Array.isArray(rawUser?.unlocked_title)
+            ? rawUser.unlocked_title
+            : (Array.isArray(u?.titles) ? u.titles : [])));
+
+      for (const item of titlesToCheck) {
+        if (item && typeof item === "object") {
+          if (item.isCurrent || item.is_current || item.isEquipped || item.equipped || item.active || item.isActive) {
+            const val = item.title || item.name || item.id;
+            if (typeof val === "string" && val.trim().length > 0) {
+              return {
+                ...item,
+                title: val.trim().toUpperCase()
+              };
+            }
+          }
+        }
+      }
+
+      return existingUser?.currentTitle || undefined;
+    })(),
     titles: Array.isArray(rawUser?.titles) ? rawUser.titles : existingUser?.titles,
     unlockedTitles: (() => {
       // 1. Check explicit backend unlocked arrays
