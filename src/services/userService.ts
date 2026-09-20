@@ -76,6 +76,13 @@ export const userService = {
       data.reasonForJoining = cleanWhy;
     }
 
+    const whatValue = data.what_to_improve ?? data.whatToImprove;
+    if (whatValue !== undefined && whatValue !== null) {
+      const cleanWhat = String(whatValue).trim();
+      data.what_to_improve = cleanWhat;
+      data.whatToImprove = cleanWhat;
+    }
+
     const currentUser = useStore.getState().user;
     const payload = {
       ...data,
@@ -93,6 +100,8 @@ export const userService = {
       data.onboarding_completed ||
       data.why_oneday || 
       data.whyOneday ||
+      data.what_to_improve ||
+      data.whatToImprove ||
       data.date_of_birth ||
       data.dob
     );

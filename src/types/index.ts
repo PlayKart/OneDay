@@ -41,6 +41,8 @@ export interface User {
   reasonForJoining?: string;
   why_oneday?: string;
   whyOneday?: string;
+  what_to_improve?: string;
+  whatToImprove?: string;
   photoUrl?: string;
   photo_url?: string;
   habits?: any[];

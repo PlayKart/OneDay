@@ -50,12 +50,12 @@ interface OnboardingModalProps {
 }
 
 function parseStepNumber(val: any): number | null {
-  if (typeof val === "number" && !isNaN(val) && val >= 1 && val <= 7) {
+  if (typeof val === "number" && !isNaN(val) && val >= 1 && val <= 8) {
     return val;
   }
   if (typeof val === "string") {
     const parsed = parseInt(val, 10);
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 7) {
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 8) {
       return parsed;
     }
   }
@@ -114,7 +114,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
   const draftData = useMemo(() => getSavedDraftData(isEditing), [isEditing]);
 
   const [step, setStep] = useState<number>(() => getInitialOnboardingStep(user, isEditing));
-  const totalSteps = 7;
+  const totalSteps = 8;
 
   // Track if backend step has synced
   const hasSyncedBackendStep = React.useRef<boolean>(parseStepNumber(user?.onboardingStep) !== null);
@@ -172,6 +172,18 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
   });
   const [improvementValidationError, setImprovementValidationError] = useState<string | null>(null);
 
+  const [whatToImprove, setWhatToImprove] = useState<string>(() => {
+    return (
+      draftData?.what_to_improve ||
+      draftData?.whatToImprove ||
+      initialData?.what_to_improve ||
+      initialData?.whatToImprove ||
+      user?.what_to_improve ||
+      user?.whatToImprove ||
+      ""
+    );
+  });
+
   const [whyOneday, setWhyOneday] = useState<string>(() => {
     return (
       draftData?.why_oneday ||
@@ -220,6 +232,8 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
           favouriteSports: sports,
           improvement_focus: improvementFocus,
           improvement_focus_other: improvementFocusOther,
+          what_to_improve: whatToImprove,
+          whatToImprove,
           why_oneday: whyOneday,
           whyOneday: whyOneday,
           reasonForJoining: whyOneday,
@@ -324,7 +338,10 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
         }
         return true;
       }
-      case 7: {
+      case 7:
+        // Optional step for What do you want to improve upon?
+        return true;
+      case 8: {
         const nonSpaceCount = (whyOneday || "").replace(/\s/g, '').length;
         const totalCount = (whyOneday || "").length;
         return nonSpaceCount >= 5 && totalCount <= 500;
@@ -455,6 +472,8 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
         sports,
         improvement_focus: canonicalImprovementFocus,
         improvement_focus_other: canonicalImprovementFocus.includes("other") ? improvementFocusOther.trim() : "",
+        what_to_improve: whatToImprove.trim(),
+        whatToImprove: whatToImprove.trim(),
         why_oneday: cleanWhyOneday,
         whyOneday: cleanWhyOneday,
         reasonForJoining: cleanWhyOneday,
@@ -982,10 +1001,41 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
                 </motion.div>
               )}
 
-              {/* STEP 7: Why did you choose OneDay? */}
+              {/* STEP 7: WHAT DO YOU WANT TO IMPROVE UPON? */}
               {step === 7 && (
                 <motion.div
                   key="step7"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-6"
+                >
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400">Ambition & Growth</span>
+                    <h2 className="text-2xl font-black text-white tracking-tight uppercase">WHAT DO YOU WANT TO IMPROVE UPON?</h2>
+                    <p className="text-slate-400 text-xs">Share a sentence or short paragraph about your specific goals.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <textarea
+                        value={whatToImprove}
+                        onChange={(e) => setWhatToImprove(e.target.value)}
+                        rows={5}
+                        placeholder="What do you want to improve upon?"
+                        className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-2xl p-4 text-white text-sm outline-none transition-all resize-none placeholder:text-slate-600 leading-relaxed"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* STEP 8: Why did you choose OneDay? */}
+              {step === 8 && (
+                <motion.div
+                  key="step8"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}

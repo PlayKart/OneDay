@@ -7,6 +7,46 @@ import { userService } from "../../services/userService";
 import { OnboardingModal } from "../OnboardingModal";
 import { getAllUserTitles, getEquippedTitle, getTitleDescription, isTitleNew, markTitleAsSeen } from "../../utils/titleUtils";
 
+function calculateAge(dobStr?: string | null): number | null {
+  if (!dobStr || typeof dobStr !== "string") return null;
+  const trimmed = dobStr.trim();
+  if (!trimmed) return null;
+  let birthYear, birthMonth, birthDay;
+  if (trimmed.includes("-")) {
+    const parts = trimmed.split("-");
+    if (parts.length < 3) return null;
+    birthYear = parseInt(parts[0], 10);
+    birthMonth = parseInt(parts[1], 10) - 1;
+    birthDay = parseInt(parts[2], 10);
+  } else if (trimmed.includes("/")) {
+    const parts = trimmed.split("/");
+    if (parts.length < 3) return null;
+    if (parts[0].length === 4) {
+      birthYear = parseInt(parts[0], 10);
+      birthMonth = parseInt(parts[1], 10) - 1;
+      birthDay = parseInt(parts[2], 10);
+    } else {
+      birthMonth = parseInt(parts[0], 10) - 1;
+      birthDay = parseInt(parts[1], 10);
+      birthYear = parseInt(parts[2], 10);
+    }
+  } else {
+    const parsed = new Date(trimmed);
+    if (isNaN(parsed.getTime())) return null;
+    birthYear = parsed.getFullYear();
+    birthMonth = parsed.getMonth();
+    birthDay = parsed.getDate();
+  }
+  if (isNaN(birthYear) || isNaN(birthMonth) || isNaN(birthDay)) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthYear;
+  const m = today.getMonth() - birthMonth;
+  if (m < 0 || (m === 0 && today.getDate() < birthDay)) {
+    age--;
+  }
+  return age >= 0 ? age : null;
+}
+
 function ProfileSkeleton() {
   return (
     <div className="space-y-6 animate-pulse p-1" id="profile-skeleton-view">
@@ -418,7 +458,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
                 <span className="text-[10px] font-black uppercase tracking-widest">Age & DOB</span>
               </div>
               <p className="text-white font-extrabold text-sm mt-2">
-                {activeUser.dob ? `${activeUser.dob} (${activeUser.age ? `${activeUser.age} yrs` : ""})` : "Not specified"}
+                {activeUser.dob ? `Age: ${calculateAge(activeUser.dob) !== null ? calculateAge(activeUser.dob) : "—"} • ${activeUser.dob}` : "Not specified"}
               </p>
             </div>
 
@@ -443,6 +483,21 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
                 <p className="text-slate-600 text-xs italic mt-2">Not specified</p>
               )}
             </div>
+          </div>
+
+          {/* What I Want To Improve Card */}
+          <div className="bg-[#0C0C0C] border border-white/5 rounded-3xl p-5 space-y-3 shadow-md">
+            <div className="flex items-center gap-2 text-slate-500">
+              <Sparkles size={13} className="text-cyan-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest">What I Want To Improve</span>
+            </div>
+            {(activeUser.what_to_improve || activeUser.whatToImprove) ? (
+              <p className="text-slate-300 text-xs leading-relaxed">
+                {activeUser.what_to_improve || activeUser.whatToImprove}
+              </p>
+            ) : (
+              <p className="text-slate-600 text-xs italic">Not specified</p>
+            )}
           </div>
 
           {/* Hobbies & Interests Card */}

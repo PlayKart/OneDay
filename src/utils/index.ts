@@ -524,6 +524,22 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
       existingUser?.whyOneday ||
       existingUser?.reasonForJoining ||
       "",
+    what_to_improve:
+      findFirstString(["what_to_improve", "whatToImprove", "improvement", "what_to_improve_upon", "whatToImproveUpon"]) ||
+      rawUser?.what_to_improve ||
+      rawUser?.whatToImprove ||
+      rawUser?.improvement ||
+      existingUser?.what_to_improve ||
+      existingUser?.whatToImprove ||
+      "",
+    whatToImprove:
+      findFirstString(["what_to_improve", "whatToImprove", "improvement", "what_to_improve_upon", "whatToImproveUpon"]) ||
+      rawUser?.what_to_improve ||
+      rawUser?.whatToImprove ||
+      rawUser?.improvement ||
+      existingUser?.what_to_improve ||
+      existingUser?.whatToImprove ||
+      "",
     reasonForJoining:
       findFirstString(["why_oneday", "whyOneday", "why_oneday_reason", "reasonForJoining", "reason_for_joining", "reason"]) ||
       rawUser?.why_oneday ||
