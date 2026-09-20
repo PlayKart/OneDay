@@ -1,3 +1,54 @@
+export function getTodayDateString(dateObj: Date = new Date()): string {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export interface TodayHabitStats {
+  todayHabits: any[];
+  completedTodayList: any[];
+  pendingTodayList: any[];
+  completedTodayCount: number;
+  pendingTodayCount: number;
+  totalTodayCount: number;
+  completionPercentage: number;
+}
+
+export function getTodayHabitStats(habits: any[]): TodayHabitStats {
+  const safeHabits = Array.isArray(habits) ? habits : [];
+  // 1. Filter out archived habits
+  const activeHabits = safeHabits.filter((h) => h && !h.isArchived);
+  
+  // 2. Filter to habits scheduled for today
+  const todayHabits = activeHabits.filter(isHabitScheduledForToday);
+
+  // 3. Filter completed today
+  const todayStr = getTodayDateString();
+  const completedTodayList = todayHabits.filter((h) => {
+    if (h.completedToday) return true;
+    if (Array.isArray(h.completedDates) && h.completedDates.includes(todayStr)) return true;
+    return false;
+  });
+
+  const pendingTodayList = todayHabits.filter((h) => !completedTodayList.includes(h));
+
+  const totalTodayCount = todayHabits.length;
+  const completedTodayCount = completedTodayList.length;
+  const pendingTodayCount = Math.max(0, totalTodayCount - completedTodayCount);
+  const completionPercentage = totalTodayCount === 0 ? 0 : Math.round((completedTodayCount / totalTodayCount) * 100);
+
+  return {
+    todayHabits,
+    completedTodayList,
+    pendingTodayList,
+    completedTodayCount,
+    pendingTodayCount,
+    totalTodayCount,
+    completionPercentage,
+  };
+}
+
 export function isHabitScheduledForDate(habit: any, dateObj: Date): boolean {
   if (!habit) return false;
   if (!habit.repeatType || habit.repeatType === "every_day") {

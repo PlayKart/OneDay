@@ -5,7 +5,7 @@ import { HabitList } from "../HabitList";
 import { Target, Zap, Activity, Trophy, Plus, Shield, CheckCircle2, Lock, Snowflake } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
-import { isHabitScheduledForToday } from "../../lib/habitUtils";
+import { isHabitScheduledForToday, getTodayHabitStats } from "../../lib/habitUtils";
 import { getPersonalizedGreeting } from "../../utils/greetingUtils";
 import { getEquippedTitle } from "../../utils/titleUtils";
 import { calculateLevelProgress } from "../../utils";
@@ -48,10 +48,11 @@ export function DashboardScreen() {
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const safeHabits = Array.isArray(habits) ? habits : [];
-  const todaysHabits = safeHabits.filter(isHabitScheduledForToday);
-  const completedToday = todaysHabits.filter(h => h && h.completedToday).length; 
-  const totalHabits = todaysHabits.length;
-  const completionPercentage = totalHabits === 0 ? 0 : Math.round((completedToday / totalHabits) * 100);
+  const stats = getTodayHabitStats(safeHabits);
+  const todaysHabits = stats.todayHabits;
+  const completedToday = stats.completedTodayCount; 
+  const totalHabits = stats.totalTodayCount;
+  const completionPercentage = stats.completionPercentage;
 
   const currentXP = typeof user.xp === "number" && !isNaN(user.xp) ? Math.max(0, user.xp) : 0;
   const currentLevel = typeof user.level === "number" && !isNaN(user.level) && user.level >= 1 ? Math.floor(user.level) : 1;

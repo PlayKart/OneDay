@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, CheckCircle2 } from 'lucide-react';
 import { useStore, Habit } from '../store/useStore';
 import { toast } from 'react-hot-toast';
-import { isHabitScheduledForToday, getScheduledDaysMessage } from '../lib/habitUtils';
+import { isHabitScheduledForToday, getScheduledDaysMessage, getTodayHabitStats } from '../lib/habitUtils';
 import { EditHabitModal } from './EditHabitModal';
 import { getHabitIconComponent, getHabitColorTheme } from '../lib/habitIcons';
 import { getXpForDifficulty, extractXpAwarded, toDisplayDifficulty } from '../utils';
@@ -135,9 +135,10 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
 
   const guardedDisplayHabits = Array.isArray(displayHabits) ? displayHabits : [];
 
-  const totalScheduledToday = safeHabits.filter(h => isHabitScheduledForToday(h)).length;
-  const completedScheduledToday = safeHabits.filter(h => isHabitScheduledForToday(h) && h.completedToday).length;
-  const completionPercentage = totalScheduledToday > 0 ? Math.round((completedScheduledToday / totalScheduledToday) * 100) : 0;
+  const todayStats = getTodayHabitStats(safeHabits);
+  const totalScheduledToday = todayStats.totalTodayCount;
+  const completedScheduledToday = todayStats.completedTodayCount;
+  const completionPercentage = todayStats.completionPercentage;
 
   return (
     <>

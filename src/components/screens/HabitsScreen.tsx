@@ -5,13 +5,11 @@ import { Plus, ListFilter, BarChart3, Loader2, Lock, Shield, Snowflake } from "l
 import { motion, AnimatePresence } from "motion/react";
 import { useFreezeCountdown } from "../../utils/freezeUtils";
 
-const HabitTrendsView = lazy(() =>
-  import("../HabitTrendsView").then((m) => ({ default: m.HabitTrendsView }))
-);
+import { lazyWithRetry } from "../../utils/lazyWithRetry";
 
-const CreateHabitModal = lazy(() =>
-  import("../CreateHabitModal").then((m) => ({ default: m.CreateHabitModal }))
-);
+const HabitTrendsView = lazyWithRetry(() => import("../HabitTrendsView"), "HabitTrendsView");
+
+const CreateHabitModal = lazyWithRetry(() => import("../CreateHabitModal"), "CreateHabitModal");
 
 export function HabitsScreen() {
   const { user, habits, refreshFromBackend } = useStore();

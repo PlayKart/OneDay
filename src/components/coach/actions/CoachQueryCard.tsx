@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { motion } from "motion/react";
 import { Flame, Award, CheckCircle2, Circle, User, Sparkles, ChevronRight, Activity, TrendingUp } from "lucide-react";
 import { useStore } from "../../../store/useStore";
+import { getTodayHabitStats } from "../../../lib/habitUtils";
 import { CoachActionType } from "./types";
 import { calculateLevelProgress } from "../../../utils";
 import { CoachProfileEditorSheet } from "./CoachProfileEditorSheet";
@@ -20,9 +21,10 @@ export const CoachQueryCard: React.FC<CoachQueryCardProps> = ({
   const { user, habits } = useStore();
   const [showProfileSheet, setShowProfileSheet] = useState(false);
 
-  const activeHabits = Array.isArray(habits) ? habits.filter((h) => !h.isArchived) : [];
-  const completedTodayCount = activeHabits.filter((h) => h.completedToday).length;
-  const totalActiveCount = activeHabits.length;
+  const stats = getTodayHabitStats(habits);
+  const activeHabits = stats.todayHabits;
+  const completedTodayCount = stats.completedTodayCount;
+  const totalActiveCount = stats.totalTodayCount;
 
   const currentStreak = user?.streak || user?.currentStreak || 0;
   const level = user?.level || 1;

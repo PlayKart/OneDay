@@ -1,6 +1,7 @@
 // src/utils/coachUtils.ts
 
 import { ChatSession, User, Habit } from "../types";
+import { getTodayHabitStats } from "../lib/habitUtils";
 
 /**
  * Strips raw UUIDs, date stamps, and redundant "Session #123" prefixes
@@ -115,17 +116,17 @@ export function getSmartGreeting(user: User | null, habits: Habit[]): {
   tag: string;
   statusType: "ahead" | "behind" | "streak" | "neutral";
 } {
-  const activeHabits = Array.isArray(habits) ? habits.filter((h) => !h.isArchived) : [];
-  const total = activeHabits.length;
-  const completed = activeHabits.filter((h) => h.completedToday).length;
-  const pending = total - completed;
+  const stats = getTodayHabitStats(habits);
+  const total = stats.totalTodayCount;
+  const completed = stats.completedTodayCount;
+  const pending = stats.pendingTodayCount;
   const streak = typeof user?.currentStreak === "number" ? user.currentStreak : user?.streak || 0;
   const userName = user?.name ? user.name.split(" ")[0] : "Warrior";
 
   if (total > 0 && pending === 0) {
     return {
       headline: `Clean day, ${userName}.`,
-      subtext: `You executed all ${total} habits today. Protect that standard and set the baseline for tomorrow.`,
+      subtext: `You executed all ${total} habit${total > 1 ? "s" : ""} scheduled for today. Protect that standard and set the baseline for tomorrow.`,
       tag: "100% EXECUTED",
       statusType: "ahead",
     };
@@ -168,13 +169,12 @@ export interface QuickPromptItem {
  * Returns context-aware starter prompt protocols based on actual backend habit metrics.
  */
 export function getContextAwarePrompts(habits: Habit[]): QuickPromptItem[] {
-  const activeHabits = Array.isArray(habits) ? habits.filter((h) => !h.isArchived) : [];
-  const completed = activeHabits.filter((h) => h.completedToday).length;
-  const pending = activeHabits.length - completed;
+  const stats = getTodayHabitStats(habits);
+  const pending = stats.pendingTodayCount;
+  const pendingList = stats.pendingTodayList;
 
-  if (activeHabits.length > 0 && pending > 0) {
-    const incompleteNames = activeHabits
-      .filter((h) => !h.completedToday)
+  if (stats.totalTodayCount > 0 && pending > 0) {
+    const incompleteNames = pendingList
       .map((h) => h.name)
       .slice(0, 3)
       .join(", ");
@@ -183,7 +183,7 @@ export function getContextAwarePrompts(habits: Habit[]): QuickPromptItem[] {
       {
         label: "Finish Today's Protocol",
         desc: `Execute remaining habits (${incompleteNames})`,
-        prompt: `I still have ${pending} habits remaining today (${incompleteNames}). Give me an aggressive, sequential execution protocol to eliminate hesitation and finish them right now.`,
+        prompt: `I still have ${pending} habit${pending > 1 ? "s" : ""} remaining today (${incompleteNames}). Give me an aggressive, sequential execution protocol to eliminate hesitation and finish them right now.`,
         icon: "Zap",
       },
       {
