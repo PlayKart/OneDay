@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { useStore } from "../../store/useStore";
 import { MotivationalQuote } from "../MotivationalQuote";
 import { HabitList } from "../HabitList";
-import { Target, Zap, Activity, ArrowRight, Trophy, Plus, Shield, CheckCircle2, Lock, Snowflake } from "lucide-react";
-import { AICoachIcon } from "../AICoachIcon";
+import { Target, Zap, Activity, Trophy, Plus, Shield, CheckCircle2, Lock, Snowflake } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
 import { isHabitScheduledForToday } from "../../lib/habitUtils";
@@ -75,7 +74,7 @@ export function DashboardScreen() {
   });
 
   return (
-    <div className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-10 space-y-6 overflow-x-hidden min-h-0 relative">
+    <div className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-10 pb-28 sm:pb-32 space-y-6 overflow-x-hidden min-h-0 relative">
       
       {/* Subtle Radial Glows for Depth - Shifting to cool icy highlights when frozen */}
       {isFrozen ? (
@@ -349,123 +348,60 @@ export function DashboardScreen() {
 
       </div>
 
-      {/* BENTO GRID: CONTENT */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full relative z-10">
-        
-        {/* MAIN COLUMN: Habits List */}
-        <div className="md:col-span-2 space-y-6">
-          <motion.div 
-            whileHover={{ borderColor: "rgba(255,255,255,0.15)" }}
-            className="bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-7 transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)]"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-              <div>
-                <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-zinc-200">
-                  Today's Protocol
-                </h2>
-                {isFrozen && (
-                  <p className="text-[11px] text-cyan-300 font-mono flex items-center gap-1.5 mt-1">
-                    <Lock size={11} className="text-cyan-400" />
-                    <span>HABITS PAUSED · Your streak is protected while Streak Freeze is active.</span>
-                  </p>
-                )}
-              </div>
-              {totalHabits > 0 && (
-                <span className={`text-[10px] font-mono uppercase font-medium tracking-wider px-2.5 py-1 rounded-md border self-start sm:self-auto ${
-                  isFrozen
-                    ? "text-cyan-300 bg-cyan-950/40 border-cyan-500/30"
-                    : "text-zinc-300 bg-white/[0.04] border-white/[0.06]"
-                }`}>
-                  {completedToday}/{totalHabits} {isFrozen ? "Completed (Paused)" : "Done"}
-                </span>
+      {/* TODAY'S MISSION (PRIMARY FOCUS) */}
+      <div className="w-full relative z-10">
+        <motion.div 
+          whileHover={{ borderColor: "rgba(255,255,255,0.15)" }}
+          className="w-full bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-7 transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)]"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+            <div>
+              <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-zinc-200">
+                TODAY'S MISSION
+              </h2>
+              {isFrozen && (
+                <p className="text-[11px] text-cyan-300 font-mono flex items-center gap-1.5 mt-1">
+                  <Lock size={11} className="text-cyan-400" />
+                  <span>HABITS PAUSED · Your streak is protected while Streak Freeze is active.</span>
+                </p>
               )}
             </div>
-            
-            {totalHabits > 0 ? (
-              <HabitList previewMode />
-            ) : (
-              <div className="py-12 text-center bg-white/[0.01] rounded-2xl border border-white/5 border-dashed flex flex-col items-center justify-center px-4">
-                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                  <Activity size={24} className="text-slate-500" />
-                </div>
-                <p className="text-slate-300 font-black uppercase tracking-[0.15em] text-xs mb-2">
-                  No Active Habits
-                </p>
-                <p className="text-slate-500 text-[11px] max-w-xs mx-auto leading-relaxed mb-6 font-medium">
-                  Establish your first tracking protocol to activate your daily discipline feed.
-                </p>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => setActiveTab("habits")}
-                  className="py-3 px-6 bg-white text-black font-black uppercase tracking-wider text-[10px] rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Plus size={14} strokeWidth={3} />
-                  Create Habit
-                </motion.button>
-              </div>
+            {totalHabits > 0 && (
+              <span className={`text-[10px] font-mono uppercase font-medium tracking-wider px-2.5 py-1 rounded-md border self-start sm:self-auto ${
+                isFrozen
+                  ? "text-cyan-300 bg-cyan-950/40 border-cyan-500/30"
+                  : "text-zinc-300 bg-white/[0.04] border-white/[0.06]"
+              }`}>
+                {completedToday}/{totalHabits} {isFrozen ? "Completed (Paused)" : "Done"}
+              </span>
             )}
-          </motion.div>
-        </div>
-
-        {/* SIDE COLUMN: AI Coach & Activity */}
-        <div className="space-y-6">
+          </div>
           
-          {/* AI Coach Card */}
-          <motion.div
-            whileHover={{ y: -3, borderColor: "rgba(255,255,255,0.18)" }}
-            onClick={() => setActiveTab("coach")}
-            className="group w-full bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-6 cursor-pointer select-none transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)] relative overflow-hidden"
-          >
-            <div className="flex flex-col gap-4 relative z-10">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform">
-                  <AICoachIcon size={20} active />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-zinc-400 group-hover:text-white group-hover:bg-white/10 transition-colors">
-                  <ArrowRight size={14} />
-                </div>
+          {totalHabits > 0 ? (
+            <HabitList previewMode />
+          ) : (
+            <div className="py-12 text-center bg-white/[0.01] rounded-2xl border border-white/5 border-dashed flex flex-col items-center justify-center px-4">
+              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                <Activity size={24} className="text-slate-500" />
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">AI Coach</h3>
-                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                  Personalized strategy, discipline checks & performance protocols.
-                </p>
-              </div>
+              <p className="text-slate-300 font-black uppercase tracking-[0.15em] text-xs mb-2">
+                No Active Habits
+              </p>
+              <p className="text-slate-500 text-[11px] max-w-xs mx-auto leading-relaxed mb-6 font-medium">
+                Establish your first tracking habit to activate your daily execution feed.
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setActiveTab("habits")}
+                className="py-3 px-6 bg-white text-black font-black uppercase tracking-wider text-[10px] rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Plus size={14} strokeWidth={3} />
+                Create Habit
+              </motion.button>
             </div>
-          </motion.div>
-
-          {/* Recent Activity */}
-          <motion.div 
-            whileHover={{ borderColor: "rgba(255,255,255,0.15)" }}
-            className="w-full bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-6 transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)]"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Activity size={15} className="text-zinc-400" />
-              <h3 className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-400">Recent Activity</h3>
-            </div>
-            
-            {safeHabits.length > 0 ? (
-              <div className="space-y-2.5">
-                {safeHabits.slice(0, 4).map(h => (
-                  <div key={h.id} className="flex items-center justify-between p-2.5 sm:p-3 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl border border-white/[0.04] transition-colors">
-                    <span className="font-medium text-zinc-200 text-xs truncate max-w-[140px] sm:max-w-[160px]">{h.name}</span>
-                    <span className={`text-[9px] px-2 py-0.5 rounded-md font-mono uppercase tracking-wider shrink-0 border ${h.completedToday ? 'bg-white/[0.06] text-zinc-200 border-white/[0.1]' : 'bg-white/[0.02] text-zinc-400 border-white/[0.05]'}`}>
-                      {h.completedToday ? 'Done' : 'Pending'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="w-full py-6 text-center bg-white/[0.01] rounded-xl border border-white/5 border-dashed">
-                <p className="text-zinc-400 font-mono text-[10px] uppercase tracking-widest">
-                  No Activity Yet
-                </p>
-              </div>
-            )}
-          </motion.div>
-
-        </div>
+          )}
+        </motion.div>
       </div>
 
       {/* Level Up Premium Celebration Overlay */}
