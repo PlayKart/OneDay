@@ -211,25 +211,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         chatLoading: false,
       }));
 
-      // Title Auto Update logic (Max 3 words, ChatGPT style)
-      if (activeId) {
-        const currentSession = get().chatSessions.find((s) => s.id === activeId);
-        let targetTitle = res.title;
-
-        if (!targetTitle || targetTitle === "New Chat" || targetTitle === "New Conversation" || targetTitle === "New Coaching Session") {
-          const cleanText = messageText.trim().replace(/[^\w\s]/gi, '');
-          const words = cleanText.split(/\s+/).filter(Boolean);
-          if (words.length > 0) {
-            const threeWords = words.slice(0, 3).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
-            targetTitle = threeWords.length <= 28 ? threeWords : "New Chat";
-          } else {
-            targetTitle = "New Chat";
-          }
-        }
-
-        if (targetTitle && currentSession?.title !== targetTitle) {
-          get().renameSession(activeId, targetTitle);
-        }
+      // Update session title from backend canonical title response immediately if provided
+      if (res.title && activeId) {
+        set((state) => ({
+          chatSessions: state.chatSessions.map((s) =>
+            s.id === activeId ? { ...s, title: res.title, updatedAt: new Date().toISOString() } : s
+          ),
+        }));
       }
     } catch (e: any) {
       console.error("[AI Coach] sendChatMessage failed:", e);

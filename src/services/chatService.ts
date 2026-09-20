@@ -21,7 +21,7 @@ export const chatService = {
 
       const mapped = safeArray<any>(list).map((s) => ({
         id: s.id || s.sessionId || s.uuid,
-        title: s.title || "New Coaching Session",
+        title: s.title || "",
         isPinned: Boolean(s.isPinned || s.is_pinned),
         isArchived: Boolean(s.isArchived || s.is_archived),
         createdAt: s.createdAt || s.created_at || new Date().toISOString(),

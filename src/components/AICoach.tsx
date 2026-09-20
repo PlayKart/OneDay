@@ -137,10 +137,10 @@ export const AICoach: React.FC = () => {
 
   const handleStartNewChat = async () => {
     try {
-      await createSession("New Chat");
+      await createSession();
       useStore.getState().clearAllPendingActions();
       setIsMobileDrawerOpen(false);
-      toast.success("New strategy session started");
+      toast.success("New chat started");
     } catch (e) {
       console.error("Failed to start new chat:", e);
       toast.error("Could not start new chat");

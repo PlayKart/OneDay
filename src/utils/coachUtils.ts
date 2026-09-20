@@ -8,31 +8,8 @@ import { getTodayHabitStats } from "../lib/habitUtils";
  * to produce clean, executive conversation titles.
  */
 export function cleanCoachTitle(title?: string): string {
-  if (!title) return "Strategy Session";
-
-  let cleaned = title.trim();
-
-  // Strip YYYY-MM-DD or date stamps
-  cleaned = cleaned.replace(/\b\d{4}-\d{2}-\d{2}\b/g, "").trim();
-
-  // Strip session prefix and raw UUIDs or numbers (e.g., "Session 5f3a", "Chat #12", "Conversation 3")
-  cleaned = cleaned.replace(/^(Session|Chat|ID|Conversation|Thread)\s*[#\-:_]?\s*([a-f0-9\-]+|\d+)?\s*[:\-–—]?\s*/gi, "").trim();
-  cleaned = cleaned.replace(/\s*\(?(Session|Chat|ID|Conversation)\s*[#\-:_]?\s*([a-f0-9\-]+|\d+)\)?\s*$/gi, "").trim();
-
-  // Strip leading/trailing punctuation
-  cleaned = cleaned.replace(/^[\-_:\s|–—]+|[\-_:\s|–—]+$/g, "").trim();
-
-  // Handle generic fallbacks
-  if (!cleaned || cleaned.toLowerCase() === "new chat" || cleaned.toLowerCase() === "new conversation") {
-    return "New Strategy Session";
-  }
-
-  // Capitalize properly if needed
-  if (cleaned.length > 0 && cleaned === cleaned.toLowerCase()) {
-    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-  }
-
-  return cleaned.length > 40 ? `${cleaned.slice(0, 38)}...` : cleaned;
+  if (!title || !title.trim()) return "Loading...";
+  return title.trim();
 }
 
 export interface GroupedSessions {

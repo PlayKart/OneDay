@@ -1051,8 +1051,9 @@ export const useStore = create<StoreState>((set, get) => {
               : [
                   {
                     id: returnedSessionId,
-                    title: res.title || "New Chat",
+                    title: res.title || "",
                     createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                   },
                   ...state.chatSessions,
                 ];
@@ -1201,25 +1202,13 @@ export const useStore = create<StoreState>((set, get) => {
           }
         }
 
-        // Title Auto Update logic
-        if (activeId) {
-          const currentSession = get().chatSessions.find((s) => s.id === activeId);
-          let targetTitle = res.title;
-
-          if (!targetTitle || targetTitle === "New Chat" || targetTitle === "New Conversation" || targetTitle === "New Coaching Session") {
-            const cleanText = messageText.trim().replace(/[^\w\s]/gi, '');
-            const words = cleanText.split(/\s+/).filter(Boolean);
-            if (words.length > 0) {
-              const threeWords = words.slice(0, 3).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
-              targetTitle = threeWords.length <= 28 ? threeWords : "New Chat";
-            } else {
-              targetTitle = "New Chat";
-            }
-          }
-
-          if (targetTitle && currentSession?.title !== targetTitle) {
-            get().renameSession(activeId, targetTitle);
-          }
+        // Update session title from backend canonical title response immediately if provided
+        if (res.title && activeId) {
+          set((state) => ({
+            chatSessions: state.chatSessions.map((s) =>
+              s.id === activeId ? { ...s, title: res.title, updatedAt: new Date().toISOString() } : s
+            ),
+          }));
         }
       } catch (e: any) {
         console.error("[AI Coach] sendChatMessage failed:", e);
