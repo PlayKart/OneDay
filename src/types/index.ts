@@ -64,6 +64,9 @@ export interface Habit {
   updatedAt?: string;
   completedToday: boolean;
   category?: string;
+  subcategory?: string;
+  sport?: string;
+  subject?: string;
   icon?: string;
   color?: string;
   difficulty?: string;

@@ -12,8 +12,10 @@ interface CreateHabitModalProps {
 }
 
 export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
-  const { addHabit, refreshFromBackend } = useStore();
+  const { addHabit } = useStore();
   const [name, setName] = useState("");
+  const [category, setCategory] = useState<string>("Health & Fitness");
+  const [subcategory, setSubcategory] = useState<string>("");
   const [repeatType, setRepeatType] = useState<"every_day" | "weekdays" | "weekends" | "custom_days">("every_day");
   const [customDays, setCustomDays] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState("Medium");
@@ -50,7 +52,6 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
     if (e) e.preventDefault();
     if (isSubmitting) return;
 
-    // Requirement 2: Validate all required fields before submitting
     const trimmedName = name.trim();
     if (!trimmedName) {
       toast.error("Please enter a habit name.");
@@ -69,27 +70,23 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
       difficulty: toCanonicalDifficulty(difficulty),
       notes: notes.trim(),
       icon: selectedIcon,
-      category: selectedColor
+      category: category.toLowerCase(),
+      subcategory: subcategory || undefined,
+      sport: category === "Sports" ? subcategory : undefined,
+      subject: category === "Studies" ? subcategory : undefined,
+      color: selectedColor
     };
 
-    // Requirement 3: Log the request payload before sending
     console.log("Create Habit Request Payload:", payload);
 
-    // Requirement 5: Show loading state
     setIsSubmitting(true);
 
     try {
-      // Requirement 4 & 10: Call backend endpoint via store
       await addHabit(payload);
-
-      // Requirement 6: Success toast notification
       toast.success("Habit saved successfully!");
-
-      // Requirement 9: Close modal only after successful response
       onClose();
     } catch (err: any) {
       console.error("Failed to create habit:", err);
-      // Requirement 7: Display exact backend error message
       const errorMessage = err?.response?.data?.error 
         || err?.response?.data?.message 
         || err?.message 
@@ -121,8 +118,15 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
         {/* Native sheet drag handle */}
         <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4 block sm:hidden shrink-0" />
 
-        <div className="flex justify-between items-center mb-6 shrink-0">
-          <h2 className="text-xl font-bold tracking-tighter">New Habit</h2>
+        <div className="flex justify-between items-center mb-4 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold tracking-tighter">New Habit</h2>
+            {(category === "Sports" || category === "Studies") && subcategory && (
+              <p className="text-[11px] font-mono text-zinc-400 mt-0.5">
+                {category} · <span className="text-zinc-200 font-semibold">{subcategory}</span>
+              </p>
+            )}
+          </div>
           <button type="button" onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
             <X size={20} />
           </button>
@@ -141,12 +145,16 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
              />
            </div>
 
-           {/* Habitify Icon & Color Picker */}
+           {/* Habitify Icon, Category & Subcategory Picker */}
            <HabitIconPicker
              selectedIcon={selectedIcon}
              selectedColor={selectedColor}
+             selectedCategory={category}
+             selectedSubcategory={subcategory}
              onSelectIcon={setSelectedIcon}
              onSelectColor={setSelectedColor}
+             onSelectCategory={setCategory}
+             onSelectSubcategory={setSubcategory}
            />
 
            {/* Repeat Schedule */}
@@ -255,7 +263,6 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
         </div>
 
         <div className="mt-4 shrink-0 pt-4 border-t border-white/10 pb-8 sm:pb-0">
-          {/* Requirement 1: Verify Save button's onClick calls handleSave */}
           <button 
             type="submit"
             onClick={handleSave}

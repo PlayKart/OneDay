@@ -16,6 +16,22 @@ interface EditHabitModalProps {
 export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
   const { editHabit, deleteHabit, resetHabitEditorState } = useStore();
   const [name, setName] = useState(habit.name || "");
+
+  const initialCategory = (() => {
+    const cat = habit.category || (habit as any).type || "";
+    if (cat.toLowerCase().includes("sport")) return "Sports";
+    if (cat.toLowerCase().includes("stud")) return "Studies";
+    if (cat.toLowerCase().includes("mind") || cat.toLowerCase().includes("focus")) return "Mind & Focus";
+    if (cat.toLowerCase().includes("prod")) return "Productivity";
+    if (cat.toLowerCase().includes("life")) return "Lifestyle";
+    return "Health & Fitness";
+  })();
+
+  const [category, setCategory] = useState<string>(initialCategory);
+  const [subcategory, setSubcategory] = useState<string>(
+    habit.subcategory || (habit as any).sport || (habit as any).subject || ""
+  );
+
   const [repeatType, setRepeatType] = useState<"every_day" | "weekdays" | "weekends" | "custom_days">(habit.repeatType || "every_day");
   const [customDays, setCustomDays] = useState<string[]>(() => {
     return Array.isArray(habit.customDays) ? habit.customDays : [];
@@ -60,12 +76,23 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
         setCustomDays(Array.isArray(dbHabit.customDays) ? dbHabit.customDays : []);
         setDifficulty(toDisplayDifficulty(dbHabit.difficulty));
 
-        // CRITICAL REQUIREMENT: Populate notes from habit.notes, never leave blank if database contains notes
         const dbNotes = dbHabit.notes || (dbHabit as any).description || (dbHabit as any).reasonPurpose || "";
         setNotes(dbNotes);
 
         if (dbHabit.icon) setSelectedIcon(dbHabit.icon);
-        if (dbHabit.category) setSelectedColor(dbHabit.category);
+        if (dbHabit.category) {
+          const dbCat = dbHabit.category;
+          if (dbCat.toLowerCase().includes("sport")) setCategory("Sports");
+          else if (dbCat.toLowerCase().includes("stud")) setCategory("Studies");
+          else if (dbCat.toLowerCase().includes("mind") || dbCat.toLowerCase().includes("focus")) setCategory("Mind & Focus");
+          else if (dbCat.toLowerCase().includes("prod")) setCategory("Productivity");
+          else if (dbCat.toLowerCase().includes("life")) setCategory("Lifestyle");
+          else setCategory("Health & Fitness");
+          setSelectedColor(dbCat);
+        }
+        if ((dbHabit as any).subcategory || (dbHabit as any).sport || (dbHabit as any).subject) {
+          setSubcategory((dbHabit as any).subcategory || (dbHabit as any).sport || (dbHabit as any).subject || "");
+        }
       } catch (err) {
         console.warn("[EditHabitModal] Failed to load fresh habit from backend:", err);
       } finally {
@@ -132,7 +159,11 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
       notes: trimmedNotes,
       description: trimmedNotes,
       icon: selectedIcon,
-      category: selectedColor
+      category: category.toLowerCase(),
+      subcategory: subcategory || undefined,
+      sport: category === "Sports" ? subcategory : undefined,
+      subject: category === "Studies" ? subcategory : undefined,
+      color: selectedColor
     };
 
     console.log("Update Habit Request Payload:", payload);
@@ -203,8 +234,15 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
         {/* Native sheet drag handle */}
         <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4 block sm:hidden shrink-0" />
 
-        <div className="flex justify-between items-center mb-6 shrink-0">
-          <h2 className="text-xl font-bold tracking-tighter">Edit Habit</h2>
+        <div className="flex justify-between items-center mb-4 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold tracking-tighter">Edit Habit</h2>
+            {(category === "Sports" || category === "Studies") && subcategory && (
+              <p className="text-[11px] font-mono text-zinc-400 mt-0.5">
+                {category} · <span className="text-zinc-200 font-semibold">{subcategory}</span>
+              </p>
+            )}
+          </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setShowDeleteConfirm(true)} disabled={isDeleting} className="p-2 bg-red-500/10 rounded-full hover:bg-red-500/20 text-red-500 transition-colors disabled:opacity-50" title="Delete Habit">
               <Trash size={20} />
@@ -228,12 +266,16 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
              />
            </div>
 
-           {/* Habitify Icon & Color Picker */}
+           {/* Habitify Icon, Category & Subcategory Picker */}
            <HabitIconPicker
              selectedIcon={selectedIcon}
              selectedColor={selectedColor}
+             selectedCategory={category}
+             selectedSubcategory={subcategory}
              onSelectIcon={setSelectedIcon}
              onSelectColor={setSelectedColor}
+             onSelectCategory={setCategory}
+             onSelectSubcategory={setSubcategory}
            />
 
            {/* Repeat Schedule */}
@@ -342,61 +384,58 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
         </div>
 
         <div className="mt-4 shrink-0 pt-4 border-t border-white/10 pb-8 sm:pb-0">
-          {showDeleteConfirm ? (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
-            >
-              <div className="text-center">
-                <p className="text-sm font-black uppercase tracking-wider text-red-500">Delete Habit Protocol</p>
-                <p className="text-xs text-slate-400 mt-1">This operation is permanent. All streak metrics will be terminated.</p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  disabled={isDeleting}
-                  className="flex-1 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-wider transition-all h-12"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-wider transition-all h-12 flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/10"
-                >
-                  {isDeleting ? (
-                    <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    "Delete Protocol"
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          ) : (
-            <button 
-              type="submit"
-              onClick={handleSave}
-              disabled={isSubmitting || isDeleting}
-              className="w-full bg-white text-black font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-               {isSubmitting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                    <span>Saving...</span>
-                  </div>
-               ) : (
-                  <>
-                    <Check size={20} />
-                    <span>Save</span>
-                  </>
-               )}
-            </button>
-          )}
+          <button 
+            type="submit"
+            onClick={handleSave}
+            disabled={isSubmitting || isDeleting}
+            className="w-full bg-white text-black font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+             {isSubmitting ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                  <span>Updating...</span>
+                </div>
+             ) : (
+                <>
+                  <Check size={20} />
+                  <span>Update System</span>
+                </>
+             )}
+          </button>
         </div>
       </motion.form>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-white">Delete Habit?</h3>
+            <p className="text-sm text-slate-400">
+              Are you sure you want to delete <strong className="text-white font-medium">{habit.name}</strong>?
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl text-sm transition-all border border-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  handleDelete();
+                }}
+                disabled={isDeleting}
+                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, Sprout } from 'lucide-react';
+import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, CheckCircle2 } from 'lucide-react';
 import { useStore, Habit } from '../store/useStore';
 import { toast } from 'react-hot-toast';
 import { isHabitScheduledForToday, getScheduledDaysMessage } from '../lib/habitUtils';
@@ -183,8 +183,13 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
         {guardedDisplayHabits.map((habit) => {
           const isToday = isHabitScheduledForToday(habit);
           const isPending = pendingHabitIds?.has(habit.id);
-          const IconComp = getHabitIconComponent(habit.icon, habit.name);
+          const IconComp = getHabitIconComponent(
+            habit.icon, 
+            habit.name, 
+            habit.subcategory || habit.sport || habit.subject
+          );
           const colorTheme = getHabitColorTheme(habit.category, habit.name);
+          const habitSubcategory = habit.subcategory || habit.sport || habit.subject;
 
           return (
           <motion.div 
@@ -213,6 +218,11 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   }`}>
                     {habit.name}
                   </h4>
+                  {habitSubcategory && (
+                    <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded border bg-white/[0.04] border-white/[0.08] text-zinc-300 shrink-0">
+                      {habitSubcategory}
+                    </span>
+                  )}
                   {habit.difficulty && (
                     <span className={`text-[9px] font-mono font-medium px-1.5 py-0.5 rounded border shrink-0 ${
                       userFrozen
@@ -419,7 +429,8 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
         )})}
 
         {(guardedDisplayHabits || []).length === 0 && (
-          <div className="col-span-full py-14 px-6 text-center bg-white/[0.01] rounded-[2rem] border border-white/5 border-dashed flex flex-col items-center justify-center min-h-[300px]">
+          <div className="col-span-full py-12 px-6 text-center bg-white/[0.01] rounded-[2rem] border border-white/5 border-dashed flex flex-col items-center justify-center min-h-[280px]">
+            <CheckCircle2 size={38} strokeWidth={1.25} className="text-zinc-400 mb-4" />
             <h3 className="text-zinc-300 font-extrabold uppercase tracking-[0.25em] text-xs mb-3">
               NO ACTIVE HABITS
             </h3>

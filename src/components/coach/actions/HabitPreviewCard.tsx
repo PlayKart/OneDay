@@ -75,9 +75,32 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
     "";
   const notes = currentPreview.notes || reasonPurpose;
 
+  const subcategory =
+    (currentPreview as any).subcategory ||
+    rawPreview.subcategory ||
+    rawPreview.sport ||
+    rawPreview.subject ||
+    "";
   const rawColor = currentPreview.category || rawPreview.color || rawPreview.colour || "emerald";
-  const IconComp = getHabitIconComponent(currentPreview.icon, habitName);
-  const colorTheme = getHabitColorTheme(rawColor, habitName);
+
+  const displayCategory = (() => {
+    const raw = (rawColor || "").toLowerCase();
+    if (raw.includes("sport")) return "Sports";
+    if (raw.includes("stud")) return "Studies";
+    if (raw.includes("mind") || raw.includes("focus")) return "Mind & Focus";
+    if (raw.includes("prod")) return "Productivity";
+    if (raw.includes("life")) return "Lifestyle";
+    if (subcategory) {
+      const isSport = ["cricket", "football", "soccer", "basketball", "badminton", "swimming", "swim", "tennis", "running", "run", "cycling", "bike", "athletics", "volleyball"].includes(subcategory.toLowerCase());
+      if (isSport) return "Sports";
+      const isStudy = ["maths", "math", "english", "physics", "chemistry", "biology", "sanskrit", "hindi", "art"].includes(subcategory.toLowerCase());
+      if (isStudy) return "Studies";
+    }
+    return null;
+  })();
+
+  const IconComp = getHabitIconComponent(currentPreview.icon, habitName, subcategory);
+  const colorTheme = getHabitColorTheme(displayCategory || rawColor, habitName);
 
   useEffect(() => {
     console.log("[COACH UI] habit preview rendered", actionId);
@@ -136,8 +159,11 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
         reasonPurpose: reasonPurpose.trim() || notes.trim(),
         reason_purpose: reasonPurpose.trim() || notes.trim(),
         description: notes.trim() || reasonPurpose.trim(),
-        icon: currentPreview.icon || (habitName.toLowerCase().includes("plant") ? "sprout" : "dumbbell"),
-        category: colorTheme.id || "emerald",
+        icon: currentPreview.icon || "dumbbell",
+        category: (displayCategory ? displayCategory.toLowerCase() : colorTheme.id) || "emerald",
+        subcategory: subcategory || undefined,
+        sport: displayCategory === "Sports" ? subcategory : undefined,
+        subject: displayCategory === "Studies" ? subcategory : undefined,
         color: colorTheme.id || "emerald",
         reminderTime: currentPreview.reminderTime || rawPreview.reminder || "",
       };
@@ -251,7 +277,14 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
               <h3 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
                 {habitName}
               </h3>
-              <div className="flex items-center gap-2 mt-0.5">
+              {(displayCategory || subcategory) && (
+                <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 mt-0.5">
+                  {displayCategory && <span>{displayCategory}</span>}
+                  {displayCategory && subcategory && <span className="text-zinc-600">•</span>}
+                  {subcategory && <span className="text-zinc-200 font-semibold">{subcategory}</span>}
+                </div>
+              )}
+              <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs font-black uppercase tracking-wider text-zinc-300 font-mono">
                   {displayDifficulty.toUpperCase()}
                 </span>
