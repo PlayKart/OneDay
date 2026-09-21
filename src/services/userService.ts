@@ -251,13 +251,19 @@ export const userService = {
     const normalizedTitle = title.trim();
     let responseData: any = null;
 
+    const payload = {
+      title: normalizedTitle,
+      id: normalizedTitle,
+      titleId: normalizedTitle,
+    };
+
     try {
-      const res = await apiClient.post("/api/titles/equip", { title: normalizedTitle });
+      const res = await apiClient.post("/api/titles/equip", payload);
       responseData = res.data;
     } catch (err: any) {
       if (err?.response?.status === 404) {
         // Fallback to singular endpoint if plural doesn't exist
-        const fallback = await apiClient.post("/api/title/equip", { title: normalizedTitle });
+        const fallback = await apiClient.post("/api/title/equip", payload);
         responseData = fallback.data;
       } else {
         throw err;

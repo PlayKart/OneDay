@@ -46,29 +46,51 @@ export const KNOWN_TITLES: Record<string, string> = {
 };
 
 /**
- * Returns a confident, short description for any title.
+ * Sanitizes title description or signature by removing internal cycle terminology
+ * such as "Cycle 1 (1–3)", "Cycle 2 (4–6)", "Cycle 3 (7–9)", "Cycle 4", etc.
+ */
+export function sanitizeTitleDescription(desc?: string | null): string {
+  if (!desc || typeof desc !== "string") return "";
+  let clean = desc
+    .replace(/cycle\s*\d+\s*\(?\d*[\s–\-]*\d*\)?/gi, "")
+    .replace(/cycle\s*\d+/gi, "")
+    .replace(/cycle/gi, "")
+    .replace(/\(\s*\)/g, "")
+    .trim();
+  clean = clean.replace(/^[\s\-"':;]+|[\s\-"':;]+$/g, "").trim();
+  return clean;
+}
+
+/**
+ * Returns a confident, short description for any title, guaranteeing no internal cycle terminology.
  */
 export function getTitleDescription(title?: string | null, customSignature?: string | null, user?: any): string {
-  if (customSignature && customSignature.trim().length > 0) {
-    return customSignature.trim();
+  if (customSignature && typeof customSignature === "string") {
+    const sanitizedCustom = sanitizeTitleDescription(customSignature);
+    if (sanitizedCustom.length > 0) return sanitizedCustom;
   }
   if (!title) return "Every legend begins with Day One.";
 
   const normalized = title.trim().toUpperCase();
 
-  // If user object contains backend title metadata with signature, prefer it
+  // If user object contains backend title metadata with signature, prefer it if clean
   if (user && Array.isArray(user.titles)) {
     const found = user.titles.find((t: any) => {
-      const tName = typeof t === "string" ? t : t?.title || t?.name;
+      const tName = typeof t === "string" ? t : t?.title || t?.name || t?.id;
       return typeof tName === "string" && tName.trim().toUpperCase() === normalized;
     });
-    if (found && typeof found === "object" && found.signature) {
-      return String(found.signature).trim();
+    if (found && typeof found === "object") {
+      const sig = found.signature || found.description || found.subtitle;
+      if (sig && typeof sig === "string") {
+        const sanitized = sanitizeTitleDescription(sig);
+        if (sanitized.length > 0) return sanitized;
+      }
     }
   }
 
   if (KNOWN_TITLES[normalized]) {
-    return KNOWN_TITLES[normalized];
+    const knownSanitized = sanitizeTitleDescription(KNOWN_TITLES[normalized]);
+    if (knownSanitized.length > 0) return knownSanitized;
   }
 
   return "Every legend begins with Day One.";
@@ -268,13 +290,14 @@ export function getAllUserTitles(user?: any): string[] {
         if (typeof t === "string" && t.trim()) {
           titlesSet.add(t.trim().toUpperCase());
         } else if (t && typeof t === "object") {
-          // If object is in an unlocked array, verify it is not explicitly marked locked
-          if (
-            t.unlocked !== false &&
-            t.isUnlocked !== false &&
-            t.is_unlocked !== false &&
-            t.earned !== false
-          ) {
+          // Object in an unlocked array must explicitly confirm unlock status
+          const isExplicit =
+            t.unlocked === true ||
+            t.isUnlocked === true ||
+            t.is_unlocked === true ||
+            t.earned === true ||
+            Boolean(t.unlockedAt || t.unlocked_at);
+          if (isExplicit) {
             const name = extractTitleName(t);
             if (name) titlesSet.add(name);
           }

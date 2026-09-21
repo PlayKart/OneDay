@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ArrowRight, Check, Shield, Sparkles, Loader2 } from "lucide-react";
 import { MonolithLogo } from "./MonolithLogo";
 import { useStore } from "../store/useStore";
-import { markTitleAsSeen, playTitleUnlockSound } from "../utils/titleUtils";
+import { markTitleAsSeen, playTitleUnlockSound, sanitizeTitleDescription } from "../utils/titleUtils";
 import { toast } from "react-hot-toast";
 
 export function TitleUnlockModal() {
@@ -49,7 +49,8 @@ export function TitleUnlockModal() {
   const currentUserId = user?.id || user?.userId;
   const rawTitle = titleUnlockData.title;
   const uppercaseTitle = rawTitle.toUpperCase().trim();
-  const signature = titleUnlockData.signature || "Consistency is becoming your standard.";
+  const rawSig = titleUnlockData.signature || "Consistency is becoming your standard.";
+  const signature = sanitizeTitleDescription(rawSig) || "Consistency is becoming your standard.";
   const level = titleUnlockData.level || user?.level || 1;
 
   const handleDismiss = () => {

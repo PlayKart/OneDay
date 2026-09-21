@@ -434,7 +434,13 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
           .map((t: any) => {
             if (typeof t === "string") return t.trim().toUpperCase();
             if (t && typeof t === "object") {
-              if (t.unlocked !== false && t.isUnlocked !== false && t.is_unlocked !== false && t.earned !== false) {
+              if (
+                t.unlocked === true ||
+                t.isUnlocked === true ||
+                t.is_unlocked === true ||
+                t.earned === true ||
+                Boolean(t.unlockedAt || t.unlocked_at)
+              ) {
                 const val = t.title || t.name || t.id;
                 return typeof val === "string" ? val.trim().toUpperCase() : "";
               }

@@ -137,10 +137,11 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
               confirmedFromTitlesData.push(item.trim().toUpperCase());
             } else if (item && typeof item === "object") {
               if (
-                item.unlocked !== false &&
-                item.isUnlocked !== false &&
-                item.is_unlocked !== false &&
-                item.earned !== false
+                item.unlocked === true ||
+                item.isUnlocked === true ||
+                item.is_unlocked === true ||
+                item.earned === true ||
+                Boolean(item.unlockedAt || item.unlocked_at)
               ) {
                 const val = item.title || item.name || item.id;
                 if (typeof val === "string" && val.trim()) {
@@ -339,107 +340,165 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-slate-400">
                 <Award size={14} className="text-amber-400" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-white">Unlocked Titles & Badges</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-white">Title Collection & Badges</span>
               </div>
               <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">
-                {unlockedTitles.length} {unlockedTitles.length === 1 ? "Title" : "Titles"}
+                {unlockedTitles.length} {unlockedTitles.length === 1 ? "Earned Title" : "Earned Titles"}
               </span>
             </div>
 
-            {unlockedTitles.length === 0 ? (
-              <div className="p-8 rounded-2xl border border-white/5 bg-white/[0.02] text-center space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mx-auto">
-                  <Award size={18} />
-                </div>
-                <h4 className="text-white font-extrabold text-xs uppercase tracking-wider">
-                  No Titles Unlocked Yet
-                </h4>
-                <p className="text-slate-400 text-[11px] leading-relaxed max-w-xs mx-auto">
-                  Keep building your consistency to unlock your first title.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {unlockedTitles.map((t) => {
-                  const isCurrent = equippedTitle?.toUpperCase() === t.toUpperCase();
-                  const isEquipping = equippingTitle?.toUpperCase() === t.toUpperCase();
-                  const isAnyEquipping = Boolean(equippingTitle);
-                  const isNew = isTitleNew(t, currentUserId);
-                  const desc = getTitleDescription(t, null, activeUser);
+            {(() => {
+              const unlockedSet = new Set(unlockedTitles.map((t) => t.toUpperCase()));
 
-                  return (
-                    <div
-                      key={t}
-                      onClick={() => {
-                        if (!isCurrent && !isAnyEquipping) {
-                          handleSelectTitle(t);
-                        }
-                      }}
-                      className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-                        isCurrent
-                          ? "bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)] cursor-default"
-                          : isAnyEquipping
-                          ? "bg-white/[0.02] border-white/5 opacity-60 cursor-not-allowed"
-                          : "bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] cursor-pointer"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className={`text-xs font-black uppercase tracking-wide ${isCurrent ? "text-amber-300" : "text-white"}`}>
-                            {t}
-                          </span>
-                          {isNew && !isCurrent && (
-                            <span className="px-1.5 py-0.2 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[8px] font-black uppercase tracking-widest rounded-full animate-pulse">
-                              NEW
-                            </span>
-                          )}
-                          {isCurrent && (
-                            <span className="px-2 py-0.2 bg-amber-400 text-black text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-1 font-mono">
-                              <Check size={8} className="stroke-[3]" />
-                              Equipped
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-slate-400 text-[11px] font-medium leading-relaxed truncate">
-                          "{desc}"
-                        </p>
-                      </div>
+              // Prepare list of items to display: use activeUser.titles catalog if present, else unlockedTitles
+              const catalogItems: Array<{ name: string; levelReq?: number; itemObj?: any }> = [];
+              const seenNames = new Set<string>();
 
-                      <button
-                        type="button"
-                        disabled={isCurrent || isAnyEquipping}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!isCurrent && !isAnyEquipping) {
+              if (Array.isArray(activeUser?.titles) && activeUser.titles.length > 0) {
+                activeUser.titles.forEach((it: any) => {
+                  const n = typeof it === "string" ? it : it?.title || it?.name || it?.id;
+                  if (typeof n === "string" && n.trim()) {
+                    const norm = n.trim().toUpperCase();
+                    if (!seenNames.has(norm)) {
+                      seenNames.add(norm);
+                      const levelReq = typeof it === "object" ? it.levelRequired || it.level : undefined;
+                      catalogItems.push({ name: norm, levelReq, itemObj: it });
+                    }
+                  }
+                });
+              }
+
+              // Ensure all unlocked titles are included in catalog list
+              unlockedTitles.forEach((t) => {
+                const norm = t.trim().toUpperCase();
+                if (!seenNames.has(norm)) {
+                  seenNames.add(norm);
+                  catalogItems.push({ name: norm });
+                }
+              });
+
+              // If no catalog items or unlocked titles exist at all
+              if (catalogItems.length === 0) {
+                return (
+                  <div className="p-8 rounded-2xl border border-white/5 bg-white/[0.02] text-center space-y-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mx-auto">
+                      <Award size={18} />
+                    </div>
+                    <h4 className="text-white font-extrabold text-xs uppercase tracking-wider">
+                      No Titles Unlocked Yet
+                    </h4>
+                    <p className="text-slate-400 text-[11px] leading-relaxed max-w-xs mx-auto">
+                      Keep building your consistency to unlock your first title.
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2.5">
+                  {catalogItems.map(({ name: t, levelReq, itemObj }) => {
+                    const isEarned = unlockedSet.has(t);
+                    const isCurrent = equippedTitle?.toUpperCase() === t;
+                    const isEquipping = equippingTitle?.toUpperCase() === t;
+                    const isAnyEquipping = Boolean(equippingTitle);
+                    const isNew = isEarned && isTitleNew(t, currentUserId);
+
+                    // Get sanitized signature / description guaranteed to have NO cycle text
+                    let desc = getTitleDescription(t, itemObj?.signature || itemObj?.description, activeUser);
+                    if (!isEarned && levelReq) {
+                      desc = `Unlocked at Level ${levelReq}`;
+                    }
+
+                    return (
+                      <div
+                        key={t}
+                        onClick={() => {
+                          if (isEarned && !isCurrent && !isAnyEquipping) {
                             handleSelectTitle(t);
                           }
                         }}
-                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 ${
+                        className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                           isCurrent
-                            ? "bg-amber-400/20 text-amber-300 border border-amber-500/30 cursor-default"
-                            : isEquipping
-                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-wait"
-                            : isAnyEquipping
-                            ? "bg-white/5 text-slate-500 border border-white/5 cursor-not-allowed opacity-50"
-                            : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer active:scale-95"
+                            ? "bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)] cursor-default"
+                            : isEarned
+                            ? isAnyEquipping
+                              ? "bg-white/[0.02] border-white/5 opacity-60 cursor-not-allowed"
+                              : "bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] cursor-pointer"
+                            : "bg-white/[0.01] border-white/[0.03] opacity-60 cursor-not-allowed"
                         }`}
                       >
-                        {isEquipping ? (
-                          <>
-                            <Loader2 size={10} className="animate-spin text-amber-400" />
-                            <span>Equipping...</span>
-                          </>
-                        ) : isCurrent ? (
-                          "Active"
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span
+                              className={`text-xs font-black uppercase tracking-wide ${
+                                isCurrent
+                                  ? "text-amber-300"
+                                  : isEarned
+                                  ? "text-white"
+                                  : "text-slate-400"
+                              }`}
+                            >
+                              {t}
+                            </span>
+                            {isNew && !isCurrent && (
+                              <span className="px-1.5 py-0.2 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[8px] font-black uppercase tracking-widest rounded-full animate-pulse">
+                                NEW
+                              </span>
+                            )}
+                            {isCurrent && (
+                              <span className="px-2 py-0.2 bg-amber-400 text-black text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-1 font-mono">
+                                <Check size={8} className="stroke-[3]" />
+                                Equipped
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-slate-400 text-[11px] font-medium leading-relaxed truncate">
+                            {desc.startsWith("Unlocked at") || desc.startsWith("Level") ? desc : `"${desc}"`}
+                          </p>
+                        </div>
+
+                        {isEarned ? (
+                          <button
+                            type="button"
+                            disabled={isCurrent || isAnyEquipping}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!isCurrent && !isAnyEquipping) {
+                                handleSelectTitle(t);
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 ${
+                              isCurrent
+                                ? "bg-amber-400/20 text-amber-300 border border-amber-500/30 cursor-default"
+                                : isEquipping
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-wait"
+                                : isAnyEquipping
+                                ? "bg-white/5 text-slate-500 border border-white/5 cursor-not-allowed opacity-50"
+                                : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer active:scale-95"
+                            }`}
+                          >
+                            {isEquipping ? (
+                              <>
+                                <Loader2 size={10} className="animate-spin text-amber-400" />
+                                <span>Equipping...</span>
+                              </>
+                            ) : isCurrent ? (
+                              "Active"
+                            ) : (
+                              "Equip"
+                            )}
+                          </button>
                         ) : (
-                          "Equip"
+                          <span className="px-2.5 py-1 rounded-xl bg-white/[0.03] border border-white/5 text-slate-500 text-[9px] font-bold uppercase tracking-wider shrink-0">
+                            {levelReq ? `Level ${levelReq}` : "Locked"}
+                          </span>
                         )}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Personal Information Grid */}
