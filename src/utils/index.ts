@@ -4,6 +4,7 @@ export * from "./camelCase";
 export * from "./streakUtils";
 export * from "../constants/improvementFocus";
 import { User } from "../types";
+import { normalizeTitleUpper } from "./titleUtils";
 
 export const VALID_GENDERS = ["Male", "Female", "Prefer not to say", "Other"] as const;
 export type ValidGender = typeof VALID_GENDERS[number];
@@ -276,22 +277,19 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
     level: finalLevel,
     levelProgress: calculatedLevelProgress,
     title: (() => {
-      // 1. Direct title/equippedTitle from incoming backend payload
       let backendTitle: string | undefined = undefined;
 
-      if (rawUser?.equippedTitle && typeof rawUser.equippedTitle === "object") {
-        const val = rawUser.equippedTitle.title || rawUser.equippedTitle.name || rawUser.equippedTitle.id;
-        if (typeof val === "string" && val.trim().length > 0) backendTitle = val.trim().toUpperCase();
-      }
-      if (!backendTitle && rawUser?.equipped_title && typeof rawUser.equipped_title === "object") {
-        const val = rawUser.equipped_title.title || rawUser.equipped_title.name || rawUser.equipped_title.id;
-        if (typeof val === "string" && val.trim().length > 0) backendTitle = val.trim().toUpperCase();
-      }
-      if (!backendTitle) {
-        backendTitle = findFirstString(["equippedTitle", "equipped_title", "currentTitle", "current_title", "activeTitle", "active_title", "title"]);
-      }
+      const direct =
+        rawUser?.equippedTitle ||
+        rawUser?.equipped_title ||
+        rawUser?.currentTitle ||
+        rawUser?.current_title ||
+        rawUser?.activeTitle ||
+        rawUser?.active_title ||
+        rawUser?.title;
 
-      // 2. Check if any title object in titles / unlockedTitles has isCurrent / is_current / isEquipped
+      backendTitle = normalizeTitleUpper(direct);
+
       if (!backendTitle) {
         const titlesToCheck = Array.isArray(rawUser?.titles)
           ? rawUser.titles
@@ -304,9 +302,9 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
         for (const item of titlesToCheck) {
           if (item && typeof item === "object") {
             if (item.isCurrent || item.is_current || item.isEquipped || item.equipped || item.active || item.isActive) {
-              const val = item.title || item.name || item.id;
-              if (typeof val === "string" && val.trim().length > 0) {
-                backendTitle = val.trim().toUpperCase();
+              const val = normalizeTitleUpper(item);
+              if (val) {
+                backendTitle = val;
                 break;
               }
             }
@@ -314,27 +312,23 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
         }
       }
 
-      if (backendTitle && backendTitle.trim().length > 0) {
-        return backendTitle.trim().toUpperCase();
-      }
+      if (backendTitle) return backendTitle;
 
-      // Backend is authoritative: do NOT fall back to hardcoded "IRON MIND"
       return existingUser?.equippedTitle || existingUser?.title || undefined;
     })(),
     equippedTitle: (() => {
       let backendTitle: string | undefined = undefined;
 
-      if (rawUser?.equippedTitle && typeof rawUser.equippedTitle === "object") {
-        const val = rawUser.equippedTitle.title || rawUser.equippedTitle.name || rawUser.equippedTitle.id;
-        if (typeof val === "string" && val.trim().length > 0) backendTitle = val.trim().toUpperCase();
-      }
-      if (!backendTitle && rawUser?.equipped_title && typeof rawUser.equipped_title === "object") {
-        const val = rawUser.equipped_title.title || rawUser.equipped_title.name || rawUser.equipped_title.id;
-        if (typeof val === "string" && val.trim().length > 0) backendTitle = val.trim().toUpperCase();
-      }
-      if (!backendTitle) {
-        backendTitle = findFirstString(["equippedTitle", "equipped_title", "currentTitle", "current_title", "activeTitle", "active_title", "title"]);
-      }
+      const direct =
+        rawUser?.equippedTitle ||
+        rawUser?.equipped_title ||
+        rawUser?.currentTitle ||
+        rawUser?.current_title ||
+        rawUser?.activeTitle ||
+        rawUser?.active_title ||
+        rawUser?.title;
+
+      backendTitle = normalizeTitleUpper(direct);
 
       if (!backendTitle) {
         const titlesToCheck = Array.isArray(rawUser?.titles)
@@ -348,9 +342,9 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
         for (const item of titlesToCheck) {
           if (item && typeof item === "object") {
             if (item.isCurrent || item.is_current || item.isEquipped || item.equipped || item.active || item.isActive) {
-              const val = item.title || item.name || item.id;
-              if (typeof val === "string" && val.trim().length > 0) {
-                backendTitle = val.trim().toUpperCase();
+              const val = normalizeTitleUpper(item);
+              if (val) {
+                backendTitle = val;
                 break;
               }
             }
@@ -358,40 +352,25 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
         }
       }
 
-      if (backendTitle && backendTitle.trim().length > 0) {
-        return backendTitle.trim().toUpperCase();
-      }
+      if (backendTitle) return backendTitle;
 
       return existingUser?.equippedTitle || existingUser?.title || undefined;
     })(),
     currentTitle: (() => {
-      if (rawUser?.currentTitle) {
-        if (typeof rawUser.currentTitle === "object") {
-          const val = rawUser.currentTitle.title || rawUser.currentTitle.name || rawUser.currentTitle.id;
-          if (typeof val === "string" && val.trim().length > 0) {
-            return {
-              ...rawUser.currentTitle,
-              title: val.trim().toUpperCase()
-            };
-          }
-        } else if (typeof rawUser.currentTitle === "string" && rawUser.currentTitle.trim().length > 0) {
-          return { title: rawUser.currentTitle.trim().toUpperCase() };
-        }
-      }
-
-      if (rawUser?.equippedTitle && typeof rawUser.equippedTitle === "object") {
-        const val = rawUser.equippedTitle.title || rawUser.equippedTitle.name || rawUser.equippedTitle.id;
-        if (typeof val === "string" && val.trim().length > 0) {
-          return {
-            ...rawUser.equippedTitle,
-            title: val.trim().toUpperCase()
-          };
+      const rawCurrent = rawUser?.currentTitle || rawUser?.current_title || rawUser?.equippedTitle || rawUser?.equipped_title;
+      if (rawCurrent) {
+        const val = normalizeTitleUpper(rawCurrent);
+        if (val) {
+          return typeof rawCurrent === "object" && rawCurrent !== null
+            ? { ...rawCurrent, title: val }
+            : { title: val };
         }
       }
 
       const backendTitleStr = findFirstString(["currentTitle", "current_title", "equippedTitle", "equipped_title", "activeTitle", "active_title", "title"]);
-      if (backendTitleStr && backendTitleStr.trim().length > 0) {
-        return { title: backendTitleStr.trim().toUpperCase() };
+      const normStr = normalizeTitleUpper(backendTitleStr);
+      if (normStr) {
+        return { title: normStr };
       }
 
       const titlesToCheck = Array.isArray(rawUser?.titles)
@@ -405,11 +384,11 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
       for (const item of titlesToCheck) {
         if (item && typeof item === "object") {
           if (item.isCurrent || item.is_current || item.isEquipped || item.equipped || item.active || item.isActive) {
-            const val = item.title || item.name || item.id;
-            if (typeof val === "string" && val.trim().length > 0) {
+            const val = normalizeTitleUpper(item);
+            if (val) {
               return {
                 ...item,
-                title: val.trim().toUpperCase()
+                title: val
               };
             }
           }
@@ -432,20 +411,12 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
       if (Array.isArray(explicitUnlocked)) {
         return explicitUnlocked
           .map((t: any) => {
-            if (typeof t === "string") return t.trim().toUpperCase();
-            if (t && typeof t === "object") {
-              if (
-                t.unlocked === true ||
-                t.isUnlocked === true ||
-                t.is_unlocked === true ||
-                t.earned === true ||
-                Boolean(t.unlockedAt || t.unlocked_at)
-              ) {
-                const val = t.title || t.name || t.id;
-                return typeof val === "string" ? val.trim().toUpperCase() : "";
+            if (typeof t === "object" && t !== null) {
+              if (t.unlocked === false || t.isUnlocked === false || t.is_unlocked === false || t.earned === false) {
+                return "";
               }
             }
-            return "";
+            return normalizeTitleUpper(t);
           })
           .filter(Boolean);
       }
@@ -464,10 +435,7 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
               Boolean(t.unlockedAt || t.unlocked_at)
             );
           })
-          .map((t: any) => {
-            const val = t.title || t.name || t.id;
-            return typeof val === "string" ? val.trim().toUpperCase() : "";
-          })
+          .map((t: any) => normalizeTitleUpper(t))
           .filter(Boolean);
 
         if (confirmedFromTitles.length > 0) {

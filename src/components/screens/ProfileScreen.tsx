@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { toast } from "react-hot-toast";
 import { userService } from "../../services/userService";
 import { OnboardingModal } from "../OnboardingModal";
-import { getAllUserTitles, getEquippedTitle, getTitleDescription, isTitleNew, markTitleAsSeen } from "../../utils/titleUtils";
+import { getAllUserTitles, getEquippedTitle, getTitleDescription, isTitleNew, markTitleAsSeen, normalizeTitleUpper, sanitizeTitleDescription } from "../../utils/titleUtils";
 
 function calculateAge(dobStr?: string | null): number | null {
   if (!dobStr || typeof dobStr !== "string") return null;
@@ -117,7 +117,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
             ) {
               const val = item.title || item.name || item.id;
               if (typeof val === "string" && val.trim()) {
-                confirmedFromTitlesData.push(val.trim().toUpperCase());
+                confirmedFromTitlesData.push(normalizeTitleUpper(val));
               }
             }
           }
@@ -134,7 +134,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
         if (Array.isArray(rawUnlocked)) {
           rawUnlocked.forEach((item: any) => {
             if (typeof item === "string" && item.trim()) {
-              confirmedFromTitlesData.push(item.trim().toUpperCase());
+              confirmedFromTitlesData.push(normalizeTitleUpper(item));
             } else if (item && typeof item === "object") {
               if (
                 item.unlocked === true ||
@@ -145,7 +145,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
               ) {
                 const val = item.title || item.name || item.id;
                 if (typeof val === "string" && val.trim()) {
-                  confirmedFromTitlesData.push(val.trim().toUpperCase());
+                  confirmedFromTitlesData.push(normalizeTitleUpper(val));
                 }
               }
             }
@@ -164,7 +164,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
               ) {
                 const val = item.title || item.name || item.id;
                 if (typeof val === "string" && val.trim()) {
-                  confirmedFromTitlesData.push(val.trim().toUpperCase());
+                  confirmedFromTitlesData.push(normalizeTitleUpper(val));
                 }
               }
             }
@@ -176,7 +176,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
       const combinedUnlockedSet = new Set<string>();
       if (Array.isArray(data?.unlockedTitles)) {
         data.unlockedTitles.forEach((t: string) => {
-          if (typeof t === "string" && t.trim()) combinedUnlockedSet.add(t.trim().toUpperCase());
+          if (typeof t === "string" && t.trim()) combinedUnlockedSet.add(normalizeTitleUpper(t));
         });
       }
       confirmedFromTitlesData.forEach((t) => combinedUnlockedSet.add(t));
@@ -201,10 +201,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
         unlockedTitles: Array.from(combinedUnlockedSet),
         ...(backendEquipped
           ? {
-              equippedTitle:
-                typeof backendEquipped === "string"
-                  ? backendEquipped.trim().toUpperCase()
-                  : backendEquipped,
+              equippedTitle: normalizeTitleUpper(backendEquipped),
             }
           : {}),
       };
@@ -396,12 +393,13 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
 
               return (
                 <div className="space-y-2.5">
-                  {catalogItems.map(({ name: t, levelReq, itemObj }) => {
-                    const isEarned = unlockedSet.has(t);
-                    const isCurrent = equippedTitle?.toUpperCase() === t;
-                    const isEquipping = equippingTitle?.toUpperCase() === t;
+                  {catalogItems.map(({ name: rawName, levelReq, itemObj }) => {
+                    const t = sanitizeTitleDescription(rawName);
+                    const isEarned = unlockedSet.has(rawName.toUpperCase());
+                    const isCurrent = equippedTitle?.toUpperCase() === rawName.toUpperCase();
+                    const isEquipping = equippingTitle?.toUpperCase() === rawName.toUpperCase();
                     const isAnyEquipping = Boolean(equippingTitle);
-                    const isNew = isEarned && isTitleNew(t, currentUserId);
+                    const isNew = isEarned && isTitleNew(rawName, currentUserId);
 
                     // Get sanitized signature / description guaranteed to have NO cycle text
                     let desc = getTitleDescription(t, itemObj?.signature || itemObj?.description, activeUser);
@@ -411,7 +409,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
 
                     return (
                       <div
-                        key={t}
+                        key={rawName}
                         onClick={() => {
                           if (isEarned && !isCurrent && !isAnyEquipping) {
                             handleSelectTitle(t);
