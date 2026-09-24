@@ -5,6 +5,7 @@ import { X, Calendar, Flag, AlignLeft, Check, Trash } from "lucide-react";
 import { useStore, Habit } from "../store/useStore";
 import { toCanonicalDifficulty, toDisplayDifficulty } from "../utils";
 import { HabitIconPicker } from "./HabitIconPicker";
+import { HABIT_COLORS } from "../lib/habitIcons";
 import { habitService } from "../services/habitService";
 import { toast } from "react-hot-toast";
 
@@ -39,7 +40,7 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
   const [difficulty, setDifficulty] = useState(toDisplayDifficulty(habit.difficulty));
   const [notes, setNotes] = useState(habit.notes || (habit as any).description || "");
   const [selectedIcon, setSelectedIcon] = useState(habit.icon || "dumbbell");
-  const [selectedColor, setSelectedColor] = useState(habit.category || "emerald");
+  const [selectedColor, setSelectedColor] = useState(habit.color || "emerald");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -80,6 +81,9 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
         setNotes(dbNotes);
 
         if (dbHabit.icon) setSelectedIcon(dbHabit.icon);
+        if (dbHabit.color) {
+          setSelectedColor(dbHabit.color);
+        }
         if (dbHabit.category) {
           const dbCat = dbHabit.category;
           if (dbCat.toLowerCase().includes("sport")) setCategory("Sports");
@@ -88,7 +92,9 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
           else if (dbCat.toLowerCase().includes("prod")) setCategory("Productivity");
           else if (dbCat.toLowerCase().includes("life")) setCategory("Lifestyle");
           else setCategory("Health & Fitness");
-          setSelectedColor(dbCat);
+          if (!dbHabit.color && HABIT_COLORS.some(c => c.id === dbCat.toLowerCase())) {
+            setSelectedColor(dbCat.toLowerCase());
+          }
         }
         if ((dbHabit as any).subcategory || (dbHabit as any).sport || (dbHabit as any).subject) {
           setSubcategory((dbHabit as any).subcategory || (dbHabit as any).sport || (dbHabit as any).subject || "");

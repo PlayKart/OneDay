@@ -48,7 +48,7 @@ export const habitService = {
 
   /**
    * Normalizes any backend habit object into standard Habit interface.
-   * Authoritatively guarantees notes/description are mapped properly.
+   * Authoritatively guarantees notes/description and color are mapped properly.
    */
   normalizeHabit(h: any): Habit {
     const today = getLocalCalendarDate();
@@ -58,15 +58,17 @@ export const habitService = {
     const completedToday = Boolean(h.completedToday || h.completed_today || completedDates.includes(today));
 
     const notesValue =
-      h.notes !== undefined && h.notes !== null
+      h.notes !== undefined && h.notes !== null && String(h.notes) !== "null" && String(h.notes) !== "undefined"
         ? String(h.notes)
-        : (h.description !== undefined && h.description !== null
+        : (h.description !== undefined && h.description !== null && String(h.description) !== "null" && String(h.description) !== "undefined"
             ? String(h.description)
             : (h.reasonPurpose !== undefined && h.reasonPurpose !== null
                 ? String(h.reasonPurpose)
                 : (h.reason_purpose !== undefined && h.reason_purpose !== null
                     ? String(h.reason_purpose)
                     : "")));
+
+    const rawColor = h.color || undefined;
 
     return {
       id,
@@ -78,7 +80,11 @@ export const habitService = {
       difficulty: h.difficulty || "Medium",
       notes: notesValue,
       icon: h.icon || "dumbbell",
-      category: h.category || h.color || "emerald",
+      category: h.category || "Health & Fitness",
+      subcategory: h.subcategory || h.sport || h.subject || undefined,
+      sport: h.sport || undefined,
+      subject: h.subject || undefined,
+      color: rawColor,
       reminderTime: h.reminderTime || h.reminder_time || "",
     };
   },
@@ -168,8 +174,8 @@ export const habitService = {
       notes: typeof notesValue === "string" ? notesValue.trim() : notesValue,
       description: typeof notesValue === "string" ? notesValue.trim() : notesValue,
       icon: habitData.icon || "dumbbell",
-      category: habitData.category || "emerald",
-      color: habitData.category || "emerald",
+      category: habitData.category || "Health & Fitness",
+      color: habitData.color || "emerald",
       reminderTime: habitData.reminderTime || "",
     };
 
@@ -242,7 +248,8 @@ export const habitService = {
       payload.description = habitData.notes; 
     }
     if (habitData.icon) payload.icon = habitData.icon;
-    if (habitData.category) { payload.category = habitData.category; payload.color = habitData.category; }
+    if (habitData.category) payload.category = habitData.category;
+    if (habitData.color) payload.color = habitData.color;
     if (habitData.reminderTime !== undefined) payload.reminderTime = habitData.reminderTime;
 
     console.log(`[HABIT SERVICE] Updating habit ${targetId} via PUT /api/habit...`, payload);

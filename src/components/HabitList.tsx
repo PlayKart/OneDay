@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, CheckCircle2 } from 'lucide-react';
+import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, CheckCircle2, FileText, ChevronDown, AlignLeft } from 'lucide-react';
 import { useStore, Habit } from '../store/useStore';
 import { toast } from 'react-hot-toast';
 import { isHabitScheduledForToday, getScheduledDaysMessage, getTodayHabitStats } from '../lib/habitUtils';
@@ -18,9 +18,22 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [deleteConfirmationHabit, setDeleteConfirmationHabit] = useState<Habit | null>(null);
+  const [expandedHabitIds, setExpandedHabitIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSubmittingModal, setIsSubmittingModal] = useState(false);
   const [floatingXp, setFloatingXp] = useState<Record<string, number>>({});
+
+  const toggleExpandHabit = (habitId: string) => {
+    setExpandedHabitIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(habitId)) {
+        next.delete(habitId);
+      } else {
+        next.add(habitId);
+      }
+      return next;
+    });
+  };
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -189,14 +202,22 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
             habit.name, 
             habit.subcategory || habit.sport || habit.subject
           );
-          const colorTheme = getHabitColorTheme(habit.category, habit.name);
+          const habitColor = getHabitColorTheme(habit.color || habit.category, habit.name);
           const habitSubcategory = habit.subcategory || habit.sport || habit.subject;
+          const hasNotes = Boolean(
+            habit.notes &&
+            typeof habit.notes === "string" &&
+            habit.notes.trim() !== "" &&
+            habit.notes.trim() !== "null" &&
+            habit.notes.trim() !== "undefined"
+          );
+          const isExpanded = expandedHabitIds.has(habit.id);
 
           return (
           <motion.div 
             layout
             key={habit.id}
-            className={`p-3.5 sm:p-4 rounded-2xl flex items-center justify-between group transition-all duration-300 border ${
+            className={`p-3.5 sm:p-4 rounded-2xl flex flex-col group transition-all duration-300 border ${
               userFrozen
                 ? 'bg-[#080C14]/90 border-cyan-500/25 ring-1 ring-cyan-500/15 shadow-[0_4px_20px_rgba(6,182,212,0.05)] hover:border-cyan-500/40'
                 : habit.completedToday 
@@ -204,228 +225,280 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/[0.12] hover:-translate-y-0.5 shadow-[0_4px_16px_rgba(0,0,0,0.2)]'
             }`}
           >
-            <div className="flex items-center gap-3.5 min-w-0 pr-2">
-              <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
-                userFrozen
-                  ? 'bg-cyan-950/30 border border-cyan-500/25 text-cyan-300'
-                  : habit.completedToday ? 'bg-white/[0.04] border border-white/[0.08] text-zinc-300 opacity-50 grayscale' : 'bg-white/[0.04] border border-white/[0.08] text-zinc-300'
-              }`}>
-                <IconComp size={18} />
-              </div>
-              <div className="flex flex-col gap-0.5 min-w-0">
-                <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                  <h4 className={`font-semibold transition-all text-xs sm:text-sm truncate ${
-                    !userFrozen && habit.completedToday ? 'text-zinc-500 line-through' : 'text-zinc-100'
-                  }`}>
-                    {habit.name}
-                  </h4>
-                  {habitSubcategory && (
-                    <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded border bg-white/[0.04] border-white/[0.08] text-zinc-300 shrink-0">
-                      {habitSubcategory}
-                    </span>
-                  )}
-                  {habit.difficulty && (
-                    <span className={`text-[9px] font-mono font-medium px-1.5 py-0.5 rounded border shrink-0 ${
-                      userFrozen
-                        ? 'bg-cyan-950/40 border-cyan-500/20 text-cyan-300/90'
-                        : 'bg-white/[0.03] border-white/[0.06] text-zinc-400'
+            {/* Main Habit Header Row */}
+            <div className="flex items-center justify-between w-full">
+              <div 
+                onClick={() => {
+                  if (hasNotes) toggleExpandHabit(habit.id);
+                }}
+                className={`flex items-center gap-3.5 min-w-0 pr-2 flex-1 ${hasNotes ? 'cursor-pointer' : ''}`}
+              >
+                {/* Colored Icon Container: User-selected color applied ONLY here */}
+                <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
+                  userFrozen
+                    ? 'bg-cyan-950/30 border border-cyan-500/25 text-cyan-300'
+                    : habit.completedToday 
+                      ? 'bg-white/[0.04] border border-white/[0.08] text-zinc-500 opacity-50 grayscale' 
+                      : `${habitColor.bg} ${habitColor.border} border ${habitColor.text}`
+                }`}>
+                  <IconComp size={18} />
+                </div>
+
+                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                    <h4 className={`font-semibold transition-all text-xs sm:text-sm truncate ${
+                      !userFrozen && habit.completedToday ? 'text-zinc-500 line-through' : 'text-zinc-100'
                     }`}>
-                      {toDisplayDifficulty(habit.difficulty)} (+{getXpForDifficulty(habit.difficulty)} XP)
-                    </span>
+                      {habit.name}
+                    </h4>
+                    {habitSubcategory && (
+                      <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded border bg-white/[0.04] border-white/[0.08] text-zinc-300 shrink-0">
+                        {habitSubcategory}
+                      </span>
+                    )}
+                    {habit.difficulty && (
+                      <span className={`text-[9px] font-mono font-medium px-1.5 py-0.5 rounded border shrink-0 ${
+                        userFrozen
+                          ? 'bg-cyan-950/40 border-cyan-500/20 text-cyan-300/90'
+                          : 'bg-white/[0.03] border-white/[0.06] text-zinc-400'
+                      }`}>
+                        {toDisplayDifficulty(habit.difficulty)} (+{getXpForDifficulty(habit.difficulty)} XP)
+                      </span>
+                    )}
+                  </div>
+                  {userFrozen ? (
+                    <div className="flex items-center gap-1.5 text-cyan-300 text-[10px] font-mono uppercase tracking-wider font-semibold">
+                      <Lock size={10} className="text-cyan-400" />
+                      <span>COMPLETION PAUSED</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className={`text-[10px] font-mono uppercase tracking-wider truncate ${habit.completedToday ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                        {isPending ? 'Updating...' : (habit.completedToday ? 'Completed' : (isToday ? 'Scheduled Today' : getScheduledDaysMessage(habit)))}
+                      </p>
+                      {hasNotes && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpandHabit(habit.id);
+                          }}
+                          className="inline-flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                        >
+                          <FileText size={9} className="text-zinc-400" />
+                          <span>{isExpanded ? "Hide Notes" : "Notes"}</span>
+                          <ChevronDown size={9} className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-                {userFrozen ? (
-                  <div className="flex items-center gap-1.5 text-cyan-300 text-[10px] font-mono uppercase tracking-wider font-semibold">
-                    <Lock size={10} className="text-cyan-400" />
-                    <span>COMPLETION PAUSED</span>
-                  </div>
-                ) : (
-                  <p className={`text-[10px] font-mono uppercase tracking-wider truncate ${habit.completedToday ? 'text-zinc-500' : 'text-zinc-400'}`}>
-                    {isPending ? 'Updating...' : (habit.completedToday ? 'Completed' : (isToday ? 'Scheduled Today' : getScheduledDaysMessage(habit)))}
-                  </p>
-                )}
               </div>
-            </div>
-            
-            <div className="flex items-center gap-2 shrink-0">
-              <motion.button 
-                onClick={async () => {
-                  if (isPending) return;
-
-                  if (userFrozen) {
-                    toast("Your habits are paused until your Streak Freeze expires.", {
-                      icon: "❄️",
-                    });
-                    return;
-                  }
-
-                  if (!isToday && !habit.completedToday) {
-                    toast.error(`Dude, do it on ${getScheduledDaysMessage(habit)}. Chill !!!`);
-                    return;
-                  }
-                  
-                  if (habit.completedToday) {
-                    const habitXp = extractXpAwarded(null, habit.difficulty);
-                    setConfirmModal({
-                      isOpen: true,
-                      title: "Lied to Yourself ?",
-                      habitName: habit.name,
-                      actionText: "Undo Completion",
-                      cancelText: "Keep Completed",
-                      description: `Revert completion for "${habit.name}"? Today's progress and earned XP (-${habitXp} XP) will be deducted.`,
-                      action: async () => {
-                        try {
-                          const res = await undoHabit(habit.id);
-                          const xp = extractXpAwarded(res, habit.difficulty);
-                          toast.success(`Completion undone (-${xp} XP)`);
-                        } catch (e: any) {
-                          const errorMessage = e?.response?.data?.error || e?.message || "Failed to undo completion";
-                          toast.error(errorMessage);
-                        }
-                      }
-                    });
-                  } else if (!loading) {
-                    // Tap-and-Go Immediate completion for fluid responsiveness & game feel
-                    const tapStart = performance.now();
-                    try {
-                      const res = await completeHabit(habit.id);
-                      perfLogger.markHabitTap(habit.id, performance.now() - tapStart);
-                      const xpAwarded = extractXpAwarded(res, habit.difficulty);
-                      setFloatingXp(prev => ({ ...prev, [habit.id]: xpAwarded }));
-                      toast.success(`+${xpAwarded} XP`);
-                      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-                        navigator.vibrate([15, 30]);
-                      }
-                    } catch (e: any) {
-                      perfLogger.markHabitTap(habit.id, performance.now() - tapStart);
-                      const errorMessage = e?.response?.data?.error || e?.message || "Failed to complete habit";
-                      toast.error(errorMessage);
-                    }
-                  }
-                }}
-                disabled={loading || isPending}
-                whileTap={{ scale: 0.85 }}
-                animate={!userFrozen && habit.completedToday ? { scale: [1, 1.25, 1], rotate: [0, 10, -10, 0] } : {}}
-                transition={{ duration: 0.4 }}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all relative ${
-                  isPending
-                    ? 'bg-white/10 text-white cursor-wait border border-white/20'
-                    : userFrozen
-                      ? 'bg-cyan-950/40 border border-cyan-500/35 text-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.15)] hover:border-cyan-400/60 cursor-pointer'
-                      : habit.completedToday 
-                        ? 'bg-emerald-500 text-black hover:bg-red-500 hover:text-white border border-transparent shadow-[0_0_20px_rgba(16,185,129,0.4)] cursor-pointer' 
-                        : (isToday ? 'bg-white/5 border border-white/10 hover:border-white/30 hover:bg-white/10 text-white/30 hover:text-white transition-colors cursor-pointer' : 'bg-white/5 border border-white/5 opacity-50 cursor-not-allowed')
-                }`}
-              >
-                {isPending ? (
-                  <Loader2 size={18} className="animate-spin text-white" />
-                ) : userFrozen ? (
-                  <Lock size={16} className="text-cyan-300 stroke-[2.5]" />
-                ) : (
-                  <Check size={18} className={habit.completedToday ? '' : (isToday ? 'text-white/40 sm:group-hover:text-white/20' : 'text-white/10')} />
-                )}
-              </motion.button>
-
-              <AnimatePresence>
-                {floatingXp[habit.id] !== undefined && (
-                  <motion.div
-                    key={`xp-${habit.id}`}
-                    initial={{ opacity: 0, y: 10, scale: 0.8 }}
-                    animate={{ opacity: [0, 1, 1, 0], y: [-10, -45, -55, -60], scale: [0.9, 1.25, 1.1, 0.8] }}
-                    transition={{ duration: 1.1, times: [0, 0.2, 0.8, 1], ease: "easeOut" }}
-                    onAnimationComplete={() => {
-                      setFloatingXp(prev => {
-                        const copy = { ...prev };
-                        delete copy[habit.id];
-                        return copy;
-                      });
-                    }}
-                    className="absolute -top-4 right-14 pointer-events-none text-amber-400 font-black text-[11px] uppercase tracking-widest drop-shadow-[0_0_12px_rgba(245,158,11,0.7)] whitespace-nowrap select-none z-[60]"
-                  >
-                    +{floatingXp[habit.id]} XP
-                  </motion.div>
-                )}
-              </AnimatePresence>
               
-              <div className="relative">
-                <motion.button
-                  type="button"
-                  aria-label={`Options menu for ${habit.name}`}
-                  aria-expanded={activeDropdownId === habit.id}
-                  aria-haspopup="true"
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => {
+              <div className="flex items-center gap-2 shrink-0">
+                <motion.button 
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    setActiveDropdownId(prev => prev === habit.id ? null : habit.id);
+                    if (isPending) return;
+
+                    if (userFrozen) {
+                      toast("Your habits are paused until your Streak Freeze expires.", {
+                        icon: "❄️",
+                      });
+                      return;
+                    }
+
+                    if (!isToday && !habit.completedToday) {
+                      toast.error(`Dude, do it on ${getScheduledDaysMessage(habit)}. Chill !!!`);
+                      return;
+                    }
+                    
+                    if (habit.completedToday) {
+                      const habitXp = extractXpAwarded(null, habit.difficulty);
+                      setConfirmModal({
+                        isOpen: true,
+                        title: "Lied to Yourself ?",
+                        habitName: habit.name,
+                        actionText: "Undo Completion",
+                        cancelText: "Keep Completed",
+                        description: `Revert completion for "${habit.name}"? Today's progress and earned XP (-${habitXp} XP) will be deducted.`,
+                        action: async () => {
+                          try {
+                            const res = await undoHabit(habit.id);
+                            const xp = extractXpAwarded(res, habit.difficulty);
+                            toast.success(`Completion undone (-${xp} XP)`);
+                          } catch (e: any) {
+                            const errorMessage = e?.response?.data?.error || e?.message || "Failed to undo completion";
+                            toast.error(errorMessage);
+                          }
+                        }
+                      });
+                    } else if (!loading) {
+                      // Tap-and-Go Immediate completion for fluid responsiveness & game feel
+                      const tapStart = performance.now();
+                      try {
+                        const res = await completeHabit(habit.id);
+                        perfLogger.markHabitTap(habit.id, performance.now() - tapStart);
+                        const xpAwarded = extractXpAwarded(res, habit.difficulty);
+                        setFloatingXp(prev => ({ ...prev, [habit.id]: xpAwarded }));
+                        toast.success(`+${xpAwarded} XP`);
+                        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                          navigator.vibrate([15, 30]);
+                        }
+                      } catch (e: any) {
+                        perfLogger.markHabitTap(habit.id, performance.now() - tapStart);
+                        const errorMessage = e?.response?.data?.error || e?.message || "Failed to complete habit";
+                        toast.error(errorMessage);
+                      }
+                    }
                   }}
-                  className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-white transition-colors rounded-xl focus:outline-none focus:ring-2 focus:ring-white/20 cursor-pointer"
+                  disabled={loading || isPending}
+                  whileTap={{ scale: 0.85 }}
+                  animate={!userFrozen && habit.completedToday ? { scale: [1, 1.25, 1], rotate: [0, 10, -10, 0] } : {}}
+                  transition={{ duration: 0.4 }}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all relative ${
+                    isPending
+                      ? 'bg-white/10 text-white cursor-wait border border-white/20'
+                      : userFrozen
+                        ? 'bg-cyan-950/40 border border-cyan-500/35 text-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.15)] hover:border-cyan-400/60 cursor-pointer'
+                        : habit.completedToday 
+                          ? 'bg-emerald-500 text-black hover:bg-red-500 hover:text-white border border-transparent shadow-[0_0_20px_rgba(16,185,129,0.4)] cursor-pointer' 
+                          : (isToday ? 'bg-white/5 border border-white/10 hover:border-white/30 hover:bg-white/10 text-white/30 hover:text-white transition-colors cursor-pointer' : 'bg-white/5 border border-white/5 opacity-50 cursor-not-allowed')
+                  }`}
                 >
-                  <MoreVertical size={16} />
+                  {isPending ? (
+                    <Loader2 size={18} className="animate-spin text-white" />
+                  ) : userFrozen ? (
+                    <Lock size={16} className="text-cyan-300 stroke-[2.5]" />
+                  ) : (
+                    <Check size={18} className={habit.completedToday ? '' : (isToday ? 'text-white/40 sm:group-hover:text-white/20' : 'text-white/10')} />
+                  )}
                 </motion.button>
 
                 <AnimatePresence>
-                  {activeDropdownId === habit.id && (
+                  {floatingXp[habit.id] !== undefined && (
                     <motion.div
-                      ref={dropdownRef}
-                      initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                      transition={{ duration: 0.12 }}
-                      className="absolute right-0 top-11 z-50 min-w-[170px] bg-[#121212] border border-white/10 rounded-xl p-1.5 shadow-2xl backdrop-blur-xl"
-                      role="menu"
-                      aria-label="Habit options"
+                      key={`xp-${habit.id}`}
+                      initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                      animate={{ opacity: [0, 1, 1, 0], y: [-10, -45, -55, -60], scale: [0.9, 1.25, 1.1, 0.8] }}
+                      transition={{ duration: 1.1, times: [0, 0.2, 0.8, 1], ease: "easeOut" }}
+                      onAnimationComplete={() => {
+                        setFloatingXp(prev => {
+                          const copy = { ...prev };
+                          delete copy[habit.id];
+                          return copy;
+                        });
+                      }}
+                      className="absolute -top-4 right-14 pointer-events-none text-amber-400 font-black text-[11px] uppercase tracking-widest drop-shadow-[0_0_12px_rgba(245,158,11,0.7)] whitespace-nowrap select-none z-[60]"
                     >
-                      <button
-                        type="button"
-                        role="menuitem"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveDropdownId(null);
-                          setEditingHabit(habit);
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2.5 focus:outline-none focus:bg-white/10"
-                      >
-                        <Pencil size={14} className="text-slate-400 shrink-0" />
-                        <span>Edit Habit</span>
-                      </button>
+                      +{floatingXp[habit.id]} XP
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                
+                <div className="relative">
+                  <motion.button
+                    type="button"
+                    aria-label={`Options menu for ${habit.name}`}
+                    aria-expanded={activeDropdownId === habit.id}
+                    aria-haspopup="true"
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveDropdownId(prev => prev === habit.id ? null : habit.id);
+                    }}
+                    className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-white transition-colors rounded-xl focus:outline-none focus:ring-2 focus:ring-white/20 cursor-pointer"
+                  >
+                    <MoreVertical size={16} />
+                  </motion.button>
 
-                      {habit.completedToday && (
+                  <AnimatePresence>
+                    {activeDropdownId === habit.id && (
+                      <motion.div
+                        ref={dropdownRef}
+                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute right-0 top-11 z-50 min-w-[170px] bg-[#121212] border border-white/10 rounded-xl p-1.5 shadow-2xl backdrop-blur-xl"
+                        role="menu"
+                        aria-label="Habit options"
+                      >
                         <button
                           type="button"
                           role="menuitem"
                           tabIndex={0}
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
                             setActiveDropdownId(null);
-                            await handleUndoCompletion(habit);
+                            setEditingHabit(habit);
                           }}
-                          className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-colors flex items-center gap-2.5 focus:outline-none focus:bg-amber-500/10"
+                          className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2.5 focus:outline-none focus:bg-white/10"
                         >
-                          <RotateCcw size={14} className="text-amber-400 shrink-0" />
-                          <span>Undo Completion</span>
+                          <Pencil size={14} className="text-slate-400 shrink-0" />
+                          <span>Edit Habit</span>
                         </button>
-                      )}
 
-                      <button
-                        type="button"
-                        role="menuitem"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveDropdownId(null);
-                          setDeleteConfirmationHabit(habit);
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2.5 focus:outline-none focus:bg-red-500/10"
-                      >
-                        <Trash2 size={14} className="text-red-400 shrink-0" />
-                        <span>Delete Habit</span>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                        {habit.completedToday && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            tabIndex={0}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setActiveDropdownId(null);
+                              await handleUndoCompletion(habit);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-colors flex items-center gap-2.5 focus:outline-none focus:bg-amber-500/10"
+                          >
+                            <RotateCcw size={14} className="text-amber-400 shrink-0" />
+                            <span>Undo Completion</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          role="menuitem"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdownId(null);
+                            setDeleteConfirmationHabit(habit);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2.5 focus:outline-none focus:bg-red-500/10"
+                        >
+                          <Trash2 size={14} className="text-red-400 shrink-0" />
+                          <span>Delete Habit</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
+
+            {/* Expandable Notes Panel */}
+            <AnimatePresence>
+              {isExpanded && hasNotes && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden w-full pt-3 mt-3 border-t border-white/[0.06]"
+                >
+                  <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+                      <AlignLeft size={11} className="text-zinc-400" />
+                      <span>NOTES / PURPOSE</span>
+                    </div>
+                    <p className="text-xs text-zinc-200 leading-relaxed whitespace-pre-wrap font-sans">
+                      {habit.notes?.trim()}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )})}
 
