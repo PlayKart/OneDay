@@ -11,7 +11,7 @@ import { syncService } from '../services/syncService';
 import { quoteService } from '../services/quoteService';
 import { safeArray, normalizeCompletedDates, normalizeUser, hasCompletedOnboarding, getOnboardingStatus, calculateLevelProgress, getXpForDifficulty, extractXpAwarded, getLocalCalendarDate, logStreakDebug } from '../utils';
 import { isHabitScheduledForToday } from '../lib/habitUtils';
-import { isTitleNew, markTitleAsSeen, getTitleDescription, setEquippedTitle, getEquippedTitle } from '../utils/titleUtils';
+import { isTitleNew, markTitleAsSeen, getTitleDescription, setEquippedTitle, getEquippedTitle, normalizeTitleUpper } from '../utils/titleUtils';
 import { isUserFrozen, getFreezeUntil, formatFreezeDate } from '../utils/freezeUtils';
 import { apiRequest } from '../api/client';
 import { perfLogger } from '../utils/perfLogger';
@@ -790,24 +790,15 @@ export const useStore = create<StoreState>((set, get) => {
       if (!currentUser) {
         throw new Error("No active user session.");
       }
-      const normalizedTitle = title.trim();
+      const normalizedTitle = normalizeTitleUpper(title);
 
       // 1. DO NOT update local title state optimistically. The backend is authoritative.
 
       // 2. Call dedicated authoritative equip endpoint on the backend
       const equipRes = await userService.equipTitle(normalizedTitle);
+      const finalEquippedTitle = normalizeTitleUpper(equipRes?.title) || normalizedTitle;
 
-      // 3. Extract confirmed title directly from backend response
-      const confirmedTitle = 
-        equipRes?.currentTitle ||
-        equipRes?.activeTitle ||
-        equipRes?.title ||
-        (typeof equipRes?.equippedTitle === "object" ? equipRes?.equippedTitle?.title : equipRes?.equippedTitle) ||
-        normalizedTitle;
-
-      const finalEquippedTitle = confirmedTitle.toUpperCase();
-
-      // 4. Refetch full authoritative profile from backend to ensure all screens are in sync
+      // 3. Refetch full authoritative profile from backend to ensure all screens are in sync
       let authoritativeUser = currentUser;
       try {
         const freshUser = await userService.getUserProfile(currentUser);
@@ -818,6 +809,17 @@ export const useStore = create<StoreState>((set, get) => {
         console.warn("[EQUIP] Background profile refetch notice:", refetchErr);
       }
 
+      // 4. Ensure unlockedTitles contains confirmed equipped title and all items are strings
+      const rawUnlocked = Array.isArray(authoritativeUser.unlockedTitles)
+        ? authoritativeUser.unlockedTitles
+        : [];
+      const updatedUnlockedTitles = Array.from(
+        new Set([
+          ...rawUnlocked.map((t) => normalizeTitleUpper(t)),
+          finalEquippedTitle,
+        ])
+      ).filter(Boolean);
+
       // 5. Update single source of truth in store ONLY AFTER backend confirmation
       set({
         user: {
@@ -826,6 +828,7 @@ export const useStore = create<StoreState>((set, get) => {
           equippedTitle: finalEquippedTitle,
           currentTitle: finalEquippedTitle,
           activeTitle: finalEquippedTitle,
+          unlockedTitles: updatedUnlockedTitles,
         },
       });
 

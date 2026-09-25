@@ -4,7 +4,7 @@ export * from "./camelCase";
 export * from "./streakUtils";
 export * from "../constants/improvementFocus";
 import { User } from "../types";
-import { normalizeTitleUpper } from "./titleUtils";
+import { normalizeTitleUpper, normalizeTitleItem, UserTitleModel } from "./titleUtils";
 
 export const VALID_GENDERS = ["Male", "Female", "Prefer not to say", "Other"] as const;
 export type ValidGender = typeof VALID_GENDERS[number];
@@ -357,21 +357,23 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
       return existingUser?.equippedTitle || existingUser?.title || undefined;
     })(),
     currentTitle: (() => {
-      const rawCurrent = rawUser?.currentTitle || rawUser?.current_title || rawUser?.equippedTitle || rawUser?.equipped_title;
+      const rawCurrent =
+        rawUser?.currentTitle ||
+        rawUser?.current_title ||
+        rawUser?.equippedTitle ||
+        rawUser?.equipped_title ||
+        rawUser?.activeTitle ||
+        rawUser?.active_title ||
+        rawUser?.title;
+
       if (rawCurrent) {
         const val = normalizeTitleUpper(rawCurrent);
-        if (val) {
-          return typeof rawCurrent === "object" && rawCurrent !== null
-            ? { ...rawCurrent, title: val }
-            : { title: val };
-        }
+        if (val) return val;
       }
 
       const backendTitleStr = findFirstString(["currentTitle", "current_title", "equippedTitle", "equipped_title", "activeTitle", "active_title", "title"]);
       const normStr = normalizeTitleUpper(backendTitleStr);
-      if (normStr) {
-        return { title: normStr };
-      }
+      if (normStr) return normStr;
 
       const titlesToCheck = Array.isArray(rawUser?.titles)
         ? rawUser.titles
@@ -385,20 +387,22 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
         if (item && typeof item === "object") {
           if (item.isCurrent || item.is_current || item.isEquipped || item.equipped || item.active || item.isActive) {
             const val = normalizeTitleUpper(item);
-            if (val) {
-              return {
-                ...item,
-                title: val
-              };
-            }
+            if (val) return val;
           }
         }
       }
 
-      return existingUser?.currentTitle || undefined;
+      const exist = existingUser?.currentTitle || existingUser?.equippedTitle || existingUser?.title;
+      return exist ? normalizeTitleUpper(exist) : undefined;
     })(),
-    titles: Array.isArray(rawUser?.titles) ? rawUser.titles : existingUser?.titles,
+    titles: (() => {
+      const rawCatalog = Array.isArray(rawUser?.titles) ? rawUser.titles : existingUser?.titles;
+      if (!Array.isArray(rawCatalog)) return [];
+      return rawCatalog.map(normalizeTitleItem).filter((t): t is UserTitleModel => t !== null);
+    })(),
     unlockedTitles: (() => {
+      const set = new Set<string>();
+
       // 1. Check explicit backend unlocked arrays
       const explicitUnlocked =
         rawUser?.unlockedTitles ||
@@ -409,41 +413,61 @@ export function normalizeUser(u: any, existingUser?: User | null): User {
         rawUser?.userTitles;
 
       if (Array.isArray(explicitUnlocked)) {
-        return explicitUnlocked
-          .map((t: any) => {
-            if (typeof t === "object" && t !== null) {
-              if (t.unlocked === false || t.isUnlocked === false || t.is_unlocked === false || t.earned === false) {
-                return "";
-              }
+        explicitUnlocked.forEach((t: any) => {
+          if (typeof t === "object" && t !== null) {
+            if (t.unlocked === false || t.isUnlocked === false || t.is_unlocked === false || t.earned === false) {
+              return;
             }
-            return normalizeTitleUpper(t);
-          })
-          .filter(Boolean);
+          }
+          const norm = normalizeTitleUpper(t);
+          if (norm) set.add(norm);
+        });
       }
 
       // 2. Check if rawUser.titles has objects explicitly flagged as unlocked by backend
       if (Array.isArray(rawUser?.titles)) {
-        const confirmedFromTitles = rawUser.titles
-          .filter((t: any) => {
-            if (!t || typeof t !== "object") return false;
-            return (
+        rawUser.titles.forEach((t: any) => {
+          if (!t) return;
+          if (typeof t === "object") {
+            const isUnlocked =
               t.unlocked === true ||
               t.isUnlocked === true ||
               t.is_unlocked === true ||
               t.earned === true ||
               t.userHasTitle === true ||
-              Boolean(t.unlockedAt || t.unlocked_at)
-            );
-          })
-          .map((t: any) => normalizeTitleUpper(t))
-          .filter(Boolean);
-
-        if (confirmedFromTitles.length > 0) {
-          return confirmedFromTitles;
-        }
+              t.isCurrent === true ||
+              t.is_current === true ||
+              Boolean(t.unlockedAt || t.unlocked_at);
+            if (isUnlocked) {
+              const norm = normalizeTitleUpper(t);
+              if (norm) set.add(norm);
+            }
+          } else {
+            const norm = normalizeTitleUpper(t);
+            if (norm) set.add(norm);
+          }
+        });
       }
 
-      return existingUser?.unlockedTitles || undefined;
+      // 3. Current equipped title is always confirmed unlocked
+      const direct =
+        normalizeTitleUpper(rawUser?.equippedTitle) ||
+        normalizeTitleUpper(rawUser?.equipped_title) ||
+        normalizeTitleUpper(rawUser?.currentTitle) ||
+        normalizeTitleUpper(rawUser?.current_title) ||
+        normalizeTitleUpper(rawUser?.activeTitle) ||
+        normalizeTitleUpper(rawUser?.title);
+      if (direct) set.add(direct);
+
+      if (set.size > 0) {
+        return Array.from(set);
+      }
+
+      if (Array.isArray(existingUser?.unlockedTitles)) {
+        return existingUser.unlockedTitles.map((t) => normalizeTitleUpper(t)).filter(Boolean);
+      }
+
+      return undefined;
     })(),
     freezeUntil:
       findFirstString(["freezeUntil", "freeze_until"]) ||

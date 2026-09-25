@@ -2,7 +2,7 @@
 
 import { User, Habit } from "../types";
 import { isHabitScheduledForToday } from "../lib/habitUtils";
-import { getEquippedTitle } from "./titleUtils";
+import { getEquippedTitle, normalizeTitleString } from "./titleUtils";
 
 export interface GreetingContext {
   user?: User | null;
@@ -145,23 +145,28 @@ export function getPersonalizedGreeting(context: GreetingContext): string {
 
   // 6. OCCASIONAL EQUIPPED TITLE RECOGNITION (approx 1 in 3 chance if equipped)
   if (equippedTitle && totalHabits > 0 && completedToday === 0) {
-    const formattedTitle = equippedTitle
-      .split(" ")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(" ");
+    const rawTitleStr = normalizeTitleString(equippedTitle);
+    const formattedTitle = rawTitleStr
+      ? rawTitleStr
+          .split(" ")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+          .join(" ")
+      : "";
 
-    const titlePool = [
-      isMorning
-        ? firstName
-          ? `Morning, ${firstName}. ${formattedTitle} mode.`
-          : `Morning, ${formattedTitle}.`
-        : firstName
-        ? `Ready to execute, ${firstName}?`
-        : `Ready, ${formattedTitle}?`,
-      firstName ? `Back at it, ${firstName}.` : "Back at it.",
-      "Another day. Another chance to show up.",
-    ];
-    return pickFromPool(titlePool, stateKey);
+    if (formattedTitle) {
+      const titlePool = [
+        isMorning
+          ? firstName
+            ? `Morning, ${firstName}. ${formattedTitle} mode.`
+            : `Morning, ${formattedTitle}.`
+          : firstName
+          ? `Ready to execute, ${firstName}?`
+          : `Ready, ${formattedTitle}?`,
+        firstName ? `Back at it, ${firstName}.` : "Back at it.",
+        "Another day. Another chance to show up.",
+      ];
+      return pickFromPool(titlePool, stateKey);
+    }
   }
 
   // 7. NEW USER / NO HABITS CREATED YET

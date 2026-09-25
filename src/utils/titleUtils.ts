@@ -45,6 +45,15 @@ export const KNOWN_TITLES: Record<string, string> = {
   "SOVEREIGN": "Complete autonomy and mastery over daily actions.",
 };
 
+export interface UserTitleModel {
+  id: string;
+  title: string;
+  level: number;
+  xpRequired: number;
+  unlockedAt: string | null;
+  isCurrent: boolean;
+}
+
 export function normalizeTitleName(value: any): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "string") return value.trim();
@@ -68,8 +77,84 @@ export function normalizeTitleName(value: any): string {
   return "";
 }
 
+export const normalizeTitleString = normalizeTitleName;
+
 export function normalizeTitleUpper(value: any): string {
-  return normalizeTitleName(value).toUpperCase();
+  const name = normalizeTitleName(value);
+  return typeof name === "string" ? name.toUpperCase() : "";
+}
+
+/**
+ * Normalizes any raw title item from API responses into the canonical UserTitleModel contract:
+ * {
+ *   id: string,
+ *   title: string,
+ *   level: number,
+ *   xpRequired: number,
+ *   unlockedAt: string | null,
+ *   isCurrent: boolean
+ * }
+ */
+export function normalizeTitleItem(raw: any): UserTitleModel | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    const clean = raw.trim();
+    if (!clean) return null;
+    return {
+      id: clean.toLowerCase().replace(/\s+/g, "_"),
+      title: clean.toUpperCase(),
+      level: 1,
+      xpRequired: 0,
+      unlockedAt: null,
+      isCurrent: false,
+    };
+  }
+  if (typeof raw === "object") {
+    const titleStr = normalizeTitleString(raw.title || raw.name || raw.id || raw.titleName);
+    if (!titleStr) return null;
+
+    const id = typeof raw.id === "string" && raw.id.trim()
+      ? raw.id.trim()
+      : titleStr.toLowerCase().replace(/\s+/g, "_");
+
+    const level = typeof raw.level === "number"
+      ? raw.level
+      : typeof raw.levelRequired === "number"
+      ? raw.levelRequired
+      : typeof raw.level_required === "number"
+      ? raw.level_required
+      : 1;
+
+    const xpRequired = typeof raw.xpRequired === "number"
+      ? raw.xpRequired
+      : typeof raw.xp_required === "number"
+      ? raw.xp_required
+      : typeof raw.xp === "number"
+      ? raw.xp
+      : 0;
+
+    const unlockedAt = raw.unlockedAt || raw.unlocked_at || (raw.unlocked ? new Date().toISOString() : null);
+
+    const isCurrent = Boolean(
+      raw.isCurrent ||
+      raw.is_current ||
+      raw.isEquipped ||
+      raw.is_equipped ||
+      raw.equipped ||
+      raw.active ||
+      raw.isActive
+    );
+
+    return {
+      id,
+      title: titleStr.toUpperCase(),
+      level,
+      xpRequired,
+      unlockedAt: typeof unlockedAt === "string" ? unlockedAt : null,
+      isCurrent,
+    };
+  }
+  return null;
 }
 
 /**

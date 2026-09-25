@@ -3,6 +3,7 @@ import { normalizeUser, normalizeGenderValue } from "../utils";
 import { useStore } from "../store/useStore";
 import { auth } from "../lib/firebase";
 import { apiClient } from "../api/client";
+import { normalizeTitleUpper, normalizeTitleItem, UserTitleModel } from "../utils/titleUtils";
 
 export const userService = {
   /**
@@ -244,11 +245,18 @@ export const userService = {
   /**
    * Equips a title using the backend's authoritative POST /api/titles/equip (or fallback POST /api/title/equip).
    */
-  async equipTitle(title: string): Promise<any> {
+  async equipTitle(title: string): Promise<{
+    success: boolean;
+    title: string;
+    currentTitle: string;
+    equippedTitle: string;
+    activeTitle: string;
+    raw: any;
+  }> {
     const fbUser = auth.currentUser || useStore.getState().firebaseUser;
     if (!fbUser) throw new Error("Not authenticated");
 
-    const normalizedTitle = title.trim();
+    const normalizedTitle = normalizeTitleUpper(title);
     let responseData: any = null;
 
     const payload = {
@@ -270,7 +278,24 @@ export const userService = {
       }
     }
 
-    return responseData;
+    const confirmedTitle =
+      normalizeTitleUpper(responseData?.title) ||
+      normalizeTitleUpper(responseData?.currentTitle) ||
+      normalizeTitleUpper(responseData?.equippedTitle) ||
+      normalizeTitleUpper(responseData?.activeTitle) ||
+      normalizeTitleUpper(responseData?.data?.title) ||
+      normalizeTitleUpper(responseData?.data?.currentTitle) ||
+      normalizeTitleUpper(responseData?.data?.equippedTitle) ||
+      normalizedTitle;
+
+    return {
+      success: true,
+      title: confirmedTitle,
+      currentTitle: confirmedTitle,
+      equippedTitle: confirmedTitle,
+      activeTitle: confirmedTitle,
+      raw: responseData,
+    };
   },
 
   /**
@@ -279,22 +304,81 @@ export const userService = {
   async getUserTitles(): Promise<{
     currentTitle?: string;
     activeTitle?: string;
-    equippedTitle?: any;
-    unlockedTitles?: string[];
-    titles?: any[];
+    equippedTitle?: string;
+    unlockedTitles: string[];
+    titles: UserTitleModel[];
   }> {
     const fbUser = auth.currentUser || useStore.getState().firebaseUser;
     if (!fbUser) throw new Error("Not authenticated");
 
+    let rawData: any = null;
     try {
       const res = await apiClient.get("/api/titles");
-      return res.data;
+      rawData = res.data;
     } catch (err: any) {
       if (err?.response?.status === 404) {
         const fallback = await apiClient.get("/api/title");
-        return fallback.data;
+        rawData = fallback.data;
+      } else {
+        throw err;
       }
-      throw err;
     }
+
+    const dataObj = rawData?.data || rawData || {};
+    const rawList = Array.isArray(rawData)
+      ? rawData
+      : Array.isArray(dataObj?.titles)
+      ? dataObj.titles
+      : Array.isArray(dataObj?.unlockedTitles)
+      ? dataObj.unlockedTitles
+      : Array.isArray(dataObj)
+      ? dataObj
+      : [];
+
+    const normalizedTitles: UserTitleModel[] = rawList
+      .map(normalizeTitleItem)
+      .filter((t): t is UserTitleModel => t !== null);
+
+    const explicitUnlocked =
+      dataObj?.unlockedTitles ||
+      dataObj?.unlocked_titles ||
+      dataObj?.unlocked ||
+      dataObj?.earnedTitles ||
+      dataObj?.userTitles;
+
+    const unlockedSet = new Set<string>();
+    if (Array.isArray(explicitUnlocked)) {
+      explicitUnlocked.forEach((t: any) => {
+        const norm = normalizeTitleUpper(t);
+        if (norm) unlockedSet.add(norm);
+      });
+    }
+
+    normalizedTitles.forEach((t) => {
+      if (t.isCurrent || t.unlockedAt) {
+        unlockedSet.add(t.title);
+      }
+    });
+
+    const equipped =
+      normalizeTitleUpper(dataObj?.equippedTitle) ||
+      normalizeTitleUpper(dataObj?.equipped_title) ||
+      normalizeTitleUpper(dataObj?.currentTitle) ||
+      normalizeTitleUpper(dataObj?.current_title) ||
+      normalizeTitleUpper(dataObj?.activeTitle) ||
+      normalizedTitles.find((t) => t.isCurrent)?.title ||
+      "";
+
+    if (equipped) {
+      unlockedSet.add(equipped);
+    }
+
+    return {
+      currentTitle: equipped || undefined,
+      activeTitle: equipped || undefined,
+      equippedTitle: equipped || undefined,
+      unlockedTitles: Array.from(unlockedSet),
+      titles: normalizedTitles,
+    };
   },
 };

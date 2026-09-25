@@ -103,105 +103,53 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
         }),
       ]);
 
-      // Extract confirmed unlocked titles from titlesData (object or array)
-      const confirmedFromTitlesData: string[] = [];
-      if (Array.isArray(titlesData)) {
-        titlesData.forEach((item: any) => {
-          if (item && typeof item === "object") {
-            if (
-              item.unlocked === true ||
-              item.isUnlocked === true ||
-              item.is_unlocked === true ||
-              item.earned === true ||
-              Boolean(item.unlockedAt || item.unlocked_at)
-            ) {
-              const val = item.title || item.name || item.id;
-              if (typeof val === "string" && val.trim()) {
-                confirmedFromTitlesData.push(normalizeTitleUpper(val));
-              }
-            }
-          }
-        });
-      } else if (titlesData && typeof titlesData === "object") {
-        const rawUnlocked =
-          titlesData.unlockedTitles ||
-          titlesData.unlocked_titles ||
-          titlesData.unlocked ||
-          titlesData.earnedTitles ||
-          titlesData.earned_titles ||
-          titlesData.userTitles;
-
-        if (Array.isArray(rawUnlocked)) {
-          rawUnlocked.forEach((item: any) => {
-            if (typeof item === "string" && item.trim()) {
-              confirmedFromTitlesData.push(normalizeTitleUpper(item));
-            } else if (item && typeof item === "object") {
-              if (
-                item.unlocked === true ||
-                item.isUnlocked === true ||
-                item.is_unlocked === true ||
-                item.earned === true ||
-                Boolean(item.unlockedAt || item.unlocked_at)
-              ) {
-                const val = item.title || item.name || item.id;
-                if (typeof val === "string" && val.trim()) {
-                  confirmedFromTitlesData.push(normalizeTitleUpper(val));
-                }
-              }
-            }
-          });
-        }
-
-        if (Array.isArray(titlesData.titles)) {
-          titlesData.titles.forEach((item: any) => {
-            if (item && typeof item === "object") {
-              if (
-                item.unlocked === true ||
-                item.isUnlocked === true ||
-                item.is_unlocked === true ||
-                item.earned === true ||
-                Boolean(item.unlockedAt || item.unlocked_at)
-              ) {
-                const val = item.title || item.name || item.id;
-                if (typeof val === "string" && val.trim()) {
-                  confirmedFromTitlesData.push(normalizeTitleUpper(val));
-                }
-              }
-            }
-          });
-        }
-      }
-
       // Combine confirmed unlocked titles from data and titlesData
       const combinedUnlockedSet = new Set<string>();
       if (Array.isArray(data?.unlockedTitles)) {
-        data.unlockedTitles.forEach((t: string) => {
-          if (typeof t === "string" && t.trim()) combinedUnlockedSet.add(normalizeTitleUpper(t));
+        data.unlockedTitles.forEach((t: any) => {
+          const norm = normalizeTitleUpper(t);
+          if (norm) combinedUnlockedSet.add(norm);
         });
       }
-      confirmedFromTitlesData.forEach((t) => combinedUnlockedSet.add(t));
+      if (titlesData && Array.isArray(titlesData.unlockedTitles)) {
+        titlesData.unlockedTitles.forEach((t: any) => {
+          const norm = normalizeTitleUpper(t);
+          if (norm) combinedUnlockedSet.add(norm);
+        });
+      }
+      if (titlesData && Array.isArray(titlesData.titles)) {
+        titlesData.titles.forEach((it: any) => {
+          if (it.isCurrent || it.unlockedAt) {
+            const norm = normalizeTitleUpper(it.title);
+            if (norm) combinedUnlockedSet.add(norm);
+          }
+        });
+      }
 
       const backendEquipped =
-        (typeof titlesData?.equippedTitle === "object"
-          ? titlesData.equippedTitle?.title || titlesData.equippedTitle?.name
-          : titlesData?.equippedTitle) ||
-        titlesData?.equipped_title ||
-        titlesData?.currentTitle ||
-        titlesData?.current_title ||
-        titlesData?.activeTitle ||
-        titlesData?.active_title ||
-        data?.equippedTitle ||
-        data?.currentTitle;
+        normalizeTitleUpper(titlesData?.equippedTitle) ||
+        normalizeTitleUpper(titlesData?.currentTitle) ||
+        normalizeTitleUpper(titlesData?.activeTitle) ||
+        normalizeTitleUpper(data?.equippedTitle) ||
+        normalizeTitleUpper(data?.currentTitle) ||
+        normalizeTitleUpper(data?.title);
+
+      if (backendEquipped) {
+        combinedUnlockedSet.add(backendEquipped);
+      }
 
       const mergedUser = {
         ...data,
-        ...(titlesData && typeof titlesData === "object" && Array.isArray(titlesData.titles)
+        ...(titlesData && Array.isArray(titlesData.titles) && titlesData.titles.length > 0
           ? { titles: titlesData.titles }
           : {}),
         unlockedTitles: Array.from(combinedUnlockedSet),
         ...(backendEquipped
           ? {
-              equippedTitle: normalizeTitleUpper(backendEquipped),
+              equippedTitle: backendEquipped,
+              currentTitle: backendEquipped,
+              activeTitle: backendEquipped,
+              title: backendEquipped,
             }
           : {}),
       };
@@ -219,7 +167,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
 
   useEffect(() => {
     fetchProfile(!user);
-  }, [fetchProfile, user]);
+  }, [fetchProfile, user?.id]);
 
   const activeUser = user;
   const currentUserId = activeUser?.id || activeUser?.userId;
@@ -227,9 +175,10 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
   const unlockedTitles = getAllUserTitles(activeUser);
 
   const handleSelectTitle = async (title: string) => {
-    const normalized = title.trim().toUpperCase();
+    const normalized = normalizeTitleUpper(title);
+    if (!normalized) return;
     if (equippingTitle) return; // Prevent duplicate requests
-    if (equippedTitle?.toUpperCase() === normalized) return; // Already equipped
+    if (equippedTitle && normalizeTitleUpper(equippedTitle) === normalized) return; // Already equipped
 
     setEquippingTitle(normalized);
 
@@ -345,30 +294,31 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
             </div>
 
             {(() => {
-              const unlockedSet = new Set(unlockedTitles.map((t) => t.toUpperCase()));
+              const unlockedSet = new Set(
+                unlockedTitles.map((t) => normalizeTitleUpper(t)).filter(Boolean)
+              );
 
               // Prepare list of items to display: use activeUser.titles catalog if present, else unlockedTitles
-              const catalogItems: Array<{ name: string; levelReq?: number; itemObj?: any }> = [];
+              const catalogItems: Array<{ name: string; levelReq?: number }> = [];
               const seenNames = new Set<string>();
 
               if (Array.isArray(activeUser?.titles) && activeUser.titles.length > 0) {
                 activeUser.titles.forEach((it: any) => {
-                  const n = typeof it === "string" ? it : it?.title || it?.name || it?.id;
-                  if (typeof n === "string" && n.trim()) {
-                    const norm = n.trim().toUpperCase();
-                    if (!seenNames.has(norm)) {
-                      seenNames.add(norm);
-                      const levelReq = typeof it === "object" ? it.levelRequired || it.level : undefined;
-                      catalogItems.push({ name: norm, levelReq, itemObj: it });
-                    }
+                  const norm = normalizeTitleUpper(it);
+                  if (norm && !seenNames.has(norm)) {
+                    seenNames.add(norm);
+                    const levelReq = typeof it === "object"
+                      ? (typeof it.level === "number" ? it.level : typeof it.levelRequired === "number" ? it.levelRequired : typeof it.level_required === "number" ? it.level_required : undefined)
+                      : undefined;
+                    catalogItems.push({ name: norm, levelReq });
                   }
                 });
               }
 
               // Ensure all unlocked titles are included in catalog list
               unlockedTitles.forEach((t) => {
-                const norm = t.trim().toUpperCase();
-                if (!seenNames.has(norm)) {
+                const norm = normalizeTitleUpper(t);
+                if (norm && !seenNames.has(norm)) {
                   seenNames.add(norm);
                   catalogItems.push({ name: norm });
                 }
@@ -391,28 +341,24 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
                 );
               }
 
+              const normEquipped = normalizeTitleUpper(equippedTitle);
+              const normEquipping = normalizeTitleUpper(equippingTitle);
+
               return (
                 <div className="space-y-2.5">
-                  {catalogItems.map(({ name: rawName, levelReq, itemObj }) => {
-                    const t = sanitizeTitleDescription(rawName);
-                    const isEarned = unlockedSet.has(rawName.toUpperCase());
-                    const isCurrent = equippedTitle?.toUpperCase() === rawName.toUpperCase();
-                    const isEquipping = equippingTitle?.toUpperCase() === rawName.toUpperCase();
+                  {catalogItems.map(({ name: rawName, levelReq }) => {
+                    const isEarned = unlockedSet.has(rawName);
+                    const isCurrent = normEquipped === rawName;
+                    const isEquipping = normEquipping === rawName;
                     const isAnyEquipping = Boolean(equippingTitle);
                     const isNew = isEarned && isTitleNew(rawName, currentUserId);
-
-                    // Get sanitized signature / description guaranteed to have NO cycle text
-                    let desc = getTitleDescription(t, itemObj?.signature || itemObj?.description, activeUser);
-                    if (!isEarned && levelReq) {
-                      desc = `Unlocked at Level ${levelReq}`;
-                    }
 
                     return (
                       <div
                         key={rawName}
                         onClick={() => {
                           if (isEarned && !isCurrent && !isAnyEquipping) {
-                            handleSelectTitle(t);
+                            handleSelectTitle(rawName);
                           }
                         }}
                         className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
@@ -436,23 +382,25 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
                                   : "text-slate-400"
                               }`}
                             >
-                              {t}
+                              {rawName}
                             </span>
                             {isNew && !isCurrent && (
-                              <span className="px-1.5 py-0.2 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[8px] font-black uppercase tracking-widest rounded-full animate-pulse">
+                              <span className="px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[8px] font-black uppercase tracking-widest rounded-full animate-pulse">
                                 NEW
                               </span>
                             )}
                             {isCurrent && (
-                              <span className="px-2 py-0.2 bg-amber-400 text-black text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-1 font-mono">
+                              <span className="px-2 py-0.5 bg-amber-400 text-black text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-1 font-mono font-bold">
                                 <Check size={8} className="stroke-[3]" />
-                                Equipped
+                                EQUIPPED
                               </span>
                             )}
                           </div>
-                          <p className="text-slate-400 text-[11px] font-medium leading-relaxed truncate">
-                            {desc.startsWith("Unlocked at") || desc.startsWith("Level") ? desc : `"${desc}"`}
-                          </p>
+                          {levelReq && (
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                              {isEarned ? `UNLOCKED AT LEVEL ${levelReq}` : `UNLOCKS AT LEVEL ${levelReq}`}
+                            </p>
+                          )}
                         </div>
 
                         {isEarned ? (
@@ -462,7 +410,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
                             onClick={(e) => {
                               e.stopPropagation();
                               if (!isCurrent && !isAnyEquipping) {
-                                handleSelectTitle(t);
+                                handleSelectTitle(rawName);
                               }
                             }}
                             className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 ${
@@ -481,9 +429,9 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
                                 <span>Equipping...</span>
                               </>
                             ) : isCurrent ? (
-                              "Active"
+                              "EQUIPPED"
                             ) : (
-                              "Equip"
+                              "EQUIP"
                             )}
                           </button>
                         ) : (
