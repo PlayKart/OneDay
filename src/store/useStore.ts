@@ -1,6 +1,7 @@
 // src/store/useStore.ts
 
 import { create } from 'zustand';
+import toast from 'react-hot-toast';
 import { auth } from '../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser, getRedirectResult } from 'firebase/auth';
 import { dashboardService } from '../services/dashboardService';
@@ -1042,16 +1043,29 @@ export const useStore = create<StoreState>((set, get) => {
     pinSession: async (id) => {
       const session = get().chatSessions.find((s) => s.id === id);
       if (!session) return;
-      const newPinned = !(session.isPinned || session.is_pinned);
-
-      set((state) => ({
-        chatSessions: state.chatSessions.map((s) => (s.id === id ? { ...s, isPinned: newPinned, is_pinned: newPinned } : s)),
-      }));
+      const newPinned = !(session.isPinned || session.is_pinned || session.pinned);
 
       try {
         await chatService.pinSession(id, newPinned);
+        set((state) => {
+          const updatedSessions = state.chatSessions.map((s) =>
+            s.id === id
+              ? {
+                  ...s,
+                  isPinned: newPinned,
+                  is_pinned: newPinned,
+                  pinned: newPinned,
+                }
+              : s
+          );
+          try {
+            localStorage.setItem("oneday_cached_chat_sessions", JSON.stringify(updatedSessions));
+          } catch {}
+          return { chatSessions: updatedSessions };
+        });
       } catch (e) {
-        console.warn("pinSession failed:", e);
+        console.error("pinSession failed:", e);
+        toast.error("Failed to update chat pin status. Please try again.");
       }
     },
 

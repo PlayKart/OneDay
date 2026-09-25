@@ -19,14 +19,19 @@ export const chatService = {
         ? rawData
         : rawData?.data || rawData?.sessions || rawData?.conversations || [];
 
-      const mapped = safeArray<any>(list).map((s) => ({
-        id: s.id || s.sessionId || s.uuid,
-        title: s.title || "",
-        isPinned: Boolean(s.isPinned || s.is_pinned),
-        isArchived: Boolean(s.isArchived || s.is_archived),
-        createdAt: s.createdAt || s.created_at || new Date().toISOString(),
-        updatedAt: s.updatedAt || s.updated_at || s.createdAt || s.created_at || new Date().toISOString(),
-      }));
+      const mapped = safeArray<any>(list).map((s) => {
+        const isPinnedVal = Boolean(s.isPinned || s.is_pinned || s.pinned);
+        return {
+          id: s.id || s.sessionId || s.uuid,
+          title: s.title || "",
+          isPinned: isPinnedVal,
+          is_pinned: isPinnedVal,
+          pinned: isPinnedVal,
+          isArchived: Boolean(s.isArchived || s.is_archived),
+          createdAt: s.createdAt || s.created_at || new Date().toISOString(),
+          updatedAt: s.updatedAt || s.updated_at || s.createdAt || s.created_at || new Date().toISOString(),
+        };
+      });
 
       mapped.sort((a, b) => {
         const timeA = new Date(a.updatedAt || a.createdAt).getTime();
@@ -251,11 +256,53 @@ export const chatService = {
   },
 
   async pinSession(conversationId: string, isPinned: boolean): Promise<void> {
+    const payload = {
+      conversationId,
+      sessionId: conversationId,
+      id: conversationId,
+      isPinned,
+      pinned: isPinned,
+      is_pinned: isPinned,
+    };
+
+    let lastError: any = null;
+
+    // 1. Primary endpoint: POST /api/chat/pin
     try {
-      await apiClient.post(`/api/chat/pin`, { conversationId, isPinned });
-    } catch (e) {
-      console.warn("Pin session endpoint failed:", e);
+      console.log(`[chatService] Requesting POST /api/chat/pin for session ${conversationId}`, payload);
+      await apiClient.post(`/api/chat/pin`, payload);
+      return;
+    } catch (e: any) {
+      console.warn("[chatService] POST /api/chat/pin failed, attempting fallback endpoints:", e?.response?.status || e?.message);
+      lastError = e;
     }
+
+    // 2. Fallback: PUT /api/conversation/:id
+    try {
+      console.log(`[chatService] Requesting PUT /api/conversation/${conversationId}`);
+      await apiClient.put(`/api/conversation/${conversationId}`, {
+        pinned: isPinned,
+        isPinned,
+        is_pinned: isPinned,
+      });
+      return;
+    } catch (e: any) {
+      console.warn("[chatService] PUT /api/conversation/:id failed:", e?.response?.status || e?.message);
+      lastError = e;
+    }
+
+    // 3. Fallback: POST /api/conversations/:id/pin
+    try {
+      console.log(`[chatService] Requesting POST /api/conversations/${conversationId}/pin`);
+      await apiClient.post(`/api/conversations/${conversationId}/pin`, payload);
+      return;
+    } catch (e: any) {
+      console.warn("[chatService] POST /api/conversations/:id/pin failed:", e?.response?.status || e?.message);
+      lastError = e;
+    }
+
+    // Must re-throw if all attempts failed so caller detects API failure
+    throw lastError;
   },
 
   async archiveSession(conversationId: string, isArchived: boolean): Promise<void> {

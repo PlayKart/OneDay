@@ -85,6 +85,7 @@ export interface ChatSession {
   title: string;
   isPinned?: boolean;
   is_pinned?: boolean;
+  pinned?: boolean;
   isArchived?: boolean;
   createdAt?: string;
   created_at?: string;
