@@ -198,6 +198,10 @@ export const AICoach: React.FC = () => {
   const safeMessages = Array.isArray(chatMessages) ? chatMessages : [];
   const hasMessages = safeMessages.length > 0;
 
+  // Extract suggestions from the most recent assistant message if available
+  const lastAssistantMessage = [...safeMessages].reverse().find((m) => m.role === "assistant" && !m.isStreaming);
+  const activeSuggestions = (lastAssistantMessage?.suggestions as any[]) || undefined;
+
   return (
     <div className="flex h-full w-full bg-[#050505] text-white overflow-hidden relative">
       {/* HISTORY DRAWER (Sidebar on Desktop, Slide-out on Mobile) */}
@@ -298,6 +302,7 @@ export const AICoach: React.FC = () => {
           loading={chatLoading}
           habits={habits}
           hasMessages={hasMessages}
+          suggestions={activeSuggestions}
         />
       </div>
     </div>

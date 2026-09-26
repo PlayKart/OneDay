@@ -321,7 +321,7 @@ export function parseCoachActionFromMessage(
             habits: normalizedHabits,
             title: rawPreview?.title || "Recommended Routine",
           },
-          cleanedText: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
+          cleanedText: msg.content || msg.reply || "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
           rawText: msg.content || "",
         };
       }
@@ -370,7 +370,7 @@ export function parseCoachActionFromMessage(
           icon,
           category,
         },
-        cleanedText: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
+        cleanedText: msg.content || msg.reply || "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
         rawText: msg.content || "",
       };
     }

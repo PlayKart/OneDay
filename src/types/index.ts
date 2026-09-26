@@ -112,6 +112,7 @@ export interface ChatMessage {
   preview?: any;
   action?: string;
   actionPayload?: any;
+  suggestions?: Array<{ label: string; text?: string; prompt?: string }> | string[];
   data?: any;
 }
 

@@ -1118,7 +1118,7 @@ export const useStore = create<StoreState>((set, get) => {
 
       try {
         const res = await chatService.sendMessage(activeId || null, messageText);
-        const reply = typeof res?.reply === "string" ? res.reply : "Focus on daily execution.";
+        const reply = typeof res?.reply === "string" ? res.reply : (res?.data?.reply || res?.data?.message || "");
         const returnedSessionId = res.sessionId;
 
         if (returnedSessionId && returnedSessionId !== activeId) {
@@ -1197,7 +1197,7 @@ export const useStore = create<StoreState>((set, get) => {
               id: tempAssistantMsgId,
               sessionId: activeId || "",
               role: "assistant",
-              content: "PLEASE REVIEW THE PREVIEW AND CONFIRM TO ADD.",
+              content: reply || res.data?.reply || res.data?.message || "",
               isStreaming: false,
               intent: "CREATE_HABIT",
               status: "AWAITING_CONFIRMATION",
@@ -1205,6 +1205,7 @@ export const useStore = create<StoreState>((set, get) => {
               preview: habitData,
               action: "CREATE_HABIT",
               actionPayload: habitData,
+              suggestions: res.suggestions,
               data: res.data,
             };
 
@@ -1246,6 +1247,7 @@ export const useStore = create<StoreState>((set, get) => {
               preview: habitData,
               action: responseAction,
               actionPayload: habitData,
+              suggestions: res.suggestions,
               data: res.data,
             };
 
@@ -1429,7 +1431,7 @@ export const useStore = create<StoreState>((set, get) => {
 
       try {
         const res = await chatService.sendMessage(activeId || null, userPrompt);
-        const reply = res.reply || "Focus on daily execution.";
+        const reply = res.reply || res.data?.reply || res.data?.message || "";
 
         set((state) => ({
           chatMessages: state.chatMessages.map((m) =>
@@ -1438,6 +1440,7 @@ export const useStore = create<StoreState>((set, get) => {
                   ...m,
                   content: reply,
                   isRegenerating: false,
+                  suggestions: res.suggestions,
                   error: null,
                 }
               : m
@@ -1445,6 +1448,11 @@ export const useStore = create<StoreState>((set, get) => {
         }));
       } catch (err: any) {
         console.error("[useStore] Message regeneration failed:", err);
+        const errorMsg =
+          err?.response?.data?.error?.message ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Couldn't regenerate message.";
         set((state) => ({
           chatMessages: state.chatMessages.map((m) =>
             m.id === targetMsg.id
@@ -1452,7 +1460,7 @@ export const useStore = create<StoreState>((set, get) => {
                   ...m,
                   content: originalContent,
                   isRegenerating: false,
-                  error: "Couldn't regenerate. Try again.",
+                  error: errorMsg,
                 }
               : m
           ),

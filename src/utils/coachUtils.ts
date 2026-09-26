@@ -243,20 +243,29 @@ export function getFollowUpChips(habits: Habit[]): { label: string; text: string
   const activeHabits = Array.isArray(habits) ? habits.filter((h) => !h.isArchived) : [];
   const hasIncomplete = activeHabits.some((h) => !h.completedToday);
 
-  return [
-    {
-      label: "Add a workout habit",
-      text: "Add a workout habit",
-    },
+  const chips: { label: string; text: string }[] = [];
+
+  if (activeHabits.length === 0) {
+    chips.push({
+      label: "Set up a starter habit",
+      text: "Help me design a high-impact starter habit for my primary goal.",
+    });
+  } else if (hasIncomplete) {
+    chips.push({
+      label: "Next habit to tackle",
+      text: "Which of my remaining daily habits should I execute next for maximum momentum?",
+    });
+  } else {
+    chips.push({
+      label: "Plan tomorrow's morning",
+      text: "Based on today's execution, what exact morning routine should I follow tomorrow?",
+    });
+  }
+
+  chips.push(
     {
       label: "Give me 3 immediate steps",
       text: "Break this down into 3 concrete, immediate action steps I must take right now.",
-    },
-    {
-      label: hasIncomplete ? "Next habit to tackle" : "Plan tomorrow's morning",
-      text: hasIncomplete
-        ? "Which of my remaining habits should I knock out first for maximum momentum?"
-        : "Based on this, what exact morning routine should I follow tomorrow?",
     },
     {
       label: "Make it more rigorous",
@@ -265,6 +274,8 @@ export function getFollowUpChips(habits: Habit[]): { label: string; text: string
     {
       label: "Summarize as checklist",
       text: "Summarize this entire protocol into a clear, concise bulleted checklist.",
-    },
-  ];
+    }
+  );
+
+  return chips;
 }

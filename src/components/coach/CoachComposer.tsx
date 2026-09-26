@@ -11,6 +11,7 @@ interface CoachComposerProps {
   loading: boolean;
   habits: Habit[];
   hasMessages: boolean;
+  suggestions?: any[];
 }
 
 export const CoachComposer: React.FC<CoachComposerProps> = ({
@@ -18,10 +19,24 @@ export const CoachComposer: React.FC<CoachComposerProps> = ({
   loading,
   habits,
   hasMessages,
+  suggestions,
 }) => {
   const [inputText, setInputText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const chips = getFollowUpChips(habits);
+
+  const chips = React.useMemo(() => {
+    if (Array.isArray(suggestions) && suggestions.length > 0) {
+      return suggestions.map((s: any) => {
+        if (typeof s === "string") {
+          return { label: s, text: s };
+        }
+        const label = s.label || s.title || s.text || s.prompt || "Option";
+        const text = s.text || s.prompt || s.label || s.title || label;
+        return { label, text };
+      });
+    }
+    return getFollowUpChips(habits);
+  }, [suggestions, habits]);
 
   // Auto-resize textarea based on scrollHeight
   useEffect(() => {

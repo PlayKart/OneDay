@@ -92,6 +92,7 @@ export const chatService = {
         preview: m.preview || m.data?.preview || m.habit || m.data?.habit,
         action: m.action || m.data?.action || m.intent || m.data?.intent,
         actionPayload: m.actionPayload || m.data?.actionPayload || m.preview || m.data?.preview,
+        suggestions: m.suggestions || m.suggestedReplies || m.suggested_replies || m.quickReplies || m.data?.suggestions || m.data?.suggestedReplies,
         data: m.data,
       }));
 
@@ -140,6 +141,7 @@ export const chatService = {
     preview?: any;
     action?: string;
     actionPayload?: any;
+    suggestions?: any[];
     data?: any;
   }> {
     const endpoint = "/api/chat";
@@ -148,7 +150,7 @@ export const chatService = {
 
     const payload = {
       message,
-      ...(sessionId ? { sessionId } : {}),
+      ...(sessionId ? { sessionId, conversationId: sessionId } : {}),
     };
 
     console.log("Current session:", sessionId);
@@ -167,7 +169,7 @@ export const chatService = {
           intent: "DUPLICATE_HABIT",
           action: "DUPLICATE_HABIT",
           reply: duplicateMsg,
-          sessionId: body?.sessionId || sessionId || undefined,
+          sessionId: body?.sessionId || body?.session_id || body?.conversationId || sessionId || undefined,
           data: body.data || body,
         };
       }
@@ -186,10 +188,13 @@ export const chatService = {
         body?.message ||
         body?.content ||
         body?.data?.reply ||
-        (typeof body === "string" ? body : "I am your AI Coach. Keep pushing your limits.");
+        body?.data?.response ||
+        body?.data?.message ||
+        body?.data?.content ||
+        (typeof body === "string" ? body : "");
 
       const titleText = body?.title || body?.data?.title || body?.session?.title;
-      const returnedSessionId = body?.sessionId || body?.session_id || body?.session?.id;
+      const returnedSessionId = body?.sessionId || body?.session_id || body?.session?.id || body?.conversationId || body?.conversation_id;
 
       // Authoritative extraction without loose intent guessing
       const rawType = body?.type || body?.data?.type || (body?.intent === "CREATE_HABIT" ? "habit_creation_preview" : "coach_response");
@@ -199,6 +204,19 @@ export const chatService = {
       const rawActionId = body?.actionId || body?.data?.actionId || body?.habit?.actionId || body?.preview?.actionId;
       const rawHabitId = body?.habit_id || body?.habitId || body?.data?.habit_id || body?.data?.habitId || body?.habit?.id || body?.preview?.id;
       const rawHabit = body?.habit || body?.preview || body?.data?.habit || body?.data?.preview || (rawHabitId ? { habit_id: rawHabitId, habitId: rawHabitId, name: body?.habit_name || body?.data?.habit_name } : undefined);
+
+      const rawSuggestions =
+        body?.suggestions ||
+        body?.suggestedReplies ||
+        body?.suggested_replies ||
+        body?.quickReplies ||
+        body?.quick_replies ||
+        body?.chips ||
+        body?.data?.suggestions ||
+        body?.data?.suggestedReplies ||
+        body?.data?.suggested_replies ||
+        body?.data?.quickReplies ||
+        body?.data?.chips;
 
       return {
         type: rawType,
@@ -215,6 +233,7 @@ export const chatService = {
         sessionId: returnedSessionId,
         preview: rawHabit,
         actionPayload: rawHabit,
+        suggestions: Array.isArray(rawSuggestions) ? rawSuggestions : undefined,
         data: body?.data,
       };
     } catch (err: any) {
