@@ -294,38 +294,50 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
             </div>
 
             {(() => {
-              const unlockedSet = new Set(
-                unlockedTitles.map((t) => normalizeTitleUpper(t)).filter(Boolean)
-              );
-
-              // Prepare list of items to display: use activeUser.titles catalog if present, else unlockedTitles
-              const catalogItems: Array<{ name: string; levelReq?: number }> = [];
+              // ONLY render unlocked titles actually earned by the user
+              const earnedItems: Array<{ name: string; levelReq?: number }> = [];
               const seenNames = new Set<string>();
 
-              if (Array.isArray(activeUser?.titles) && activeUser.titles.length > 0) {
+              // Map of title name to level requirement if available in backend title metadata
+              const titleLevelMap = new Map<string, number>();
+              if (Array.isArray(activeUser?.titles)) {
                 activeUser.titles.forEach((it: any) => {
                   const norm = normalizeTitleUpper(it);
-                  if (norm && !seenNames.has(norm)) {
-                    seenNames.add(norm);
-                    const levelReq = typeof it === "object"
-                      ? (typeof it.level === "number" ? it.level : typeof it.levelRequired === "number" ? it.levelRequired : typeof it.level_required === "number" ? it.level_required : undefined)
-                      : undefined;
-                    catalogItems.push({ name: norm, levelReq });
+                  const lvl = typeof it === "object"
+                    ? (typeof it.level === "number" ? it.level : typeof it.levelRequired === "number" ? it.levelRequired : typeof it.level_required === "number" ? it.level_required : undefined)
+                    : undefined;
+                  if (norm && typeof lvl === "number") {
+                    titleLevelMap.set(norm, lvl);
                   }
                 });
               }
 
-              // Ensure all unlocked titles are included in catalog list
+              // Only include user's earned / unlocked titles
               unlockedTitles.forEach((t) => {
                 const norm = normalizeTitleUpper(t);
                 if (norm && !seenNames.has(norm)) {
                   seenNames.add(norm);
-                  catalogItems.push({ name: norm });
+                  earnedItems.push({
+                    name: norm,
+                    levelReq: titleLevelMap.get(norm),
+                  });
                 }
               });
 
-              // If no catalog items or unlocked titles exist at all
-              if (catalogItems.length === 0) {
+              // Ensure equipped title is always in the earned collection
+              if (equippedTitle) {
+                const norm = normalizeTitleUpper(equippedTitle);
+                if (norm && !seenNames.has(norm)) {
+                  seenNames.add(norm);
+                  earnedItems.push({
+                    name: norm,
+                    levelReq: titleLevelMap.get(norm),
+                  });
+                }
+              }
+
+              // If no earned titles exist at all
+              if (earnedItems.length === 0) {
                 return (
                   <div className="p-8 rounded-2xl border border-white/5 bg-white/[0.02] text-center space-y-3">
                     <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mx-auto">
@@ -346,40 +358,33 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
 
               return (
                 <div className="space-y-2.5">
-                  {catalogItems.map(({ name: rawName, levelReq }) => {
-                    const isEarned = unlockedSet.has(rawName);
+                  {earnedItems.map(({ name: rawName, levelReq }) => {
                     const isCurrent = normEquipped === rawName;
                     const isEquipping = normEquipping === rawName;
                     const isAnyEquipping = Boolean(equippingTitle);
-                    const isNew = isEarned && isTitleNew(rawName, currentUserId);
+                    const isNew = isTitleNew(rawName, currentUserId);
 
                     return (
                       <div
                         key={rawName}
                         onClick={() => {
-                          if (isEarned && !isCurrent && !isAnyEquipping) {
+                          if (!isCurrent && !isAnyEquipping) {
                             handleSelectTitle(rawName);
                           }
                         }}
                         className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                           isCurrent
                             ? "bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)] cursor-default"
-                            : isEarned
-                            ? isAnyEquipping
-                              ? "bg-white/[0.02] border-white/5 opacity-60 cursor-not-allowed"
-                              : "bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] cursor-pointer"
-                            : "bg-white/[0.01] border-white/[0.03] opacity-60 cursor-not-allowed"
+                            : isAnyEquipping
+                            ? "bg-white/[0.02] border-white/5 opacity-60 cursor-not-allowed"
+                            : "bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] cursor-pointer"
                         }`}
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span
                               className={`text-xs font-black uppercase tracking-wide ${
-                                isCurrent
-                                  ? "text-amber-300"
-                                  : isEarned
-                                  ? "text-white"
-                                  : "text-slate-400"
+                                isCurrent ? "text-amber-300" : "text-white"
                               }`}
                             >
                               {rawName}
@@ -398,47 +403,41 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
                           </div>
                           {levelReq && (
                             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-                              {isEarned ? `UNLOCKED AT LEVEL ${levelReq}` : `UNLOCKS AT LEVEL ${levelReq}`}
+                              Level {levelReq}
                             </p>
                           )}
                         </div>
 
-                        {isEarned ? (
-                          <button
-                            type="button"
-                            disabled={isCurrent || isAnyEquipping}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!isCurrent && !isAnyEquipping) {
-                                handleSelectTitle(rawName);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 ${
-                              isCurrent
-                                ? "bg-amber-400/20 text-amber-300 border border-amber-500/30 cursor-default"
-                                : isEquipping
-                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-wait"
-                                : isAnyEquipping
-                                ? "bg-white/5 text-slate-500 border border-white/5 cursor-not-allowed opacity-50"
-                                : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer active:scale-95"
-                            }`}
-                          >
-                            {isEquipping ? (
-                              <>
-                                <Loader2 size={10} className="animate-spin text-amber-400" />
-                                <span>Equipping...</span>
-                              </>
-                            ) : isCurrent ? (
-                              "EQUIPPED"
-                            ) : (
-                              "EQUIP"
-                            )}
-                          </button>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-xl bg-white/[0.03] border border-white/5 text-slate-500 text-[9px] font-bold uppercase tracking-wider shrink-0">
-                            {levelReq ? `Level ${levelReq}` : "Locked"}
-                          </span>
-                        )}
+                        <button
+                          type="button"
+                          disabled={isCurrent || isAnyEquipping}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isCurrent && !isAnyEquipping) {
+                              handleSelectTitle(rawName);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 ${
+                            isCurrent
+                              ? "bg-amber-400/20 text-amber-300 border border-amber-500/30 cursor-default"
+                              : isEquipping
+                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-wait"
+                              : isAnyEquipping
+                              ? "bg-white/5 text-slate-500 border border-white/5 cursor-not-allowed opacity-50"
+                              : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer active:scale-95"
+                          }`}
+                        >
+                          {isEquipping ? (
+                            <>
+                              <Loader2 size={10} className="animate-spin text-amber-400" />
+                              <span>Equipping...</span>
+                            </>
+                          ) : isCurrent ? (
+                            "EQUIPPED"
+                          ) : (
+                            "EQUIP"
+                          )}
+                        </button>
                       </div>
                     );
                   })}

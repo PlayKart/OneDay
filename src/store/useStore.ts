@@ -113,6 +113,7 @@ interface StoreState {
 let inFlightFetchSessionsPromise: Promise<void> | null = null;
 let selectSessionAbortController: AbortController | null = null;
 let selectSessionSequence = 0;
+let isSendChatMessageInFlight = false;
 
 export const useStore = create<StoreState>((set, get) => {
   const authStartTime = performance.now();
@@ -1086,6 +1087,12 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     sendChatMessage: async (messageText) => {
+      if (isSendChatMessageInFlight) {
+        console.warn("[COACH UI] sendChatMessage ignored: another message is already in flight.");
+        return;
+      }
+      isSendChatMessageInFlight = true;
+
       let activeId = get().activeChatId;
       console.log(`[COACH UI] user message sent: ${messageText}`);
 
@@ -1291,6 +1298,11 @@ export const useStore = create<StoreState>((set, get) => {
             ),
           }));
         }
+
+        // Fetch fresh chat sessions from backend so newly persisted conversations appear in history without page reload
+        get().fetchSessions(false).catch((err) => {
+          console.warn("[useStore] post-send fetchSessions notice:", err);
+        });
       } catch (e: any) {
         console.error("[AI Coach] sendChatMessage failed:", e);
 
@@ -1387,6 +1399,8 @@ export const useStore = create<StoreState>((set, get) => {
             chatLoading: false,
           };
         });
+      } finally {
+        isSendChatMessageInFlight = false;
       }
     },
 

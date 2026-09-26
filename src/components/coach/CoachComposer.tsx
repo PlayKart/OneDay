@@ -23,6 +23,7 @@ export const CoachComposer: React.FC<CoachComposerProps> = ({
 }) => {
   const [inputText, setInputText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isSubmittingRef = useRef(false);
 
   const chips = React.useMemo(() => {
     if (Array.isArray(suggestions) && suggestions.length > 0) {
@@ -50,7 +51,8 @@ export const CoachComposer: React.FC<CoachComposerProps> = ({
 
   const handleSubmit = async () => {
     const trimmed = inputText.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
 
     // Clear input optimistically
     setInputText("");
@@ -63,6 +65,8 @@ export const CoachComposer: React.FC<CoachComposerProps> = ({
     } catch (e) {
       // Restore input text on unexpected failure
       setInputText(trimmed);
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
@@ -74,11 +78,14 @@ export const CoachComposer: React.FC<CoachComposerProps> = ({
   };
 
   const handleChipClick = async (promptText: string) => {
-    if (loading) return;
+    if (loading || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     try {
       await onSendMessage(promptText);
     } catch (e) {
       console.warn("Follow-up chip send failed:", e);
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 

@@ -26,7 +26,6 @@ export const AICoach: React.FC = () => {
     deleteSession,
     renameSession,
     pinSession,
-    archiveSession,
     sendChatMessage,
     regenerateMessage,
     editPreviousMessage,
@@ -45,6 +44,7 @@ export const AICoach: React.FC = () => {
   const prevLoadingRef = useRef(chatLoading);
   const prevMsgCountRef = useRef(chatMessages?.length || 0);
   const userJustSentRef = useRef(false);
+  const isSendingRef = useRef(false);
   const hasFetchedInitialSessions = useRef(false);
 
   // Fetch initial chat sessions safely ONCE when store is initialized
@@ -103,13 +103,16 @@ export const AICoach: React.FC = () => {
 
   // Handlers
   const handleSendMessage = async (text: string) => {
-    if (!text.trim() || chatLoading) return;
+    if (!text.trim() || chatLoading || isSendingRef.current) return;
+    isSendingRef.current = true;
     userJustSentRef.current = true;
     scrollToBottom(true);
     try {
       await sendChatMessage(text.trim());
     } catch (err: any) {
       console.error("[AICoach] Delivery non-fatal error:", err);
+    } finally {
+      isSendingRef.current = false;
     }
   };
 
@@ -160,28 +163,6 @@ export const AICoach: React.FC = () => {
     toast.success("Session messages cleared");
   };
 
-  const handleExportChat = async () => {
-    try {
-      const data = await chatService.exportChats();
-      if (!data) {
-        toast.error("No conversations to export");
-        return;
-      }
-      const dataStr = JSON.stringify(data, null, 2);
-      const blob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `OneDay_Coach_Conversations_${new Date().toISOString().split("T")[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Conversations exported");
-    } catch (e) {
-      console.error("Export error:", e);
-      toast.error("Failed to export chats");
-    }
-  };
-
   const handleDeleteActiveChat = async () => {
     if (!activeChatId) return;
     if (window.confirm("Delete this entire conversation?")) {
@@ -217,7 +198,6 @@ export const AICoach: React.FC = () => {
         onNewChat={handleStartNewChat}
         onRenameSession={(id, title) => renameSession(id, title)}
         onPinSession={(id) => pinSession(id)}
-        onArchiveSession={(id) => archiveSession(id)}
         onDeleteSession={(id) => deleteSession(id)}
       />
 
@@ -231,7 +211,6 @@ export const AICoach: React.FC = () => {
           onToggleDesktopSidebar={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
           onNewChat={handleStartNewChat}
           onClearChat={handleClearChat}
-          onExportChat={handleExportChat}
           onDeleteChat={handleDeleteActiveChat}
           hasActiveSession={Boolean(activeChatId)}
           chatLoading={chatLoading}

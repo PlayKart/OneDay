@@ -19,6 +19,8 @@ export function StreakProtectionSection() {
     refreshFromBackend();
   });
 
+  const streak = typeof user?.currentStreak === "number" ? user.currentStreak : (typeof user?.streak === "number" ? user.streak : 0);
+
   const [freezeDays, setFreezeDays] = useState(7);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [activating, setActivating] = useState(false);
@@ -30,6 +32,10 @@ export function StreakProtectionSection() {
 
   const handleOpenConfirm = () => {
     if (isFrozen) return;
+    if (streak <= 0) {
+      toast.error("You have no active streak to protect.");
+      return;
+    }
     if (credits <= 0) {
       toast.error("You have no freeze credits available.");
       return;
@@ -231,100 +237,127 @@ export function StreakProtectionSection() {
                   STREAK PROTECTION
                 </h3>
                 <p className="text-xs text-neutral-400 mt-0.5 leading-relaxed">
-                  Protect your streak when you need time away.
+                  {streak <= 0
+                    ? "Streak protection requires an active streak to protect."
+                    : "Protect your streak when you need time away."}
                 </p>
               </div>
             </div>
 
-            {/* Duration Selector */}
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-3 text-left">
-              <div className="flex justify-between items-center">
-                <span className="text-[11px] font-mono font-bold uppercase text-neutral-400 tracking-wider">
-                  Freeze Duration
-                </span>
-                <span className="text-xs font-mono font-bold text-white bg-white/10 px-2.5 py-1 rounded-md border border-white/10">
-                  {freezeDays} {freezeDays === 1 ? "Day" : "Days"}
-                </span>
+            {streak <= 0 ? (
+              /* Informational state when streak = 0: No actionable freeze controls */
+              <div className="p-5 rounded-xl bg-white/[0.02] border border-white/[0.06] text-center space-y-2.5">
+                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-neutral-400 mx-auto">
+                  <Shield size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-200">
+                    NO ACTIVE STREAK TO PROTECT
+                  </h4>
+                  <p className="text-xs text-neutral-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                    You currently have a 0-day streak. Complete your scheduled habits today to begin building momentum. Streak Freeze can be activated once you have an active streak.
+                  </p>
+                </div>
+                <div className="pt-1">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-[10px] font-mono text-neutral-400 uppercase tracking-wider font-semibold">
+                    Current Streak: 0 Days
+                  </span>
+                </div>
               </div>
+            ) : (
+              /* Actionable freeze controls when streak > 0 */
+              <>
+                {/* Duration Selector */}
+                <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-3 text-left">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-mono font-bold uppercase text-neutral-400 tracking-wider">
+                      Freeze Duration
+                    </span>
+                    <span className="text-xs font-mono font-bold text-white bg-white/10 px-2.5 py-1 rounded-md border border-white/10">
+                      {freezeDays} {freezeDays === 1 ? "Day" : "Days"}
+                    </span>
+                  </div>
 
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={freezeDays}
-                onChange={(e) => setFreezeDays(parseInt(e.target.value))}
-                className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white"
-              />
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={freezeDays}
+                    onChange={(e) => setFreezeDays(parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white"
+                  />
 
-              {/* Quick Presets */}
-              <div className="grid grid-cols-4 gap-2 pt-1">
-                {[1, 3, 7, 10].map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setFreezeDays(d)}
-                    className={`py-1.5 text-xs font-mono font-semibold rounded-lg border transition-all cursor-pointer ${
-                      freezeDays === d
-                        ? "bg-white text-black border-white shadow-sm"
-                        : "bg-white/[0.04] text-neutral-400 border-white/[0.06] hover:text-white hover:border-white/10"
-                    }`}
-                  >
-                    {d} {d === 1 ? "Day" : "Days"}
-                  </button>
-                ))}
-              </div>
+                  {/* Quick Presets */}
+                  <div className="grid grid-cols-4 gap-2 pt-1">
+                    {[1, 3, 7, 10].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setFreezeDays(d)}
+                        className={`py-1.5 text-xs font-mono font-semibold rounded-lg border transition-all cursor-pointer ${
+                          freezeDays === d
+                            ? "bg-white text-black border-white shadow-sm"
+                            : "bg-white/[0.04] text-neutral-400 border-white/[0.06] hover:text-white hover:border-white/10"
+                        }`}
+                      >
+                        {d} {d === 1 ? "Day" : "Days"}
+                      </button>
+                    ))}
+                  </div>
 
-              {/* Preview End Date */}
-              <div className="text-[11px] text-neutral-400 flex items-center justify-between pt-1 border-t border-white/[0.04]">
-                <span>Protection ends on:</span>
-                <span className="text-neutral-200 font-mono font-semibold">{formattedPreviewDate}</span>
-              </div>
-            </div>
+                  {/* Preview End Date */}
+                  <div className="text-[11px] text-neutral-400 flex items-center justify-between pt-1 border-t border-white/[0.04]">
+                    <span>Protection ends on:</span>
+                    <span className="text-neutral-200 font-mono font-semibold">{formattedPreviewDate}</span>
+                  </div>
+                </div>
 
-            {/* Quick Policy Highlights */}
-            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2 text-left">
-              <h4 className="text-[10px] font-mono font-bold tracking-widest text-neutral-400 uppercase">
-                IMPORTANT RULES
-              </h4>
-              <ul className="space-y-1.5 text-xs text-neutral-300 leading-relaxed">
-                <li className="flex items-start gap-2">
-                  <span className="text-cyan-400 shrink-0 mt-0.5">•</span>
-                  <span>Your streak is safely held for the duration.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-cyan-400 shrink-0 mt-0.5">•</span>
-                  <span>Habit completion is locked while frozen.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-cyan-400 shrink-0 mt-0.5">•</span>
-                  <span className="font-semibold text-white">Once activated, a freeze cannot be cancelled early.</span>
-                </li>
-              </ul>
-            </div>
+                {/* Quick Policy Highlights */}
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2 text-left">
+                  <h4 className="text-[10px] font-mono font-bold tracking-widest text-neutral-400 uppercase">
+                    IMPORTANT RULES
+                  </h4>
+                  <ul className="space-y-1.5 text-xs text-neutral-300 leading-relaxed">
+                    <li className="flex items-start gap-2">
+                      <span className="text-cyan-400 shrink-0 mt-0.5">•</span>
+                      <span>Your streak is safely held for the duration.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-cyan-400 shrink-0 mt-0.5">•</span>
+                      <span>Habit completion is locked while frozen.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-cyan-400 shrink-0 mt-0.5">•</span>
+                      <span className="font-semibold text-white">Once activated, a freeze cannot be cancelled early.</span>
+                    </li>
+                  </ul>
+                </div>
 
-            {/* Action Trigger */}
-            <div>
-              {credits > 0 ? (
-                <button
-                  type="button"
-                  id="activate-freeze-button"
-                  onClick={handleOpenConfirm}
-                  className="w-full py-3.5 px-4 rounded-xl bg-white text-black font-bold text-xs tracking-wider uppercase hover:bg-neutral-200 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg"
-                >
-                  <Shield size={14} />
-                  <span>ACTIVATE STREAK FREEZE</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="w-full py-3.5 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-neutral-500 font-bold text-xs tracking-wider uppercase cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <AlertCircle size={14} />
-                  <span>NO FREEZE CREDITS AVAILABLE</span>
-                </button>
-              )}
-            </div>
+                {/* Action Trigger */}
+                <div>
+                  {credits > 0 ? (
+                    <button
+                      type="button"
+                      id="activate-freeze-button"
+                      onClick={handleOpenConfirm}
+                      className="w-full py-3.5 px-4 rounded-xl bg-white text-black font-bold text-xs tracking-wider uppercase hover:bg-neutral-200 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg"
+                    >
+                      <Shield size={14} />
+                      <span>ACTIVATE STREAK FREEZE</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="w-full py-3.5 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-neutral-500 font-bold text-xs tracking-wider uppercase cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <AlertCircle size={14} />
+                      <span>NO FREEZE CREDITS AVAILABLE</span>
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

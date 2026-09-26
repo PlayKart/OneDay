@@ -8,7 +8,6 @@ import {
   Pin,
   Edit2,
   Trash2,
-  Archive,
   MoreHorizontal,
   Flame,
   User as UserIcon,
@@ -34,7 +33,6 @@ interface CoachHistoryDrawerProps {
   onNewChat: () => void;
   onRenameSession: (id: string, newTitle: string) => Promise<void>;
   onPinSession: (id: string) => Promise<void>;
-  onArchiveSession: (id: string) => Promise<void>;
   onDeleteSession: (id: string) => Promise<void>;
 }
 
@@ -50,7 +48,6 @@ export const CoachHistoryDrawer: React.FC<CoachHistoryDrawerProps> = ({
   onNewChat,
   onRenameSession,
   onPinSession,
-  onArchiveSession,
   onDeleteSession,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -222,18 +219,6 @@ export const CoachHistoryDrawer: React.FC<CoachHistoryDrawerProps> = ({
                   >
                     <Edit2 size={11} className="text-slate-400" />
                     Rename
-                  </button>
-
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      setActiveMenuSessionId(null);
-                      await onArchiveSession(session.id);
-                    }}
-                    className="w-full text-left px-3 py-1.5 text-[11px] text-slate-200 hover:text-white hover:bg-white/[0.08] flex items-center gap-2 font-medium transition-colors cursor-pointer"
-                  >
-                    <Archive size={11} className="text-slate-400" />
-                    Archive
                   </button>
                 </div>
 

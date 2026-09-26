@@ -6,7 +6,6 @@ import {
   Plus, 
   MoreVertical, 
   RotateCcw, 
-  Download, 
   Trash2, 
   PanelLeft, 
   PanelLeftClose
@@ -22,7 +21,6 @@ interface CoachHeaderProps {
   onToggleDesktopSidebar: () => void;
   onNewChat: () => void;
   onClearChat: () => void;
-  onExportChat: () => void;
   onDeleteChat: () => void;
   hasActiveSession: boolean;
   chatLoading: boolean;
@@ -35,7 +33,6 @@ export const CoachHeader: React.FC<CoachHeaderProps> = ({
   onToggleDesktopSidebar,
   onNewChat,
   onClearChat,
-  onExportChat,
   onDeleteChat,
   hasActiveSession,
   chatLoading,
@@ -147,17 +144,6 @@ export const CoachHeader: React.FC<CoachHeaderProps> = ({
                   >
                     <RotateCcw size={13} className="text-slate-400" />
                     <span>Clear Messages</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onExportChat();
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/[0.08] hover:text-white transition-colors flex items-center gap-2.5 cursor-pointer"
-                  >
-                    <Download size={13} className="text-slate-400" />
-                    <span>Export Protocols</span>
                   </button>
                 </div>
 
