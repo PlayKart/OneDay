@@ -188,10 +188,43 @@ export default function App() {
     }
   }, [appState, initialized, firebaseUser, user, loading, profileSynced, backendError]);
 
-  // Log Navigation/Route Changes
+  // Log Navigation/Route Changes and sync browser navigation
   useEffect(() => {
     console.log(`[STARTUP SEQUENCE - Navigation] Tab/Route changed to: ${activeTab}`);
   }, [activeTab]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (
+        path.startsWith("/settings") ||
+        path === "/profile" ||
+        path === "/progress" ||
+        path === "/account"
+      ) {
+        if (useStore.getState().activeTab !== "settings") {
+          useStore.getState().setActiveTab("settings");
+        }
+      } else if (path === "/habits") {
+        if (useStore.getState().activeTab !== "habits") {
+          useStore.getState().setActiveTab("habits");
+        }
+      } else if (path === "/coach") {
+        if (useStore.getState().activeTab !== "coach") {
+          useStore.getState().setActiveTab("coach");
+        }
+      } else if (path === "/dashboard") {
+        if (useStore.getState().activeTab !== "dashboard") {
+          useStore.getState().setActiveTab("dashboard");
+        }
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
 
   // Refresh on day change / focus
   useEffect(() => {

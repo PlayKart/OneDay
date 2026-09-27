@@ -4,63 +4,106 @@ import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
 import {
   User as UserIcon,
-  Shield,
   ShieldCheck,
   Trophy,
   Sliders,
   LogOut,
   Download,
   FileText,
-  RotateCcw,
-  Trash2,
   ChevronRight,
   ArrowRight,
   ArrowLeft,
-  X,
-  Sparkles,
-  AlertTriangle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
 import { PrivacyPage } from "../PrivacyPage";
 import { TermsPage } from "../TermsPage";
 import { ProfileScreen } from "./ProfileScreen";
+import { ProgressionScreen } from "./ProgressionScreen";
+import { AccountScreen } from "./AccountScreen";
 import { getEquippedTitle } from "../../utils/titleUtils";
 import { StreakProtectionSection } from "../settings/StreakProtectionSection";
 
+export type SettingsSubView =
+  | "main"
+  | "profile"
+  | "progress"
+  | "account"
+  | "privacy"
+  | "terms";
+
+const getInitialView = (): SettingsSubView => {
+  if (typeof window !== "undefined") {
+    const path = window.location.pathname;
+    if (path === "/settings/profile" || path === "/profile") return "profile";
+    if (path === "/settings/progress" || path === "/progress") return "progress";
+    if (path === "/settings/account" || path === "/account") return "account";
+    if (path === "/settings/privacy" || path === "/privacy") return "privacy";
+    if (path === "/settings/terms" || path === "/terms") return "terms";
+  }
+  return "main";
+};
+
 export function SettingsScreen() {
-  const {
-    user,
-    firebaseUser,
-    resetProgress,
-    deleteAccount,
-    setActiveTab,
-  } = useStore();
+  const { user, firebaseUser, setActiveTab } = useStore();
 
   // Navigation view within Settings
-  const [settingsView, setSettingsView] = useState<"main" | "privacy" | "terms" | "profile">("main");
+  const [settingsView, setSettingsView] = useState<SettingsSubView>(getInitialView);
 
-  // Destructive confirmation modals
+  // Sign out confirmation modal (for direct inline access)
   const [confirmSignOut, setConfirmSignOut] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
-  // Sync internal view navigation with browser history for natural back gesture
-  const handleViewChange = (view: "main" | "privacy" | "terms" | "profile") => {
+  // Synchronize internal view navigation with browser URL and history
+  const handleViewChange = (view: SettingsSubView) => {
     setSettingsView(view);
-    window.history.pushState({ settingsView: view }, "", "");
+    const pathMap: Record<SettingsSubView, string> = {
+      main: "/settings",
+      profile: "/settings/profile",
+      progress: "/settings/progress",
+      account: "/settings/account",
+      privacy: "/settings/privacy",
+      terms: "/settings/terms",
+    };
+    const targetPath = pathMap[view] || "/settings";
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ tab: "settings", settingsView: view }, "", targetPath);
+    }
+  };
+
+  const handleBackToMain = () => {
+    setSettingsView("main");
+    if (
+      window.history.state?.settingsView &&
+      window.history.state.settingsView !== "main"
+    ) {
+      window.history.back();
+    } else {
+      window.history.pushState({ tab: "settings", settingsView: "main" }, "", "/settings");
+    }
   };
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      if (event.state && event.state.settingsView) {
+      const path = window.location.pathname;
+      if (path === "/settings/profile" || path === "/profile") {
+        setSettingsView("profile");
+      } else if (path === "/settings/progress" || path === "/progress") {
+        setSettingsView("progress");
+      } else if (path === "/settings/account" || path === "/account") {
+        setSettingsView("account");
+      } else if (path === "/settings/privacy" || path === "/privacy") {
+        setSettingsView("privacy");
+      } else if (path === "/settings/terms" || path === "/terms") {
+        setSettingsView("terms");
+      } else if (path === "/settings") {
+        setSettingsView("main");
+      } else if (event.state && event.state.settingsView) {
         setSettingsView(event.state.settingsView);
       } else {
         setSettingsView("main");
       }
     };
+
     window.addEventListener("popstate", handlePopState);
     return () => {
       window.removeEventListener("popstate", handlePopState);
@@ -69,14 +112,13 @@ export function SettingsScreen() {
 
   if (!user && settingsView === "main") return null;
 
-  const isFrozen = Boolean((user?.freezeUntil || user?.freeze_until) && new Date(user.freezeUntil || user.freeze_until || "") > new Date());
   const equippedTitle = getEquippedTitle(user);
   const userDisplayName = user?.name || firebaseUser?.displayName || "User";
   const userEmail = firebaseUser?.email || user?.email || "Signed in account";
   const userLevel = user?.level || 1;
   const userStreak = user?.currentStreak ?? user?.streak ?? 0;
 
-  // Auth & Account Handlers
+  // Sign out handler
   const handleSignOutConfirm = async () => {
     try {
       await signOut(auth);
@@ -84,35 +126,6 @@ export function SettingsScreen() {
       toast.success("Successfully signed out.");
     } catch (e: any) {
       toast.error(e?.message || "Failed to sign out.");
-    }
-  };
-
-  const handleResetConfirm = async () => {
-    try {
-      setResetting(true);
-      await resetProgress();
-      setConfirmReset(false);
-      toast.success("Progress reset successfully.");
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to reset progress.");
-    } finally {
-      setResetting(false);
-    }
-  };
-
-  const handleDeleteAccountConfirm = async () => {
-    try {
-      setDeleting(true);
-      await deleteAccount();
-      localStorage.clear();
-      sessionStorage.clear();
-      await signOut(auth);
-      setConfirmDelete(false);
-      toast.success("Account deleted successfully.");
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to delete account.");
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -133,19 +146,23 @@ export function SettingsScreen() {
           currentStreak: userStreak,
           equippedTitle: equippedTitle || null,
           hobbies: user?.hobbies || [],
-          favouriteSports: user?.favouriteSports || (user as any)?.favorite_sports || [],
-          reasonForJoining: user?.reasonForJoining || user?.whyOneday || user?.why_oneday || "",
+          favouriteSports:
+            user?.favouriteSports || (user as any)?.favorite_sports || [],
+          reasonForJoining:
+            user?.reasonForJoining || user?.whyOneday || user?.why_oneday || "",
         },
         habits: currentState.habits || [],
-        settings: {
-          freezeUntil: user?.freezeUntil || user?.freeze_until || null,
-        },
       };
 
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
+      const dataStr =
+        "data:text/json;charset=utf-8," +
+        encodeURIComponent(JSON.stringify(exportPayload, null, 2));
       const downloadAnchor = document.createElement("a");
       downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `oneday-data-export-${new Date().toISOString().split("T")[0]}.json`);
+      downloadAnchor.setAttribute(
+        "download",
+        `oneday-data-export-${new Date().toISOString().split("T")[0]}.json`
+      );
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
@@ -157,77 +174,66 @@ export function SettingsScreen() {
     }
   };
 
-  // SUBVIEWS: Privacy Policy
-  if (settingsView === "privacy") {
-    return (
-      <div className="p-4 sm:p-6 md:p-8 max-w-2xl mx-auto space-y-6">
-        <button
-          onClick={() => {
-            setSettingsView("main");
-            if (window.history.state?.settingsView === "privacy") {
-              window.history.back();
-            }
-          }}
-          className="group inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-xs font-bold tracking-wider uppercase cursor-pointer"
-        >
-          <ArrowLeft size={14} className="transform group-hover:-translate-x-0.5 transition-transform" />
-          Settings
-        </button>
-        <PrivacyPage
-          onBack={() => {
-            setSettingsView("main");
-            if (window.history.state?.settingsView === "privacy") {
-              window.history.back();
-            }
-          }}
-        />
-      </div>
-    );
-  }
-
-  // SUBVIEWS: Terms of Service
-  if (settingsView === "terms") {
-    return (
-      <div className="p-4 sm:p-6 md:p-8 max-w-2xl mx-auto space-y-6">
-        <button
-          onClick={() => {
-            setSettingsView("main");
-            if (window.history.state?.settingsView === "terms") {
-              window.history.back();
-            }
-          }}
-          className="group inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-xs font-bold tracking-wider uppercase cursor-pointer"
-        >
-          <ArrowLeft size={14} className="transform group-hover:-translate-x-0.5 transition-transform" />
-          Settings
-        </button>
-        <TermsPage
-          onBack={() => {
-            setSettingsView("main");
-            if (window.history.state?.settingsView === "terms") {
-              window.history.back();
-            }
-          }}
-        />
-      </div>
-    );
-  }
-
-  // SUBVIEWS: Profile Screen
+  // SUBVIEW 1: VIEW PROFILE (/settings/profile)
   if (settingsView === "profile") {
+    return <ProfileScreen onBack={handleBackToMain} />;
+  }
+
+  // SUBVIEW 2: PROGRESS & ACHIEVEMENTS (/settings/progress)
+  if (settingsView === "progress") {
+    return <ProgressionScreen onBack={handleBackToMain} />;
+  }
+
+  // SUBVIEW 3: ACCOUNT (/settings/account)
+  if (settingsView === "account") {
     return (
-      <ProfileScreen
-        onBack={() => {
-          setSettingsView("main");
-          if (window.history.state?.settingsView === "profile") {
-            window.history.back();
-          }
-        }}
+      <AccountScreen
+        onBack={handleBackToMain}
+        onNavigatePrivacy={() => handleViewChange("privacy")}
+        onNavigateTerms={() => handleViewChange("terms")}
       />
     );
   }
 
-  // MAIN SETTINGS VIEW
+  // SUBVIEW 4: PRIVACY POLICY (/settings/privacy)
+  if (settingsView === "privacy") {
+    return (
+      <div className="p-4 sm:p-6 md:p-8 max-w-2xl mx-auto space-y-6">
+        <button
+          onClick={handleBackToMain}
+          className="group inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-xs font-bold tracking-wider uppercase cursor-pointer"
+        >
+          <ArrowLeft
+            size={14}
+            className="transform group-hover:-translate-x-0.5 transition-transform"
+          />
+          Settings
+        </button>
+        <PrivacyPage onBack={handleBackToMain} />
+      </div>
+    );
+  }
+
+  // SUBVIEW 5: TERMS OF SERVICE (/settings/terms)
+  if (settingsView === "terms") {
+    return (
+      <div className="p-4 sm:p-6 md:p-8 max-w-2xl mx-auto space-y-6">
+        <button
+          onClick={handleBackToMain}
+          className="group inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-xs font-bold tracking-wider uppercase cursor-pointer"
+        >
+          <ArrowLeft
+            size={14}
+            className="transform group-hover:-translate-x-0.5 transition-transform"
+          />
+          Settings
+        </button>
+        <TermsPage onBack={handleBackToMain} />
+      </div>
+    );
+  }
+
+  // MAIN SETTINGS VIEW (/settings)
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -242,11 +248,11 @@ export function SettingsScreen() {
           SETTINGS
         </h1>
         <p className="text-xs font-medium text-neutral-400 tracking-normal">
-          System preferences
+          System preferences & account
         </p>
       </header>
 
-      {/* 1. PROFILE — HERO CARD */}
+      {/* 1. VIEW PROFILE — HERO CARD */}
       <section>
         <motion.div
           whileTap={{ scale: 0.99 }}
@@ -281,12 +287,12 @@ export function SettingsScreen() {
                   </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-neutral-400 truncate">
+              <p className="text-xs sm:text-sm text-neutral-400 truncate font-mono">
                 {userEmail}
               </p>
-              
-              {/* Level & Streak Stats */}
-              <div className="pt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-neutral-300 uppercase tracking-wider">
+
+              {/* Level & Streak Stats Preview */}
+              <div className="pt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-neutral-300 uppercase tracking-wider font-mono">
                 <span className="inline-flex items-center px-2 py-0.5 rounded bg-white/[0.05] border border-white/[0.06]">
                   LEVEL {userLevel}
                 </span>
@@ -307,7 +313,10 @@ export function SettingsScreen() {
                 className="transform group-hover:translate-x-0.5 transition-transform"
               />
             </span>
-            <ChevronRight size={14} className="text-neutral-600 group-hover:text-neutral-400 transition-colors" />
+            <ChevronRight
+              size={14}
+              className="text-neutral-600 group-hover:text-neutral-400 transition-colors"
+            />
           </div>
         </motion.div>
       </section>
@@ -321,14 +330,14 @@ export function SettingsScreen() {
           ONE DAY SYSTEM
         </h2>
         <div className="rounded-2xl bg-[#0D0D0D] border border-white/[0.08] divide-y divide-white/[0.06] overflow-hidden">
-          {/* B. Progress & Achievements */}
+          {/* Progress & Achievements (DISTINCT SCREEN -> /settings/progress) */}
           <button
             type="button"
-            onClick={() => handleViewChange("profile")}
+            onClick={() => handleViewChange("progress")}
             className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors text-left group cursor-pointer"
           >
             <div className="flex items-start gap-3.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
                 <Trophy size={16} />
               </div>
               <div className="min-w-0">
@@ -336,18 +345,21 @@ export function SettingsScreen() {
                   Progress & Achievements
                 </h3>
                 <p className="text-xs text-neutral-400 leading-relaxed mt-0.5">
-                  View your XP, levels and achievements.
+                  XP, level trajectory, titles and consistency records.
                 </p>
               </div>
             </div>
 
             <div className="shrink-0 flex items-center gap-1 text-xs font-semibold text-neutral-300 group-hover:text-white transition-colors">
               <span>View</span>
-              <ArrowRight size={12} className="transform group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight
+                size={12}
+                className="transform group-hover:translate-x-0.5 transition-transform"
+              />
             </div>
           </button>
 
-          {/* C. Habit Preferences */}
+          {/* Habit Preferences */}
           <button
             type="button"
             onClick={() => setActiveTab("habits")}
@@ -362,33 +374,36 @@ export function SettingsScreen() {
                   Habit Preferences
                 </h3>
                 <p className="text-xs text-neutral-400 leading-relaxed mt-0.5">
-                  Manage your habit system.
+                  Manage your active habit system and routines.
                 </p>
               </div>
             </div>
 
             <div className="shrink-0 flex items-center gap-1 text-xs font-semibold text-neutral-300 group-hover:text-white transition-colors">
               <span>Manage</span>
-              <ArrowRight size={12} className="transform group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight
+                size={12}
+                className="transform group-hover:translate-x-0.5 transition-transform"
+              />
             </div>
           </button>
         </div>
       </section>
 
-      {/* 3. ACCOUNT */}
+      {/* 4. ACCOUNT (DISTINCT SCREEN -> /settings/account) */}
       <section className="space-y-2.5">
         <h2 className="text-[11px] font-bold tracking-widest text-neutral-400 uppercase px-1">
           ACCOUNT
         </h2>
         <div className="rounded-2xl bg-[#0D0D0D] border border-white/[0.08] divide-y divide-white/[0.06] overflow-hidden">
-          {/* Account */}
+          {/* Account Management */}
           <button
             type="button"
-            onClick={() => handleViewChange("profile")}
+            onClick={() => handleViewChange("account")}
             className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors text-left group cursor-pointer"
           >
             <div className="flex items-start gap-3.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
+              <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0 mt-0.5">
                 <UserIcon size={16} />
               </div>
               <div className="min-w-0">
@@ -396,14 +411,17 @@ export function SettingsScreen() {
                   Account
                 </h3>
                 <p className="text-xs text-neutral-400 leading-relaxed mt-0.5">
-                  Manage your account details.
+                  Identity, authentication provider and security controls.
                 </p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+            <ChevronRight
+              size={16}
+              className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0"
+            />
           </button>
 
-          {/* Sign Out (Restrained, NOT bright red) */}
+          {/* Quick Sign Out */}
           <button
             type="button"
             onClick={() => setConfirmSignOut(true)}
@@ -418,16 +436,19 @@ export function SettingsScreen() {
                   Sign Out
                 </h3>
                 <p className="text-xs text-neutral-400 leading-relaxed mt-0.5">
-                  Sign out of this device.
+                  Sign out of this device safely.
                 </p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+            <ChevronRight
+              size={16}
+              className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0"
+            />
           </button>
         </div>
       </section>
 
-      {/* 4. DATA & PRIVACY */}
+      {/* 5. DATA & LEGAL */}
       <section className="space-y-2.5">
         <h2 className="text-[11px] font-bold tracking-widest text-neutral-400 uppercase px-1">
           DATA & PRIVACY
@@ -452,7 +473,10 @@ export function SettingsScreen() {
                 </p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+            <ChevronRight
+              size={16}
+              className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0"
+            />
           </button>
 
           {/* Privacy Policy */}
@@ -470,11 +494,14 @@ export function SettingsScreen() {
                   Privacy Policy
                 </h3>
                 <p className="text-xs text-neutral-400 leading-relaxed mt-0.5">
-                  How OneDay handles your information.
+                  How OneDay handles and secures your information.
                 </p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+            <ChevronRight
+              size={16}
+              className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0"
+            />
           </button>
 
           {/* Terms & Conditions */}
@@ -496,80 +523,25 @@ export function SettingsScreen() {
                 </p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+            <ChevronRight
+              size={16}
+              className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0"
+            />
           </button>
         </div>
       </section>
 
-      {/* 5. DANGER ZONE */}
-      <section className="space-y-2.5">
-        <h2 className="text-[11px] font-bold tracking-widest text-red-400/90 uppercase px-1">
-          DANGER ZONE
-        </h2>
-        <div className="rounded-2xl bg-[#0D0D0D] border border-red-500/20 divide-y divide-red-500/10 overflow-hidden">
-          {/* Reset Progress */}
-          <button
-            type="button"
-            onClick={() => setConfirmReset(true)}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-red-500/[0.04] transition-colors text-left group cursor-pointer"
-          >
-            <div className="flex items-start gap-3.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0 mt-0.5">
-                <RotateCcw size={16} />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-red-400 tracking-tight">
-                  Reset Progress
-                </h3>
-                <p className="text-xs text-neutral-400 leading-relaxed mt-0.5">
-                  Reset your XP, level, streak and progress.
-                </p>
-              </div>
-            </div>
-            <span className="shrink-0 text-xs font-semibold text-red-400/80 group-hover:text-red-400 transition-colors flex items-center gap-1">
-              Reset
-              <ArrowRight size={12} className="transform group-hover:translate-x-0.5 transition-transform" />
-            </span>
-          </button>
-
-          {/* Delete Account */}
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-red-500/[0.04] transition-colors text-left group cursor-pointer"
-          >
-            <div className="flex items-start gap-3.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0 mt-0.5">
-                <Trash2 size={16} />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-red-400 tracking-tight">
-                  Delete Account
-                </h3>
-                <p className="text-xs text-neutral-400 leading-relaxed mt-0.5">
-                  Permanently delete your OneDay account and associated data.
-                </p>
-              </div>
-            </div>
-            <span className="shrink-0 text-xs font-semibold text-red-400/80 group-hover:text-red-400 transition-colors flex items-center gap-1">
-              Delete
-              <ArrowRight size={12} className="transform group-hover:translate-x-0.5 transition-transform" />
-            </span>
-          </button>
-        </div>
-      </section>
-
-      {/* 6. FOOTER */}
+      {/* FOOTER */}
       <footer className="pt-6 pb-2 text-center space-y-1">
-        <p className="text-xs font-bold tracking-widest text-neutral-400 uppercase">
+        <p className="text-xs font-bold tracking-widest text-neutral-500 uppercase">
           OneDay
         </p>
-        <p className="text-xs text-neutral-400 font-medium">
+        <p className="text-xs text-neutral-600 font-medium">
           One day at a time.
         </p>
       </footer>
 
-      {/* MODAL 1: SIGN OUT CONFIRMATION */}
+      {/* MODAL: SIGN OUT CONFIRMATION */}
       <AnimatePresence>
         {confirmSignOut && (
           <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4">
@@ -588,11 +560,9 @@ export function SettingsScreen() {
               className="relative bg-[#0D0D0D] border border-white/10 rounded-t-[2rem] sm:rounded-2xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-5 z-10 text-center pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:pb-7"
             >
               <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-1 block sm:hidden" />
-              
               <div className="w-12 h-12 bg-white/[0.05] border border-white/10 rounded-2xl flex items-center justify-center mx-auto text-neutral-200">
                 <LogOut size={20} />
               </div>
-              
               <div className="space-y-1.5">
                 <h3 className="text-lg font-bold tracking-tight text-white">
                   Sign Out?
@@ -601,7 +571,6 @@ export function SettingsScreen() {
                   Are you sure you want to sign out of OneDay?
                 </p>
               </div>
-
               <div className="flex flex-col gap-2 pt-2">
                 <button
                   type="button"
@@ -613,130 +582,6 @@ export function SettingsScreen() {
                 <button
                   type="button"
                   onClick={() => setConfirmSignOut(false)}
-                  className="w-full bg-white/[0.05] text-neutral-400 border border-white/[0.08] font-bold py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-white/10 hover:text-white transition-all cursor-pointer h-11 flex items-center justify-center"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL 2: RESET PROGRESS CONFIRMATION */}
-      <AnimatePresence>
-        {confirmReset && (
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md"
-              onClick={() => {
-                if (!resetting) setConfirmReset(false);
-              }}
-            />
-            <motion.div
-              initial={{ opacity: 0, y: "100%" }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: "100%" }}
-              transition={{ type: "spring", damping: 26, stiffness: 320 }}
-              className="relative bg-[#0D0D0D] border border-red-500/25 rounded-t-[2rem] sm:rounded-2xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-5 z-10 text-center pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:pb-7"
-            >
-              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-1 block sm:hidden" />
-              
-              <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto text-red-400">
-                <AlertTriangle size={20} />
-              </div>
-              
-              <div className="space-y-1.5">
-                <h3 className="text-lg font-bold tracking-tight text-white">
-                  Reset your progress?
-                </h3>
-                <p className="text-neutral-400 text-xs leading-relaxed">
-                  This will reset your XP, level, streaks, and progress back to zero. This action cannot be undone.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-2 pt-2">
-                <button
-                  type="button"
-                  disabled={resetting}
-                  onClick={handleResetConfirm}
-                  className="w-full bg-red-600 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider hover:bg-red-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 h-11"
-                >
-                  {resetting ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    "Reset Progress"
-                  )}
-                </button>
-                <button
-                  type="button"
-                  disabled={resetting}
-                  onClick={() => setConfirmReset(false)}
-                  className="w-full bg-white/[0.05] text-neutral-400 border border-white/[0.08] font-bold py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-white/10 hover:text-white transition-all cursor-pointer h-11 flex items-center justify-center"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL 3: DELETE ACCOUNT CONFIRMATION */}
-      <AnimatePresence>
-        {confirmDelete && (
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md"
-              onClick={() => {
-                if (!deleting) setConfirmDelete(false);
-              }}
-            />
-            <motion.div
-              initial={{ opacity: 0, y: "100%" }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: "100%" }}
-              transition={{ type: "spring", damping: 26, stiffness: 320 }}
-              className="relative bg-[#0D0D0D] border border-red-500/30 rounded-t-[2rem] sm:rounded-2xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-5 z-10 text-center pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:pb-7"
-            >
-              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-1 block sm:hidden" />
-              
-              <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto text-red-400">
-                <Trash2 size={20} />
-              </div>
-              
-              <div className="space-y-1.5">
-                <h3 className="text-lg font-bold tracking-tight text-white">
-                  Delete your account?
-                </h3>
-                <p className="text-neutral-400 text-xs leading-relaxed">
-                  This will permanently delete your OneDay account and associated data. This action cannot be undone.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-2 pt-2">
-                <button
-                  type="button"
-                  disabled={deleting}
-                  onClick={handleDeleteAccountConfirm}
-                  className="w-full bg-red-600 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider hover:bg-red-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 h-11"
-                >
-                  {deleting ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    "Delete Account"
-                  )}
-                </button>
-                <button
-                  type="button"
-                  disabled={deleting}
-                  onClick={() => setConfirmDelete(false)}
                   className="w-full bg-white/[0.05] text-neutral-400 border border-white/[0.08] font-bold py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-white/10 hover:text-white transition-all cursor-pointer h-11 flex items-center justify-center"
                 >
                   Cancel

@@ -115,6 +115,24 @@ let selectSessionAbortController: AbortController | null = null;
 let selectSessionSequence = 0;
 let isSendChatMessageInFlight = false;
 
+const getInitialActiveTab = (): TabState => {
+  if (typeof window !== "undefined") {
+    const path = window.location.pathname;
+    if (
+      path.startsWith("/settings") ||
+      path === "/profile" ||
+      path === "/progress" ||
+      path === "/account"
+    ) {
+      return "settings";
+    }
+    if (path === "/habits") return "habits";
+    if (path === "/coach") return "coach";
+    if (path === "/dashboard") return "dashboard";
+  }
+  return "dashboard";
+};
+
 export const useStore = create<StoreState>((set, get) => {
   const authStartTime = performance.now();
 
@@ -195,7 +213,7 @@ export const useStore = create<StoreState>((set, get) => {
     profileSynced: false,
     profileVersion: 0,
     backendError: null,
-    activeTab: "dashboard",
+    activeTab: getInitialActiveTab(),
     pendingHabitIds: new Set<string>(),
     titleUnlockQueue: [],
     titleUnlockData: null,
@@ -227,6 +245,26 @@ export const useStore = create<StoreState>((set, get) => {
 
     setActiveTab: (tab) => {
       set({ activeTab: tab });
+      if (typeof window !== "undefined") {
+        const tabPaths: Record<TabState, string> = {
+          dashboard: "/dashboard",
+          habits: "/habits",
+          coach: "/coach",
+          settings: "/settings",
+        };
+        const targetPath = tabPaths[tab] || "/dashboard";
+        if (
+          tab !== "settings" ||
+          (!window.location.pathname.startsWith("/settings") &&
+            window.location.pathname !== "/profile" &&
+            window.location.pathname !== "/progress" &&
+            window.location.pathname !== "/account")
+        ) {
+          if (window.location.pathname !== targetPath) {
+            window.history.pushState({ tab }, "", targetPath);
+          }
+        }
+      }
       if (tab === "habits" || tab === "dashboard" || tab === "coach") {
         get().refreshFromBackend().catch((e) => console.warn("[TAB SWITCH] refresh error:", e));
       }
