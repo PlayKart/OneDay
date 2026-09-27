@@ -5,10 +5,10 @@ import {
   HABIT_CATEGORIES,
   SPORTS_OPTIONS,
   STUDIES_OPTIONS,
-  HabitIconOption, 
   HabitCategoryType,
   getHabitIconComponent
 } from "../lib/habitIcons";
+import { SUBCATEGORY_OPTIONS } from "../lib/habitData";
 import { Check } from "lucide-react";
 
 interface HabitIconPickerProps {
@@ -32,80 +32,29 @@ export function HabitIconPicker({
   onSelectCategory,
   onSelectSubcategory,
 }: HabitIconPickerProps) {
-  // Normalize initial active category to match official list
-  const initialCategory = (() => {
-    if (selectedCategory) {
-      const match = HABIT_CATEGORIES.find(
-        (c) => c.toLowerCase() === selectedCategory.toLowerCase()
-      );
-      if (match) return match;
-    }
-    // Check if selectedIcon belongs to Studies or Sports
-    const isSport = SPORTS_OPTIONS.some((s) => s.id === selectedIcon);
-    if (isSport) return "Sports";
-    const isStudy = STUDIES_OPTIONS.some((s) => s.id === selectedIcon);
-    if (isStudy) return "Studies";
-    return "Health & Fitness";
-  })();
+  const [activeCategory, setActiveCategory] = useState<HabitCategoryType>(
+    (selectedCategory as HabitCategoryType) || "Health & Fitness"
+  );
 
-  const [activeCategory, setActiveCategory] = useState<HabitCategoryType>(initialCategory);
-
-  // Sync if parent category changes
   useEffect(() => {
-    if (selectedCategory) {
-      const match = HABIT_CATEGORIES.find(
-        (c) => c.toLowerCase() === selectedCategory.toLowerCase()
-      );
-      if (match && match !== activeCategory) {
-        setActiveCategory(match);
-      }
+    if (selectedCategory && selectedCategory !== activeCategory) {
+      setActiveCategory(selectedCategory as HabitCategoryType);
     }
   }, [selectedCategory]);
 
   const currentColorObj = HABIT_COLORS.find((c) => c.id === selectedColor) || HABIT_COLORS[0];
-  const ActiveIconComp = getHabitIconComponent(selectedIcon, "", selectedSubcategory);
+  const ActiveIconComp = getHabitIconComponent(selectedIcon, "", selectedSubcategory || "");
 
   const handleCategoryClick = (cat: HabitCategoryType) => {
     setActiveCategory(cat);
     onSelectCategory?.(cat);
-
-    // If switching to Sports or Studies and current icon is not in that category, default to the 1st option
-    if (cat === "Sports") {
-      const isAlreadySport = SPORTS_OPTIONS.some((s) => s.id === selectedIcon);
-      if (!isAlreadySport) {
-        const firstSport = SPORTS_OPTIONS[0];
-        onSelectIcon(firstSport.id);
-        onSelectSubcategory?.(firstSport.subcategory || firstSport.label);
-      }
-    } else if (cat === "Studies") {
-      const isAlreadyStudy = STUDIES_OPTIONS.some((s) => s.id === selectedIcon);
-      if (!isAlreadyStudy) {
-        const firstStudy = STUDIES_OPTIONS[0];
-        onSelectIcon(firstStudy.id);
-        onSelectSubcategory?.(firstStudy.subcategory || firstStudy.label);
-      }
-    } else {
-      // General categories
-      const generalIcons = HABIT_ICONS.filter((item) => item.category === cat);
-      const isInCat = generalIcons.some((i) => i.id === selectedIcon);
-      if (!isInCat && generalIcons.length > 0) {
-        onSelectIcon(generalIcons[0].id);
-        onSelectSubcategory?.("");
-      }
-    }
+    onSelectSubcategory?.(""); 
   };
 
-  const handleItemSelect = (item: HabitIconOption) => {
-    onSelectIcon(item.id);
-    onSelectCategory?.(item.category);
-    if (item.subcategory) {
-      onSelectSubcategory?.(item.subcategory);
-    } else {
-      onSelectSubcategory?.("");
-    }
+  const handleSubcategoryClick = (sub: string) => {
+    onSelectSubcategory?.(sub === "None" ? "" : sub);
   };
 
-  // Determine current active icon list
   const currentItems = (() => {
     if (activeCategory === "Sports") return SPORTS_OPTIONS;
     if (activeCategory === "Studies") return STUDIES_OPTIONS;
@@ -121,11 +70,7 @@ export function HabitIconPicker({
             Icon & Category
           </label>
           <p className="text-[11px] text-slate-500">
-            {activeCategory === "Sports" 
-              ? "Select sport discipline & visual badge" 
-              : activeCategory === "Studies" 
-                ? "Select study subject & visual badge"
-                : "Pick a minimal visual badge and accent color"}
+            Select study subject & visual badge
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -137,7 +82,7 @@ export function HabitIconPicker({
         </div>
       </div>
 
-      {/* Color Preset Palette */}
+      {/* Accent Color */}
       <div>
         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 block">
           Accent Color
@@ -162,7 +107,7 @@ export function HabitIconPicker({
         </div>
       </div>
 
-      {/* Category Tabs (Ordered: 1. Health & Fitness, 2. Studies, 3. Sports, 4. Mind & Focus, 5. Productivity, 6. Lifestyle) */}
+      {/* Category */}
       <div>
         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 block">
           Category
@@ -186,44 +131,59 @@ export function HabitIconPicker({
             );
           })}
         </div>
+      </div>
 
-        {/* Subheader if Sports or Studies */}
-        {activeCategory === "Sports" && (
-          <div className="pt-2 pb-1 flex items-center justify-between">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
-              Select Sport Discipline ({SPORTS_OPTIONS.length} options)
-            </span>
-            {selectedSubcategory && (
-              <span className="text-[10px] font-mono text-zinc-400">
-                Selected: <strong className="text-zinc-200">{selectedSubcategory}</strong>
-              </span>
-            )}
-          </div>
-        )}
+      {/* Subcategory */}
+      <div>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 block">
+          Select Subcategory
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleSubcategoryClick("None")}
+            className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition-all ${
+              !selectedSubcategory
+                ? "bg-white/15 text-white border-white/20 font-black"
+                : "bg-white/5 border-white/10 text-slate-500 hover:text-slate-400"
+            }`}
+          >
+            None
+          </button>
+          {(SUBCATEGORY_OPTIONS[activeCategory] || []).map((sub) => {
+            const isSelected = selectedSubcategory === sub;
+            return (
+              <button
+                type="button"
+                key={sub}
+                onClick={() => handleSubcategoryClick(sub)}
+                className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition-all ${
+                  isSelected
+                    ? "bg-white text-black border-white shadow-sm font-black animate-none"
+                    : "bg-white/5 border-white/10 text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {sub}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-        {activeCategory === "Studies" && (
-          <div className="pt-2 pb-1 flex items-center justify-between">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-blue-400 font-semibold">
-              Select Subject ({STUDIES_OPTIONS.length} options)
-            </span>
-            {selectedSubcategory && (
-              <span className="text-[10px] font-mono text-zinc-400">
-                Selected: <strong className="text-zinc-200">{selectedSubcategory}</strong>
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Icon Grid */}
+      {/* Icon Grid */}
+      <div>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 block">
+          Icon
+        </span>
         <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 pt-2 max-h-48 overflow-y-auto pr-1 scrollbar-hide">
           {currentItems.map((item) => {
             const IconComp = item.icon;
-            const isSelected = selectedIcon === item.id || (item.subcategory && selectedSubcategory === item.subcategory);
+            const isSelected = selectedIcon === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => handleItemSelect(item)}
+                onClick={() => onSelectIcon(item.id)}
                 className={`p-2.5 rounded-xl flex flex-col items-center justify-center gap-1.5 border transition-all duration-200 group ${
                   isSelected
                     ? `${currentColorObj.bg} ${currentColorObj.border} ${currentColorObj.text} ring-2 ${currentColorObj.ring} scale-105 shadow-md`

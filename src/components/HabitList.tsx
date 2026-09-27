@@ -251,83 +251,63 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   <IconComp size={18} />
                 </div>
 
-                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                     <h4 className={`font-semibold transition-all text-xs sm:text-sm truncate ${
                       !userFrozen && habit.completedToday ? 'text-zinc-500 line-through' : 'text-zinc-100'
                     }`}>
                       {habit.name}
                     </h4>
-                    {habitSubcategory && (
-                      <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded border bg-white/[0.04] border-white/[0.08] text-zinc-300 shrink-0">
-                        {habitSubcategory}
-                      </span>
-                    )}
-                    {habit.difficulty && (
-                      <span className={`text-[9px] font-mono font-medium px-1.5 py-0.5 rounded border shrink-0 ${
-                        userFrozen
-                          ? 'bg-cyan-950/40 border-cyan-500/20 text-cyan-300/90'
-                          : 'bg-white/[0.03] border-white/[0.06] text-zinc-400'
-                      }`}>
-                        {toDisplayDifficulty(habit.difficulty)} (+{getXpForDifficulty(habit.difficulty)} XP)
-                      </span>
-                    )}
-                  </div>
-                  {userFrozen ? (
-                    <div className="flex items-center gap-1.5 text-cyan-300 text-[10px] font-mono uppercase tracking-wider font-semibold">
-                      <Lock size={10} className="text-cyan-400" />
-                      <span>COMPLETION PAUSED</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className={`text-[10px] font-mono uppercase tracking-wider truncate ${habit.completedToday ? 'text-zinc-500' : 'text-zinc-400'}`}>
-                          {isPending ? 'Updating...' : (habit.completedToday ? 'Completed' : (isToday ? 'Scheduled Today' : getScheduledDaysMessage(habit)))}
-                        </p>
+                    <p className="text-[10px] text-zinc-500 font-mono truncate">
+                      {habit.category} · {habitSubcategory || 'None'}
+                    </p>
+                    
+                    {userFrozen ? (
+                      <div className="flex items-center gap-1.5 text-cyan-300 text-[10px] font-mono uppercase tracking-wider font-semibold">
+                        <Lock size={10} className="text-cyan-400" />
+                        <span>COMPLETION PAUSED</span>
                       </div>
-                      
-                      {hasNotes && (
-                        <div className="text-slate-400 text-xs mt-1 font-sans flex flex-col gap-1 bg-white/[0.01] border border-white/[0.03] rounded-lg p-2 leading-relaxed">
-                          <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-500">
-                            <AlignLeft size={10} />
-                            <span>Notes</span>
-                          </div>
-                          <p className="text-zinc-300 text-[11px] font-medium leading-normal">
-                            {habit.notes!.trim().length <= 60 || isExpanded ? (
-                              <span className="whitespace-pre-wrap">{habit.notes!.trim()}</span>
-                            ) : (
-                              <span>
-                                {habit.notes!.trim().slice(0, 60).trim()}...{" "}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleExpandHabit(habit.id);
-                                  }}
-                                  className="text-white hover:underline font-bold ml-1 inline-block cursor-pointer focus:outline-none"
-                                >
-                                  View more
-                                </button>
-                              </span>
-                            )}
+                    ) : (
+                      <div className="flex flex-col gap-1.5 mt-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className={`text-[10px] font-mono uppercase tracking-wider truncate ${habit.completedToday ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                            {isPending ? 'Updating...' : (habit.completedToday ? 'Completed' : (isToday ? 'Scheduled Today' : getScheduledDaysMessage(habit)))}
                           </p>
-                          {isExpanded && habit.notes!.trim().length > 60 && (
+                        </div>
+                        
+                        {habit.difficulty && (
+                          <span className={`text-[9px] font-mono font-medium px-1.5 py-0.5 rounded border self-start ${
+                            userFrozen
+                              ? 'bg-cyan-950/40 border-cyan-500/20 text-cyan-300/90'
+                              : 'bg-white/[0.03] border-white/[0.06] text-zinc-400'
+                          }`}>
+                            {toDisplayDifficulty(habit.difficulty)} (+{getXpForDifficulty(habit.difficulty)} XP)
+                          </span>
+                        )}
+
+                        {hasNotes && (
+                          <div className="mt-1">
                             <button
                               type="button"
                               onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleExpandHabit(habit.id);
+                                e.stopPropagation();
+                                toggleExpandHabit(habit.id);
                               }}
-                              className="text-zinc-500 hover:text-white text-[10px] font-mono font-bold hover:underline self-start cursor-pointer focus:outline-none mt-1"
+                              className="text-[10px] font-bold text-white bg-white/5 hover:bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors"
                             >
-                              [View less]
+                              <FileText size={10} />
+                              NOTES {isExpanded ? <ChevronDown size={10} /> : <ChevronDown size={10} className="rotate-180"/>}
                             </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                            
+                            {isExpanded && (
+                              <div className="text-zinc-300 text-[11px] mt-2 bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 leading-relaxed whitespace-pre-wrap">
+                                {habit.notes}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
               </div>
               
               <div className="flex items-center gap-2 shrink-0">

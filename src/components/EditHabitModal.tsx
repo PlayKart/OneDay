@@ -8,7 +8,7 @@ import { HabitIconPicker } from "./HabitIconPicker";
 import { HABIT_COLORS } from "../lib/habitIcons";
 import { habitService } from "../services/habitService";
 import { toast } from "react-hot-toast";
-import { SUBCATEGORY_OPTIONS } from "./CreateHabitModal";
+import { SUBCATEGORY_OPTIONS } from "../lib/habitData";
 
 interface EditHabitModalProps {
   habit: Habit;
@@ -271,84 +271,6 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
                className="w-full bg-transparent border-b border-white/10 p-2 text-2xl font-bold text-white focus:outline-none focus:border-white/40 placeholder-slate-600 transition-colors"
                autoFocus
              />
-           </div>
-
-           {/* Separate Category and Subcategory Form Selections */}
-           <div className="space-y-4 bg-white/[0.02] border border-white/10 rounded-2xl p-4">
-             <div>
-               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2.5 block">
-                 Category Selection
-               </span>
-               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                 {Object.keys(SUBCATEGORY_OPTIONS).map((cat) => {
-                   const isSelected = category === cat;
-                   return (
-                     <button
-                       type="button"
-                       key={cat}
-                       onClick={() => {
-                         setCategory(cat);
-                         // Category Change Rule: Reset previous subcategory if not valid in the new category
-                         const validOptions = SUBCATEGORY_OPTIONS[cat] || [];
-                         if (!validOptions.includes(subcategory)) {
-                           setSubcategory("");
-                         }
-                       }}
-                       className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all text-center ${
-                         isSelected
-                           ? "bg-white text-black border-white shadow-sm font-black"
-                           : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10"
-                       }`}
-                     >
-                       {cat}
-                     </button>
-                   );
-                 })}
-               </div>
-             </div>
-
-             <div>
-               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2.5 block">
-                 Subcategory Options
-               </span>
-               <div className="flex flex-wrap gap-1.5">
-                 {(SUBCATEGORY_OPTIONS[category] || []).map((sub) => {
-                   const isSelected = subcategory === sub;
-                   return (
-                     <button
-                       type="button"
-                       key={sub}
-                       onClick={() => setSubcategory(sub)}
-                       className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition-all ${
-                         isSelected
-                           ? "bg-white text-black border-white shadow-sm font-black animate-none"
-                           : "bg-white/5 border-white/10 text-slate-400 hover:text-slate-200"
-                       }`}
-                     >
-                       {sub}
-                     </button>
-                   );
-                 })}
-                 <button
-                   type="button"
-                   onClick={() => setSubcategory("")}
-                   className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition-all ${
-                     !subcategory
-                       ? "bg-white/15 text-white border-white/20 font-black"
-                       : "bg-white/5 border-white/10 text-slate-500 hover:text-slate-400"
-                   }`}
-                 >
-                   None
-                 </button>
-               </div>
-               <input
-                 type="text"
-                 placeholder="Or enter customized subcategory..."
-                 value={subcategory}
-                 onChange={(e) => setSubcategory(e.target.value)}
-                 className="w-full mt-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 placeholder-slate-600 transition-colors"
-               />
-             </div>
            </div>
 
            {/* Habitify Icon, Category & Subcategory Picker */}

@@ -238,18 +238,20 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
                 {loadingBulkHabits ? (
                   <span className="text-slate-400">Loading current habits list...</span>
                 ) : habitsCount > 0 ? (
-                  <div>
-                    <span>You currently have <span className="font-extrabold text-rose-400">{habitsCount}</span> {habitsCount === 1 ? "habit" : "habits"}:</span>
-                    <ul className="list-disc list-inside mt-1.5 space-y-1 text-slate-300 font-medium">
+                  <div className="space-y-2">
+                    <p className="text-slate-300 font-medium">
+                      You currently have <span className="font-extrabold text-rose-400">{habitsCount}</span> {habitsCount === 1 ? "habit" : "habits"}:
+                    </p>
+                    <ul className="space-y-1 text-slate-200 font-bold pl-1">
                       {habitsList.map((h) => (
                         <li key={h.id} className="truncate">
-                          {h.name}
+                          • {h.name}
                         </li>
                       ))}
                     </ul>
-                    <span className="block mt-2 font-bold text-white">
+                    <p className="font-bold text-white pt-1">
                       Do you want to delete all of them? This action cannot be undone.
-                    </span>
+                    </p>
                   </div>
                 ) : (
                   <span className="text-slate-400">You currently have no active habits to delete.</span>
