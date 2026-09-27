@@ -1271,20 +1271,40 @@ export const useStore = create<StoreState>((set, get) => {
             };
           });
 
-          // Check if the server response itself executed a DELETE_HABIT or confirmed habit deletion
+          // Check if the server response itself executed a DELETE_HABIT / DELETE_ALL_HABITS or confirmed it
           const rawRes = res as any;
           const isConfirmedServerDelete =
             (rawRes?.action === "DELETE_HABIT" || rawRes?.data?.action === "DELETE_HABIT" || rawIntent === "DELETE_HABIT") &&
             (rawRes?.deleted === true || rawRes?.data?.deleted === true || rawStatus === "DELETED" || rawStatus === "COMPLETED");
 
-          if (isConfirmedServerDelete) {
+          const isConfirmedBulkDelete =
+            rawIntent === "DELETE_ALL_HABITS" ||
+            rawIntent === "HABITS_DELETED" ||
+            rawStatus === "HABITS_DELETED" ||
+            rawStatus === "DELETED" ||
+            rawRes?.action === "DELETE_ALL_HABITS" ||
+            rawRes?.action === "HABITS_DELETED" ||
+            rawRes?.data?.action === "DELETE_ALL_HABITS" ||
+            rawRes?.data?.action === "HABITS_DELETED" ||
+            rawRes?.data?.status === "HABITS_DELETED" ||
+            rawRes?.data?.status === "DELETED";
+
+          if (isConfirmedServerDelete || isConfirmedBulkDelete) {
             habitService.getHabits().then((fresh) => {
               set((state) => ({
                 habits: safeArray(fresh),
+                selectedHabit: null,
+                selectedHabitId: null,
+                pendingAction: null,
+                pendingHabit: null,
+                proposedHabit: null,
+                previewHabit: null,
+                editingHabit: null,
+                editingHabitId: null,
                 pendingHabitAction: null,
                 isPreparingHabit: false,
                 isConfirmingHabit: false,
-              }));
+              } as any));
             }).catch((err) => console.warn("Failed to refetch habits after server deletion response:", err));
             syncService.syncUserData(true).catch((e) => console.warn("[SYNC] post-delete sync:", e));
           }

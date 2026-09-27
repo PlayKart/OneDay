@@ -1,6 +1,6 @@
 // src/components/coach/actions/CoachActionCard.tsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ParsedCoachAction } from "./types";
 import { CoachCreateHabitCard } from "./CoachCreateHabitCard";
 import { CoachMultiCreateHabitCard } from "./CoachMultiCreateHabitCard";
@@ -14,6 +14,8 @@ import { Habit } from "../../../types";
 import { useStore } from "../../../store/useStore";
 import { toast } from "react-hot-toast";
 import { Edit3, Trash2, UserCircle, Plus, Check, Loader2 } from "lucide-react";
+import { habitService } from "../../../services/habitService";
+import { syncService } from "../../../services/syncService";
 
 interface CoachActionCardProps {
   action: ParsedCoachAction;
@@ -24,7 +26,7 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
   action,
   onActionComplete,
 }) => {
-  const { habits, deleteHabit, removePendingAction } = useStore();
+  const { habits, deleteHabit, removePendingAction, sendChatMessage } = useStore();
   const [showEditModal, setShowEditModal] = useState(
     () => action.type === "UPDATE_HABIT" || action.action === "OPEN_EDIT_HABIT"
   );
@@ -34,6 +36,25 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
   const [isDeletingInline, setIsDeletingInline] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
   const [isCancelled, setIsCancelled] = useState(false);
+  const [errorState, setErrorState] = useState<string | null>(null);
+  const [bulkHabits, setBulkHabits] = useState<Habit[]>([]);
+  const [loadingBulkHabits, setLoadingBulkHabits] = useState(false);
+
+  useEffect(() => {
+    if (action.type === "DELETE_ALL_HABITS") {
+      setLoadingBulkHabits(true);
+      habitService.getHabits()
+        .then((list) => {
+          setBulkHabits(list || []);
+        })
+        .catch((err) => {
+          console.warn("[DELETE_ALL_HABITS] Error loading fresh habits:", err);
+        })
+        .finally(() => {
+          setLoadingBulkHabits(false);
+        });
+    }
+  }, [action.type]);
 
   // 1. MULTI HABIT CREATION PREVIEW
   if (action.type === "CREATE_HABITS" || (action.type === "CREATE_HABIT" && Array.isArray(action.payload?.habits))) {
@@ -99,6 +120,177 @@ export const CoachActionCard: React.FC<CoachActionCardProps> = ({
             }}
           />
         )}
+      </div>
+    );
+  }
+
+  // 4b. DELETE ALL HABITS (Bulk Deletion)
+  if (action.type === "DELETE_ALL_HABITS") {
+    const habitsList = bulkHabits.length > 0 ? bulkHabits : habits;
+    const habitsCount = habitsList.length;
+
+    if (isDeleted) {
+      return (
+        <div className="mt-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+          <Check size={14} />
+          <span>✓ All habits deleted.</span>
+        </div>
+      );
+    }
+
+    if (isCancelled) {
+      return (
+        <div className="mt-2.5 p-3 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-xs font-semibold">
+          Kept all habits.
+        </div>
+      );
+    }
+
+    const handleConfirmBulkDelete = async () => {
+      if (isDeletingInline) return;
+      setIsDeletingInline(true);
+      setErrorState(null);
+
+      try {
+        // 1. For bulk deletion, the confirmation must submit CONFIRM_DELETE_ALL_HABITS via chat message
+        await sendChatMessage("CONFIRM_DELETE_ALL_HABITS");
+
+        // 2. Refresh all local states immediately after success
+        const fresh = await habitService.getHabits();
+        useStore.setState({
+          habits: fresh || [],
+          selectedHabit: null,
+          selectedHabitId: null,
+          pendingAction: null,
+          pendingHabit: null,
+          proposedHabit: null,
+          previewHabit: null,
+          editingHabit: null,
+          editingHabitId: null,
+          pendingHabitAction: null,
+        } as any);
+
+        await syncService.syncUserData(true);
+
+        setIsDeleted(true);
+        toast.success("✓ All habits deleted");
+
+        if (action.messageId) {
+          useStore.setState((state) => ({
+            chatMessages: state.chatMessages.map((m) =>
+              m.id === action.messageId
+                ? { ...m, status: "DELETED", preview: undefined, action: undefined, actionPayload: undefined }
+                : m
+            ),
+          }));
+        }
+
+        if (onActionComplete) {
+          onActionComplete("✓ All habits deleted.");
+        }
+      } catch (err: any) {
+        console.error("[CoachActionCard] Bulk delete error:", err);
+        const errMsg =
+          err?.response?.data?.error?.message ||
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to delete all habits.";
+        
+        setErrorState(errMsg);
+        toast.error(errMsg);
+      } finally {
+        setIsDeletingInline(false);
+      }
+    };
+
+    const handleCancelBulkDelete = () => {
+      setIsCancelled(true);
+      if (action.actionId) {
+        removePendingAction(action.actionId);
+      }
+      if (action.messageId) {
+        useStore.setState((state) => ({
+          chatMessages: state.chatMessages.map((m) =>
+            m.id === action.messageId
+              ? { ...m, status: "CANCELLED", preview: undefined, action: undefined, actionPayload: undefined }
+              : m
+          ),
+        }));
+      }
+      if (onActionComplete) {
+        onActionComplete("Kept all habits.");
+      }
+    };
+
+    return (
+      <div className="mt-3 w-full space-y-2">
+        <div className="p-4 rounded-2xl bg-[#0e0e14] border border-rose-500/30 shadow-xl space-y-3.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
+              <Trash2 size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400 font-mono block">
+                BULK DELETE CONFIRMATION
+              </span>
+              <div className="text-xs text-white mt-1 leading-relaxed">
+                {loadingBulkHabits ? (
+                  <span className="text-slate-400">Loading current habits list...</span>
+                ) : habitsCount > 0 ? (
+                  <div>
+                    <span>You currently have <span className="font-extrabold text-rose-400">{habitsCount}</span> {habitsCount === 1 ? "habit" : "habits"}:</span>
+                    <ul className="list-disc list-inside mt-1.5 space-y-1 text-slate-300 font-medium">
+                      {habitsList.map((h) => (
+                        <li key={h.id} className="truncate">
+                          {h.name}
+                        </li>
+                      ))}
+                    </ul>
+                    <span className="block mt-2 font-bold text-white">
+                      Do you want to delete all of them? This action cannot be undone.
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-slate-400">You currently have no active habits to delete.</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {errorState && (
+            <div className="p-2.5 rounded-xl bg-red-950/20 border border-red-500/30 text-red-400 text-xs font-semibold leading-relaxed">
+              {errorState}
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={handleCancelBulkDelete}
+              disabled={isDeletingInline}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40"
+            >
+              CANCEL
+            </button>
+
+            <button
+              type="button"
+              onClick={handleConfirmBulkDelete}
+              disabled={isDeletingInline || loadingBulkHabits || habitsCount === 0}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-rose-600/20 disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {isDeletingInline ? (
+                <>
+                  <Loader2 size={14} className="animate-spin text-white" />
+                  <span>Deleting All...</span>
+                </>
+              ) : (
+                <span>DELETE ALL</span>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

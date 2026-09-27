@@ -398,6 +398,45 @@ export function parseCoachActionFromMessage(
       };
     }
 
+    if (
+      rawIntent === "DELETE_ALL_HABITS" ||
+      rawActionName === "DELETE_ALL_HABITS" ||
+      rawActionName === "CONFIRM_DELETE_ALL_HABITS" ||
+      msg.action === "DELETE_ALL_HABITS" ||
+      msg.action === "CONFIRM_DELETE_ALL_HABITS"
+    ) {
+      const rawActionNameName = (msg.action || msg.data?.action || "").toUpperCase().trim();
+      const rawStatusName = (msg.status || msg.data?.status || "").toUpperCase().trim();
+      const currentStatus = rawStatusName || rawActionNameName || "AWAITING_CONFIRMATION";
+
+      if (
+        currentStatus === "HABITS_DELETED" ||
+        currentStatus === "DELETED" ||
+        currentStatus === "CONFIRMED" ||
+        currentStatus === "CANCELLED" ||
+        currentStatus === "COMPLETED"
+      ) {
+        return null;
+      }
+
+      return {
+        type: "DELETE_ALL_HABITS",
+        action: rawActionNameName || "CONFIRM_DELETE_ALL_HABITS",
+        status: currentStatus,
+        actionId,
+        sessionId,
+        messageId: msg.id,
+        payload: {
+          actionId,
+          sessionId,
+          status: currentStatus,
+          habits: existingHabits || [],
+        },
+        cleanedText: msg.content || "Do you want to delete all your habits? This action cannot be undone.",
+        rawText: msg.content || "",
+      };
+    }
+
     if (rawIntent === "DELETE_HABIT" || rawActionName === "CONFIRM_DELETE_HABIT" || msg.action === "CONFIRM_DELETE_HABIT") {
       const rawActionName = (msg.action || msg.data?.action || "").toUpperCase().trim();
       const rawStatusName = (msg.status || msg.data?.status || "").toUpperCase().trim();

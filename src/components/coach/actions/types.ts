@@ -7,6 +7,7 @@ export type CoachActionType =
   | "CREATE_HABITS"
   | "UPDATE_HABIT"
   | "DELETE_HABIT"
+  | "DELETE_ALL_HABITS"
   | "RESTORE_HABIT"
   | "EDIT_PROFILE"
   | "GET_HABITS"
