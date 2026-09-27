@@ -7,6 +7,68 @@ import { toCanonicalDifficulty } from "../utils";
 import { HabitIconPicker } from "./HabitIconPicker";
 import { toast } from "react-hot-toast";
 
+export const SUBCATEGORY_OPTIONS: Record<string, string[]> = {
+  "Health & Fitness": [
+    "Workout",
+    "Walking",
+    "Exercise",
+    "Health",
+    "Hydrate",
+    "Water",
+    "Nutrition",
+    "Clean Diet",
+    "Yoga",
+    "Running"
+  ],
+  "Studies": [
+    "Maths",
+    "English",
+    "Physics",
+    "Chemistry",
+    "Biology",
+    "Computer Science",
+    "History",
+    "Geography",
+    "Literature"
+  ],
+  "Sports": [
+    "Cricket",
+    "Football",
+    "Basketball",
+    "Badminton",
+    "Swimming",
+    "Tennis",
+    "Running",
+    "Cycling",
+    "Athletics",
+    "Volleyball"
+  ],
+  "Mind & Focus": [
+    "Meditation",
+    "Journaling",
+    "Breathing",
+    "Reading",
+    "Reflection",
+    "Focus"
+  ],
+  "Productivity": [
+    "Coding",
+    "Planning",
+    "Organizing",
+    "Budgeting",
+    "Finances",
+    "Work Task"
+  ],
+  "Lifestyle": [
+    "Morning Routine",
+    "Night Routine",
+    "Hobbies",
+    "Self Care",
+    "Socializing",
+    "Chores"
+  ]
+};
+
 interface CreateHabitModalProps {
   onClose: () => void;
 }
@@ -70,7 +132,7 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
       difficulty: toCanonicalDifficulty(difficulty),
       notes: notes.trim(),
       icon: selectedIcon,
-      category: category.toLowerCase(),
+      category: category,
       subcategory: subcategory || undefined,
       sport: category === "Sports" ? subcategory : undefined,
       subject: category === "Studies" ? subcategory : undefined,
@@ -121,7 +183,7 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
         <div className="flex justify-between items-center mb-4 shrink-0">
           <div>
             <h2 className="text-xl font-bold tracking-tighter">New Habit</h2>
-            {(category === "Sports" || category === "Studies") && subcategory && (
+            {category && subcategory && (
               <p className="text-[11px] font-mono text-zinc-400 mt-0.5">
                 {category} · <span className="text-zinc-200 font-semibold">{subcategory}</span>
               </p>
@@ -143,6 +205,84 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
                className="w-full bg-transparent border-b border-white/10 p-2 text-2xl font-bold text-white focus:outline-none focus:border-white/40 placeholder-slate-600 transition-colors"
                autoFocus
              />
+           </div>
+
+           {/* Separate Category and Subcategory Form Selections */}
+           <div className="space-y-4 bg-white/[0.02] border border-white/10 rounded-2xl p-4">
+             <div>
+               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2.5 block">
+                 Category Selection
+               </span>
+               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                 {Object.keys(SUBCATEGORY_OPTIONS).map((cat) => {
+                   const isSelected = category === cat;
+                   return (
+                     <button
+                       type="button"
+                       key={cat}
+                       onClick={() => {
+                         setCategory(cat);
+                         // Category Change Rule: Reset previous subcategory if not valid in the new category
+                         const validOptions = SUBCATEGORY_OPTIONS[cat] || [];
+                         if (!validOptions.includes(subcategory)) {
+                           setSubcategory("");
+                         }
+                       }}
+                       className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all text-center ${
+                         isSelected
+                           ? "bg-white text-black border-white shadow-sm font-black"
+                           : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10"
+                       }`}
+                     >
+                       {cat}
+                     </button>
+                   );
+                 })}
+               </div>
+             </div>
+
+             <div>
+               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2.5 block">
+                 Subcategory Options
+               </span>
+               <div className="flex flex-wrap gap-1.5">
+                 {(SUBCATEGORY_OPTIONS[category] || []).map((sub) => {
+                   const isSelected = subcategory === sub;
+                   return (
+                     <button
+                       type="button"
+                       key={sub}
+                       onClick={() => setSubcategory(sub)}
+                       className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition-all ${
+                         isSelected
+                           ? "bg-white text-black border-white shadow-sm font-black animate-none"
+                           : "bg-white/5 border-white/10 text-slate-400 hover:text-slate-200"
+                       }`}
+                     >
+                       {sub}
+                     </button>
+                   );
+                 })}
+                 <button
+                   type="button"
+                   onClick={() => setSubcategory("")}
+                   className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition-all ${
+                     !subcategory
+                       ? "bg-white/15 text-white border-white/20 font-black"
+                       : "bg-white/5 border-white/10 text-slate-500 hover:text-slate-400"
+                   }`}
+                 >
+                   None
+                 </button>
+               </div>
+               <input
+                 type="text"
+                 placeholder="Or enter customized subcategory..."
+                 value={subcategory}
+                 onChange={(e) => setSubcategory(e.target.value)}
+                 className="w-full mt-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 placeholder-slate-600 transition-colors"
+               />
+             </div>
            </div>
 
            {/* Habitify Icon, Category & Subcategory Picker */}

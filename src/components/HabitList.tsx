@@ -203,7 +203,14 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
             habit.subcategory || habit.sport || habit.subject
           );
           const habitColor = getHabitColorTheme(habit.color || habit.category, habit.name);
-          const habitSubcategory = habit.subcategory || habit.sport || habit.subject;
+          const rawSub = habit.subcategory || habit.sport || habit.subject || "";
+          const habitSubcategory =
+            rawSub &&
+            String(rawSub).trim() !== "" &&
+            String(rawSub).trim().toLowerCase() !== "null" &&
+            String(rawSub).trim().toLowerCase() !== "undefined"
+              ? String(rawSub).trim()
+              : "";
           const hasNotes = Boolean(
             habit.notes &&
             typeof habit.notes === "string" &&
