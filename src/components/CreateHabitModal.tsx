@@ -6,7 +6,8 @@ import { useStore } from "../store/useStore";
 import { toCanonicalDifficulty } from "../utils";
 import { HabitIconPicker } from "./HabitIconPicker";
 import { toast } from "react-hot-toast";
-import { SUBCATEGORY_OPTIONS } from "../lib/habitData";
+import { HABIT_ICONS, SPORTS_OPTIONS, STUDIES_OPTIONS } from "../lib/habitIcons";
+
 
 interface CreateHabitModalProps {
   onClose: () => void;
@@ -16,7 +17,6 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
   const { addHabit } = useStore();
   const [name, setName] = useState("");
   const [category, setCategory] = useState<string>("Health & Fitness");
-  const [subcategory, setSubcategory] = useState<string>("");
   const [repeatType, setRepeatType] = useState<"every_day" | "weekdays" | "weekends" | "custom_days">("every_day");
   const [customDays, setCustomDays] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState("Medium");
@@ -64,6 +64,10 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
       return;
     }
 
+    const allIcons = [...HABIT_ICONS, ...SPORTS_OPTIONS, ...STUDIES_OPTIONS];
+    const selectedItem = allIcons.find(i => i.id === selectedIcon);
+    const subcategory = selectedItem?.subcategory || selectedItem?.label;
+
     const payload = {
       name: trimmedName,
       repeatType,
@@ -72,7 +76,7 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
       notes: notes.trim(),
       icon: selectedIcon,
       category: category,
-      subcategory: subcategory || undefined,
+      subcategory: subcategory,
       sport: category === "Sports" ? subcategory : undefined,
       subject: category === "Studies" ? subcategory : undefined,
       color: selectedColor
@@ -122,11 +126,6 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
         <div className="flex justify-between items-center mb-4 shrink-0">
           <div>
             <h2 className="text-xl font-bold tracking-tighter">New Habit</h2>
-            {category && subcategory && (
-              <p className="text-[11px] font-mono text-zinc-400 mt-0.5">
-                {category} · <span className="text-zinc-200 font-semibold">{subcategory}</span>
-              </p>
-            )}
           </div>
           <button type="button" onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
             <X size={20} />
@@ -151,11 +150,9 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
              selectedIcon={selectedIcon}
              selectedColor={selectedColor}
              selectedCategory={category}
-             selectedSubcategory={subcategory}
              onSelectIcon={setSelectedIcon}
              onSelectColor={setSelectedColor}
              onSelectCategory={setCategory}
-             onSelectSubcategory={setSubcategory}
            />
 
            {/* Repeat Schedule */}

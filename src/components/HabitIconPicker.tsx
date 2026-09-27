@@ -8,7 +8,6 @@ import {
   HabitCategoryType,
   getHabitIconComponent
 } from "../lib/habitIcons";
-import { SUBCATEGORY_OPTIONS } from "../lib/habitData";
 import { Check } from "lucide-react";
 
 interface HabitIconPickerProps {
@@ -48,11 +47,19 @@ export function HabitIconPicker({
   const handleCategoryClick = (cat: HabitCategoryType) => {
     setActiveCategory(cat);
     onSelectCategory?.(cat);
-    onSelectSubcategory?.(""); 
+    
+    // Auto-select first icon/subcategory in new category
+    const items = cat === "Sports" ? SPORTS_OPTIONS : cat === "Studies" ? STUDIES_OPTIONS : HABIT_ICONS.filter((item) => item.category === cat);
+    if (items.length > 0) {
+      const firstItem = items[0];
+      onSelectIcon(firstItem.id);
+      onSelectSubcategory?.(firstItem.subcategory || firstItem.label);
+    }
   };
 
-  const handleSubcategoryClick = (sub: string) => {
-    onSelectSubcategory?.(sub === "None" ? "" : sub);
+  const handleIconClick = (item: any) => {
+    onSelectIcon(item.id);
+    onSelectSubcategory?.(item.subcategory || item.label);
   };
 
   const currentItems = (() => {
@@ -70,7 +77,7 @@ export function HabitIconPicker({
             Icon & Category
           </label>
           <p className="text-[11px] text-slate-500">
-            Select study subject & visual badge
+            Select habit type & visual badge
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -133,47 +140,10 @@ export function HabitIconPicker({
         </div>
       </div>
 
-      {/* Subcategory */}
-      <div>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 block">
-          Select Subcategory
-        </span>
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            onClick={() => handleSubcategoryClick("None")}
-            className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition-all ${
-              !selectedSubcategory
-                ? "bg-white/15 text-white border-white/20 font-black"
-                : "bg-white/5 border-white/10 text-slate-500 hover:text-slate-400"
-            }`}
-          >
-            None
-          </button>
-          {(SUBCATEGORY_OPTIONS[activeCategory] || []).map((sub) => {
-            const isSelected = selectedSubcategory === sub;
-            return (
-              <button
-                type="button"
-                key={sub}
-                onClick={() => handleSubcategoryClick(sub)}
-                className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition-all ${
-                  isSelected
-                    ? "bg-white text-black border-white shadow-sm font-black animate-none"
-                    : "bg-white/5 border-white/10 text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {sub}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Icon Grid */}
       <div>
         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 block">
-          Icon
+          Icon (determines habit type)
         </span>
         <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 pt-2 max-h-48 overflow-y-auto pr-1 scrollbar-hide">
           {currentItems.map((item) => {
@@ -183,7 +153,7 @@ export function HabitIconPicker({
               <button
                 key={item.id}
                 type="button"
-                onClick={() => onSelectIcon(item.id)}
+                onClick={() => handleIconClick(item)}
                 className={`p-2.5 rounded-xl flex flex-col items-center justify-center gap-1.5 border transition-all duration-200 group ${
                   isSelected
                     ? `${currentColorObj.bg} ${currentColorObj.border} ${currentColorObj.text} ring-2 ${currentColorObj.ring} scale-105 shadow-md`

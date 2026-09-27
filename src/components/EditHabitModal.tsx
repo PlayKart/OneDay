@@ -5,7 +5,7 @@ import { X, Calendar, Flag, AlignLeft, Check, Trash } from "lucide-react";
 import { useStore, Habit } from "../store/useStore";
 import { toCanonicalDifficulty, toDisplayDifficulty } from "../utils";
 import { HabitIconPicker } from "./HabitIconPicker";
-import { HABIT_COLORS } from "../lib/habitIcons";
+import { HABIT_COLORS, HABIT_ICONS, SPORTS_OPTIONS, STUDIES_OPTIONS } from "../lib/habitIcons";
 import { habitService } from "../services/habitService";
 import { toast } from "react-hot-toast";
 import { SUBCATEGORY_OPTIONS } from "../lib/habitData";
@@ -30,9 +30,6 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
   })();
 
   const [category, setCategory] = useState<string>(initialCategory);
-  const [subcategory, setSubcategory] = useState<string>(
-    habit.subcategory || (habit as any).sport || (habit as any).subject || ""
-  );
 
   const [repeatType, setRepeatType] = useState<"every_day" | "weekdays" | "weekends" | "custom_days">(habit.repeatType || "every_day");
   const [customDays, setCustomDays] = useState<string[]>(() => {
@@ -98,7 +95,7 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
           }
         }
         if ((dbHabit as any).subcategory || (dbHabit as any).sport || (dbHabit as any).subject) {
-          setSubcategory((dbHabit as any).subcategory || (dbHabit as any).sport || (dbHabit as any).subject || "");
+          // (dbHabit as any).subcategory;
         }
       } catch (err) {
         console.warn("[EditHabitModal] Failed to load fresh habit from backend:", err);
@@ -157,6 +154,10 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
       return;
     }
 
+    const allIcons = [...HABIT_ICONS, ...SPORTS_OPTIONS, ...STUDIES_OPTIONS];
+    const selectedItem = allIcons.find(i => i.id === selectedIcon);
+    const subcategory = selectedItem?.subcategory || selectedItem?.label;
+
     const trimmedNotes = notes.trim();
     const payload = {
       name: trimmedName,
@@ -167,7 +168,7 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
       description: trimmedNotes,
       icon: selectedIcon,
       category: category,
-      subcategory: subcategory || undefined,
+      subcategory: subcategory,
       sport: category === "Sports" ? subcategory : undefined,
       subject: category === "Studies" ? subcategory : undefined,
       color: selectedColor
@@ -244,11 +245,6 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
         <div className="flex justify-between items-center mb-4 shrink-0">
           <div>
             <h2 className="text-xl font-bold tracking-tighter">Edit Habit</h2>
-            {category && subcategory && (
-              <p className="text-[11px] font-mono text-zinc-400 mt-0.5">
-                {category} · <span className="text-zinc-200 font-semibold">{subcategory}</span>
-              </p>
-            )}
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setShowDeleteConfirm(true)} disabled={isDeleting} className="p-2 bg-red-500/10 rounded-full hover:bg-red-500/20 text-red-500 transition-colors disabled:opacity-50" title="Delete Habit">
@@ -278,11 +274,9 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
              selectedIcon={selectedIcon}
              selectedColor={selectedColor}
              selectedCategory={category}
-             selectedSubcategory={subcategory}
              onSelectIcon={setSelectedIcon}
              onSelectColor={setSelectedColor}
              onSelectCategory={setCategory}
-             onSelectSubcategory={setSubcategory}
            />
 
            {/* Repeat Schedule */}
