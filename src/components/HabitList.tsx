@@ -272,23 +272,51 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                       <span>COMPLETION PAUSED</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className={`text-[10px] font-mono uppercase tracking-wider truncate ${habit.completedToday ? 'text-zinc-500' : 'text-zinc-400'}`}>
-                        {isPending ? 'Updating...' : (habit.completedToday ? 'Completed' : (isToday ? 'Scheduled Today' : getScheduledDaysMessage(habit)))}
-                      </p>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className={`text-[10px] font-mono uppercase tracking-wider truncate ${habit.completedToday ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                          {isPending ? 'Updating...' : (habit.completedToday ? 'Completed' : (isToday ? 'Scheduled Today' : getScheduledDaysMessage(habit)))}
+                        </p>
+                      </div>
+                      
                       {hasNotes && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleExpandHabit(habit.id);
-                          }}
-                          className="inline-flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
-                        >
-                          <FileText size={9} className="text-zinc-400" />
-                          <span>{isExpanded ? "Hide Notes" : "Notes"}</span>
-                          <ChevronDown size={9} className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
-                        </button>
+                        <div className="text-slate-400 text-xs mt-1 font-sans flex flex-col gap-1 bg-white/[0.01] border border-white/[0.03] rounded-lg p-2 leading-relaxed">
+                          <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-500">
+                            <AlignLeft size={10} />
+                            <span>Notes</span>
+                          </div>
+                          <p className="text-zinc-300 text-[11px] font-medium leading-normal">
+                            {habit.notes!.trim().length <= 60 || isExpanded ? (
+                              <span className="whitespace-pre-wrap">{habit.notes!.trim()}</span>
+                            ) : (
+                              <span>
+                                {habit.notes!.trim().slice(0, 60).trim()}...{" "}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleExpandHabit(habit.id);
+                                  }}
+                                  className="text-white hover:underline font-bold ml-1 inline-block cursor-pointer focus:outline-none"
+                                >
+                                  View more
+                                </button>
+                              </span>
+                            )}
+                          </p>
+                          {isExpanded && habit.notes!.trim().length > 60 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleExpandHabit(habit.id);
+                              }}
+                              className="text-zinc-500 hover:text-white text-[10px] font-mono font-bold hover:underline self-start cursor-pointer focus:outline-none mt-1"
+                            >
+                              [View less]
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
@@ -477,28 +505,6 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
               </div>
             </div>
 
-            {/* Expandable Notes Panel */}
-            <AnimatePresence>
-              {isExpanded && hasNotes && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden w-full pt-3 mt-3 border-t border-white/[0.06]"
-                >
-                  <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-3">
-                    <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
-                      <AlignLeft size={11} className="text-zinc-400" />
-                      <span>NOTES / PURPOSE</span>
-                    </div>
-                    <p className="text-xs text-zinc-200 leading-relaxed whitespace-pre-wrap font-sans">
-                      {habit.notes?.trim()}
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </motion.div>
         )})}
 

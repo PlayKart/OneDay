@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useStore } from "../store/useStore";
 import { Habit } from "../types";
-import { auth } from "../lib/firebase";
 import { getTodayDateString, isHabitScheduledForDate } from "../lib/habitUtils";
+import { getHabitColorTheme } from "../lib/habitIcons";
 import {
   TrendingUp,
   Award,
@@ -16,6 +16,8 @@ import {
   ArrowDownRight,
   Activity,
   Layers,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
 type Timeframe = 7 | 14 | 30;
@@ -42,7 +44,9 @@ interface DayOfWeekData {
 interface CategoryData {
   name: string;
   count: number;
+  scheduled: number;
   percentage: number;
+  reliability: number;
   color: string;
 }
 
@@ -51,21 +55,30 @@ export function HabitTrendsView() {
   const [timeframe, setTimeframe] = useState<Timeframe>(30);
   const [hoveredDayIdx, setHoveredDayIdx] = useState<number | null>(null);
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Synchronize on mount and timeframe changes
-  useEffect(() => {
-    let isMounted = true;
-    async function loadAnalytics() {
-      try {
-        await useStore.getState().refreshFromBackend();
-      } catch (err) {
-        console.warn("[30DAY_TRENDS] Error loading latest backend data:", err);
-      }
+  // Load analytics and sync with backend on mount & timeframe changes
+  const loadAnalytics = async () => {
+    setIsRefreshing(true);
+    setError(null);
+    try {
+      await useStore.getState().refreshFromBackend();
+    } catch (err: any) {
+      console.error("[30DAY_TRENDS] Error syncing trends from backend:", err);
+      const msg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Could not load discipline analytics from the server.";
+      setError(msg);
+    } finally {
+      setIsRefreshing(false);
     }
+  };
+
+  useEffect(() => {
     loadAnalytics();
-    return () => {
-      isMounted = false;
-    };
   }, [timeframe]);
 
   const safeHabits: Habit[] = useMemo(
@@ -216,55 +229,24 @@ export function HabitTrendsView() {
     return sorted[0] && sorted[0].avgPercentage > 0 ? sorted[0] : null;
   }, [dayOfWeekPattern]);
 
-  // Category normalization and resolution
+  // Category normalization and resolution (Sports & Studies are authoritative)
   const resolveHabitCategory = (h: Habit): string => {
     if (!h) return "Lifestyle";
-    const raw = String(
-      h.category ||
-        (h as any).habitType ||
-        (h as any).habit_type ||
-        (h as any).type ||
-        (h as any).categoryName ||
-        ""
-    ).trim();
+    const raw = String(h.category || h.subcategory || "").trim().toLowerCase();
 
-    if (!raw) return "Lifestyle";
-
-    const normalized = raw
-      .toLowerCase()
-      .replace(/&/g, "and")
-      .replace(/[_\-]+/g, " ")
-      .replace(/[^a-z0-9 ]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    if (
-      normalized.includes("sport") ||
-      normalized.includes("fitness") ||
-      normalized.includes("gym") ||
-      normalized.includes("health") ||
-      normalized.includes("workout")
-    ) {
+    if (raw === "sports" || raw.includes("sport") || raw === "cricket" || raw === "football" || raw === "basketball" || raw === "tennis" || raw === "badminton" || raw === "swimming" || raw === "running" || raw === "cycling") {
+      return "Sports";
+    }
+    if (raw === "studies" || raw === "study" || raw.includes("studi") || raw === "subject" || raw === "mathematics" || raw === "science" || raw === "academic") {
+      return "Studies";
+    }
+    if (raw.includes("fitness") || raw.includes("health") || raw === "gym" || raw === "workout" || raw.includes("nutrition")) {
       return "Health & Fitness";
     }
-
-    if (
-      normalized.includes("mind") ||
-      normalized.includes("focus") ||
-      normalized.includes("meditat") ||
-      normalized.includes("study") ||
-      normalized.includes("read")
-    ) {
+    if (raw.includes("mind") || raw.includes("focus") || raw.includes("meditat") || raw === "journal" || raw === "mental") {
       return "Mind & Focus";
     }
-
-    if (
-      normalized.includes("productiv") ||
-      normalized.includes("work") ||
-      normalized.includes("code") ||
-      normalized.includes("task") ||
-      normalized.includes("finance")
-    ) {
+    if (raw.includes("productiv") || raw.includes("work") || raw.includes("code") || raw.includes("finance")) {
       return "Productivity";
     }
 
@@ -272,62 +254,77 @@ export function HabitTrendsView() {
   };
 
   const CATEGORY_COLORS: Record<string, string> = {
-    "Health & Fitness": "#10b981", // Emerald
+    "Sports": "#10b981",            // Emerald
+    "Studies": "#3b82f6",           // Blue
+    "Health & Fitness": "#14b8a6", // Teal
     "Mind & Focus": "#06b6d4",     // Cyan
     "Productivity": "#a855f7",     // Purple
     "Lifestyle": "#f59e0b",        // Amber
   };
 
   const categoryData: CategoryData[] = useMemo(() => {
-    const counts: Record<string, number> = {
+    const completedCounts: Record<string, number> = {
+      "Sports": 0,
+      "Studies": 0,
       "Health & Fitness": 0,
       "Mind & Focus": 0,
       "Productivity": 0,
       "Lifestyle": 0,
     };
+    const scheduledCounts: Record<string, number> = {
+      "Sports": 0,
+      "Studies": 0,
+      "Health & Fitness": 0,
+      "Mind & Focus": 0,
+      "Productivity": 0,
+      "Lifestyle": 0,
+    };
+
     let totalCompletions = 0;
 
-    const thirtyDayDateSet = new Set(
-      Array.isArray(dailyData) ? dailyData.map((d) => d.dateStr) : []
-    );
-    const todayDateStr = dailyData[dailyData.length - 1]?.dateStr;
-
-    safeHabits.forEach((h) => {
-      if (!h) return;
-      const cat = resolveHabitCategory(h);
-      if (counts[cat] === undefined) {
-        counts[cat] = 0;
-      }
-
-      let habit30DayCheckIns = 0;
-
-      if (Array.isArray(h.completedDates)) {
-        h.completedDates.forEach((dStr) => {
-          if (thirtyDayDateSet.has(dStr)) {
-            habit30DayCheckIns++;
-          }
-        });
-      }
-
-      if (h.completedToday && todayDateStr && thirtyDayDateSet.has(todayDateStr)) {
-        if (!Array.isArray(h.completedDates) || !h.completedDates.includes(todayDateStr)) {
-          habit30DayCheckIns++;
+    dailyData.forEach((day) => {
+      safeHabits.forEach((h) => {
+        if (!h) return;
+        // Use noon to calculate scheduling safely across timezones
+        const d = new Date(day.dateStr + "T12:00:00");
+        let isScheduled = false;
+        try {
+          isScheduled = isHabitScheduledForDate(h, d);
+        } catch {
+          isScheduled = false;
         }
-      }
 
-      counts[cat] += habit30DayCheckIns;
-      totalCompletions += habit30DayCheckIns;
+        if (isScheduled) {
+          const cat = resolveHabitCategory(h);
+          scheduledCounts[cat]++;
+
+          let completedOnThisDay = false;
+          if (Array.isArray(h.completedDates) && h.completedDates.includes(day.dateStr)) {
+            completedOnThisDay = true;
+          } else if (day.dateStr === dailyData[dailyData.length - 1]?.dateStr && h.completedToday) {
+            completedOnThisDay = true;
+          }
+
+          if (completedOnThisDay) {
+            completedCounts[cat]++;
+            totalCompletions++;
+          }
+        }
+      });
     });
 
-    const orderedCategories = ["Health & Fitness", "Mind & Focus", "Productivity", "Lifestyle"];
+    const orderedCategories = ["Sports", "Studies", "Health & Fitness", "Mind & Focus", "Productivity", "Lifestyle"];
     return orderedCategories.map((name) => {
-      const count = counts[name] || 0;
-      const percentage =
-        totalCompletions === 0 ? 0 : Math.round((count / totalCompletions) * 100);
+      const completed = completedCounts[name] || 0;
+      const scheduled = scheduledCounts[name] || 0;
+      const reliability = scheduled === 0 ? 0 : Math.round((completed / scheduled) * 100);
+
       return {
         name,
-        count,
-        percentage: isNaN(percentage) ? 0 : percentage,
+        count: completed,
+        scheduled,
+        percentage: totalCompletions === 0 ? 0 : Math.round((completed / totalCompletions) * 100),
+        reliability: isNaN(reliability) ? 0 : reliability,
         color: CATEGORY_COLORS[name] || "#64748b",
       };
     });
@@ -337,8 +334,82 @@ export function HabitTrendsView() {
     return categoryData.reduce((sum, item) => sum + item.count, 0);
   }, [categoryData]);
 
+  // Aggregate sports and studies specific habits for detailed trend rendering
+  const sportsAndStudiesMetrics = useMemo(() => {
+    const list = safeHabits.filter((h) => {
+      const cat = resolveHabitCategory(h);
+      return cat === "Sports" || cat === "Studies";
+    });
+
+    return list.map((h) => {
+      let completedCount = 0;
+      let scheduledCount = 0;
+
+      dailyData.forEach((day) => {
+        const d = new Date(day.dateStr + "T12:00:00");
+        let isScheduled = false;
+        try {
+          isScheduled = isHabitScheduledForDate(h, d);
+        } catch {
+          isScheduled = false;
+        }
+
+        if (isScheduled) {
+          scheduledCount++;
+          let completedOnThisDay = false;
+          if (Array.isArray(h.completedDates) && h.completedDates.includes(day.dateStr)) {
+            completedOnThisDay = true;
+          } else if (day.dateStr === dailyData[dailyData.length - 1]?.dateStr && h.completedToday) {
+            completedOnThisDay = true;
+          }
+
+          if (completedOnThisDay) {
+            completedCount++;
+          }
+        }
+      });
+
+      const reliability = scheduledCount === 0 ? 0 : Math.round((completedCount / scheduledCount) * 100);
+
+      return {
+        id: h.id,
+        name: h.name,
+        category: resolveHabitCategory(h),
+        subcategory: h.subcategory || h.sport || h.subject || "General",
+        completedCount,
+        scheduledCount,
+        reliability,
+        color: getHabitColorTheme(h.color || h.category, h.name).text,
+      };
+    });
+  }, [safeHabits, dailyData]);
+
   return (
     <div className="w-full space-y-6">
+      {/* ERROR HEADER CARD — Autoritatively Displays Server Failures */}
+      {error && (
+        <div className="p-5 bg-red-950/20 border border-red-500/35 rounded-3xl text-center space-y-4 max-w-lg mx-auto backdrop-blur-xl">
+          <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-400 mx-auto">
+            <AlertTriangle size={24} />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-white font-extrabold uppercase tracking-widest text-xs">Analytics Sync Failed</h4>
+            <p className="text-red-300 text-xs leading-relaxed">
+              {error}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={loadAnalytics}
+            disabled={isRefreshing}
+            className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 hover:border-red-500/60 rounded-xl text-xs font-bold text-red-200 transition-all cursor-pointer inline-flex items-center gap-2 focus:outline-none"
+          >
+            {isRefreshing ? <Loader2 size={12} className="animate-spin" /> : null}
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      )}
+
       {/* HEADER ROW & TIMEFRAME SELECTOR */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl">
         <div>
@@ -360,7 +431,7 @@ export function HabitTrendsView() {
               key={tf}
               type="button"
               onClick={() => setTimeframe(tf)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer focus:outline-none ${
                 timeframe === tf
                   ? "bg-white text-black shadow-lg"
                   : "text-slate-400 hover:text-white"
@@ -489,8 +560,8 @@ export function HabitTrendsView() {
             <div className="space-y-3">
               <div className="relative h-44 w-full bg-black/20 border border-white/5 rounded-2xl p-3 flex items-end justify-between gap-1 sm:gap-2">
                 {/* 80% Benchmark line */}
-                <div 
-                  className="absolute left-0 right-0 border-b border-emerald-500/40 border-dashed pointer-events-none z-10" 
+                <div
+                  className="absolute left-0 right-0 border-b border-emerald-500/40 border-dashed pointer-events-none z-10"
                   style={{ bottom: "80%" }}
                 >
                   <span className="absolute right-2 -top-4 text-[9px] font-mono font-bold text-emerald-400 bg-[#0c0d12]/90 px-1.5 py-0.5 rounded border border-emerald-500/30">
@@ -556,13 +627,13 @@ export function HabitTrendsView() {
 
       {/* GRID: DAY-OF-WEEK PATTERN & CATEGORY BREAKDOWN */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* SECTION 3: DAY-OF-WEEK PATTERN */}
+        {/* SECTION 3: DAY-OF-WEEK PATTERN (WITH RELIABILITY INDICATORS) */}
         <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl flex flex-col justify-between h-full">
           <div>
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
                 <Calendar size={16} className="text-purple-400" />
-                Day-of-Week Pattern
+                Day-of-Week Pattern Reliability
               </h3>
               <span className="text-[10px] font-mono font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
                 30-Day Aggregate
@@ -572,8 +643,8 @@ export function HabitTrendsView() {
               Average completion rate grouped by day of the week over the last 30 calendar days.
             </p>
 
-            {/* Custom Interactive Day of Week Bars */}
-            <div className="grid grid-cols-7 gap-1.5 sm:gap-2 pt-2">
+            {/* Custom Interactive Day of Week Bars with Reliability badging */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 pt-2">
               {dayOfWeekPattern.map((item, idx) => {
                 const barHeight = Math.max(item.avgPercentage, 6);
                 const isHigh = item.avgPercentage >= 80;
@@ -599,7 +670,7 @@ export function HabitTrendsView() {
                     </span>
 
                     {/* Bar Container Track */}
-                    <div className="w-full h-32 bg-white/[0.02] border border-white/[0.06] rounded-xl flex flex-col justify-end p-1 relative overflow-hidden group-hover/dow:border-white/20 transition-all">
+                    <div className="w-full h-28 bg-white/[0.02] border border-white/[0.06] rounded-xl flex flex-col justify-end p-1 relative overflow-hidden group-hover/dow:border-white/20 transition-all">
                       <div
                         style={{ height: `${barHeight}%` }}
                         className={`w-full rounded-lg transition-all duration-500 ${barFill} group-hover/dow:brightness-125`}
@@ -611,8 +682,21 @@ export function HabitTrendsView() {
                       {item.dayName}
                     </span>
 
+                    {/* Reliability Badges */}
+                    <span className={`text-[8px] font-mono font-black uppercase mt-1.5 px-1.5 py-0.5 rounded ${
+                      item.avgPercentage >= 80
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        : item.avgPercentage >= 50
+                        ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                        : item.avgPercentage > 0
+                        ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                        : "bg-white/5 text-slate-500 border border-white/10"
+                    }`}>
+                      {item.avgPercentage >= 80 ? "HIGH" : item.avgPercentage >= 50 ? "MED" : item.avgPercentage > 0 ? "LOW" : "NONE"}
+                    </span>
+
                     {/* Scheduled count */}
-                    <span className="text-[9px] font-mono text-slate-500 mt-0.5">
+                    <span className="text-[9px] font-mono text-slate-500 mt-1">
                       {item.totalCompleted}/{item.totalScheduled}
                     </span>
                   </div>
@@ -638,20 +722,20 @@ export function HabitTrendsView() {
           </div>
         </div>
 
-        {/* SECTION 4: CATEGORY FOCUS */}
+        {/* SECTION 4: CATEGORY FOCUS RELIABILITY */}
         <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl flex flex-col justify-between h-full">
           <div>
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
                 <Layers size={16} className="text-emerald-400" />
-                Category Focus
+                Category Focus Reliability
               </h3>
               <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                 {totalCategoryCheckIns} Check-Ins
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mb-5">
-              Distribution of completed habits across categories over the 30-day window.
+              Completion reliability rates and check-in distribution across lifestyle pillars.
             </p>
 
             {/* Visual SVG Donut + Category Breakdown List */}
@@ -724,8 +808,8 @@ export function HabitTrendsView() {
                 </div>
               </div>
 
-              {/* Category Breakdown list */}
-              <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+              {/* Category Breakdown list with authoritative metrics */}
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-hide">
                 {categoryData.map((cat, idx) => {
                   const isHovered = hoveredCategory === cat.name;
 
@@ -734,34 +818,40 @@ export function HabitTrendsView() {
                       key={idx}
                       onMouseEnter={() => setHoveredCategory(cat.name)}
                       onMouseLeave={() => setHoveredCategory(null)}
-                      className={`p-2.5 rounded-xl border transition-all duration-200 cursor-pointer ${
+                      className={`p-2 rounded-xl border transition-all duration-200 cursor-pointer ${
                         isHovered
                           ? "bg-white/[0.06] border-white/20 shadow-md"
                           : "bg-white/[0.02] border-white/5 hover:bg-white/[0.04]"
                       }`}
                     >
                       <div className="flex items-center justify-between text-xs mb-1.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
                           <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            className="w-2 h-2 rounded-full shrink-0 animate-pulse"
                             style={{ backgroundColor: cat.color }}
                           />
-                          <span className="font-bold text-slate-200 truncate">{cat.name}</span>
+                          <span className="font-extrabold text-slate-200 truncate text-[11px]">{cat.name}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                          <span className="text-slate-400">{cat.count}</span>
-                          <span className="font-extrabold text-white bg-white/10 px-1.5 py-0.2 rounded">
-                            {cat.percentage}%
+                        <div className="flex items-center gap-1.5 font-mono text-[10px] shrink-0">
+                          <span className="text-slate-500">Rel:</span>
+                          <span className={`font-black px-1.5 py-0.2 rounded ${
+                            cat.reliability >= 80 
+                              ? "bg-emerald-500/15 text-emerald-400" 
+                              : cat.reliability >= 50 
+                                ? "bg-cyan-500/15 text-cyan-400" 
+                                : "bg-amber-500/15 text-amber-400"
+                          }`}>
+                            {cat.reliability}%
                           </span>
                         </div>
                       </div>
 
-                      {/* Mini progress bar */}
+                      {/* Mini progress bar showing reliability */}
                       <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500"
                           style={{
-                            width: `${cat.percentage}%`,
+                            width: `${cat.reliability}%`,
                             backgroundColor: cat.color,
                           }}
                         />
@@ -774,12 +864,71 @@ export function HabitTrendsView() {
           </div>
 
           <div className="text-[11px] text-slate-400 bg-white/[0.03] border border-white/5 rounded-2xl p-3.5 mt-5">
-            Balanced discipline across multiple lifestyle pillars prevents burnout and fosters sustainable long-term growth.
+            Reliability index calculates completions divided by scheduled frequencies. Maintain consistent routines to elevate score.
           </div>
         </div>
       </div>
 
-      {/* SECTION 5: 30-DAY DAILY CONSISTENCY HEATMAP */}
+      {/* SECTION 5: SPORTS & STUDIES SPECIFIC TRENDS UI (Authoritative mapping) */}
+      {sportsAndStudiesMetrics.length > 0 && (
+        <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl space-y-4">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+              <Target size={16} className="text-cyan-400" />
+              Sports & Studies Discipline Overview
+            </h3>
+            <p className="text-[11px] text-slate-400">
+              Direct, non-fabricated reliability mapping of your customized athletic training and academic programs.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {sportsAndStudiesMetrics.map((item) => (
+              <div
+                key={item.id}
+                className="bg-[#0e0f14]/50 border border-white/5 rounded-2xl p-4 flex items-center justify-between hover:border-white/10 hover:bg-white/[0.01] transition-all"
+              >
+                <div className="min-w-0 flex-1 pr-3">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                      item.category === "Sports"
+                        ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                        : "bg-blue-500/10 border border-blue-500/20 text-blue-400"
+                    }`}>
+                      {item.subcategory}
+                    </span>
+                    <span className="text-xs font-bold text-white truncate max-w-[140px] sm:max-w-none">
+                      {item.name}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    Completed {item.completedCount} of {item.scheduledCount} scheduled sessions
+                  </p>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <div className={`text-xl font-black font-mono leading-none ${
+                    item.reliability >= 80
+                      ? "text-emerald-400"
+                      : item.reliability >= 50
+                        ? "text-cyan-400"
+                        : item.reliability > 0
+                          ? "text-amber-400"
+                          : "text-slate-600"
+                  }`}>
+                    {item.reliability}%
+                  </div>
+                  <span className="text-[8px] font-mono text-slate-500 uppercase font-black tracking-widest mt-1 block">
+                    Reliability
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 6: 30-DAY DAILY CONSISTENCY HEATMAP */}
       <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl">
         <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2 mb-3">
           <CheckCircle2 size={16} className="text-cyan-400" />
