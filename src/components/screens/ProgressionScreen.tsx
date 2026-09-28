@@ -9,11 +9,7 @@ import {
   Award,
   Loader2,
   Flame,
-  Zap,
-  Target,
   TrendingUp,
-  Lock,
-  Calendar,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "react-hot-toast";
@@ -32,7 +28,7 @@ interface ProgressionScreenProps {
 }
 
 export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
-  const { user, habits, equipTitle } = useStore();
+  const { user, equipTitle } = useStore();
   const [loadingTitles, setLoadingTitles] = useState(false);
   const [equippingTitle, setEquippingTitle] = useState<string | null>(null);
 
@@ -146,80 +142,6 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
     }
   };
 
-  // Milestones calculation based on real user data
-  const milestoneList = [
-    {
-      id: "streak_3",
-      title: "3-Day Spark",
-      desc: "Maintain a 3-day consecutive discipline streak",
-      type: "streak",
-      target: 3,
-      current: longestStreak,
-      completed: longestStreak >= 3,
-      reward: "+30 XP",
-    },
-    {
-      id: "streak_7",
-      title: "7-Day Flame",
-      desc: "Complete an entire week without breaking the chain",
-      type: "streak",
-      target: 7,
-      current: longestStreak,
-      completed: longestStreak >= 7,
-      reward: "+100 XP",
-    },
-    {
-      id: "streak_14",
-      title: "14-Day Iron Will",
-      desc: "Forge a 14-day unbreakable daily routine",
-      type: "streak",
-      target: 14,
-      current: longestStreak,
-      completed: longestStreak >= 14,
-      reward: "+250 XP",
-    },
-    {
-      id: "streak_30",
-      title: "30-Day Unstoppable",
-      desc: "Reach a full month of continuous habit execution",
-      type: "streak",
-      target: 30,
-      current: longestStreak,
-      completed: longestStreak >= 30,
-      reward: "+500 XP",
-    },
-    {
-      id: "level_5",
-      title: "Level 5 Pioneer",
-      desc: "Reach Level 5 and prove sustained consistency",
-      type: "level",
-      target: 5,
-      current: currentLevel,
-      completed: currentLevel >= 5,
-      reward: "+150 XP",
-    },
-    {
-      id: "level_10",
-      title: "Level 10 Disciplined",
-      desc: "Ascend to double-digit Level 10 mastery",
-      type: "level",
-      target: 10,
-      current: currentLevel,
-      completed: currentLevel >= 10,
-      reward: "+300 XP",
-    },
-    {
-      id: "habits_created",
-      title: "System Builder",
-      desc: "Establish at least 3 active daily habits",
-      type: "habits",
-      target: 3,
-      current: habits.length,
-      completed: habits.length >= 3,
-      reward: "+50 XP",
-    },
-  ];
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
@@ -243,7 +165,7 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
             Progress & Achievements
           </h1>
           <p className="text-neutral-400 text-xs tracking-wider uppercase font-mono mt-0.5">
-            Progression metrics, titles and milestones
+            Progression metrics, level trajectory and titles
           </p>
         </div>
       </header>
@@ -472,73 +394,6 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
             })}
           </div>
         )}
-      </section>
-
-      {/* 5. ACHIEVEMENTS & MILESTONES */}
-      <section className="bg-[#0D0D0D] border border-white/[0.08] rounded-3xl p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-neutral-400">
-            <Zap size={16} className="text-cyan-400" />
-            <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-white">
-              Consistency Milestones
-            </span>
-          </div>
-          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded-full">
-            {milestoneList.filter((m) => m.completed).length} / {milestoneList.length} Unlocked
-          </span>
-        </div>
-
-        <div className="space-y-2.5">
-          {milestoneList.map((m) => {
-            return (
-              <div
-                key={m.id}
-                className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-                  m.completed
-                    ? "bg-cyan-500/5 border-cyan-500/20"
-                    : "bg-white/[0.01] border-white/5 opacity-75"
-                }`}
-              >
-                <div className="flex items-start gap-3 min-w-0">
-                  <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                      m.completed
-                        ? "bg-cyan-500/15 border border-cyan-500/30 text-cyan-300"
-                        : "bg-white/5 border border-white/10 text-neutral-500"
-                    }`}
-                  >
-                    {m.completed ? <Check size={16} strokeWidth={2.5} /> : <Lock size={14} />}
-                  </div>
-                  <div className="min-w-0 space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate">
-                        {m.title}
-                      </h4>
-                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/5">
-                        {m.reward}
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-400 leading-relaxed">
-                      {m.desc}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="shrink-0 text-right">
-                  <span
-                    className={`text-[10px] font-mono font-bold px-2 py-1 rounded-lg uppercase tracking-wider ${
-                      m.completed
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "bg-white/5 text-neutral-500 border border-white/5"
-                    }`}
-                  >
-                    {m.completed ? "COMPLETED" : `${Math.min(m.current, m.target)} / ${m.target}`}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </section>
     </motion.div>
   );
