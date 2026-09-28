@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useStore } from "../store/useStore";
 import { Habit } from "../types";
 import { getTodayDateString, isHabitScheduledForDate } from "../lib/habitUtils";
-import { getHabitColorTheme } from "../lib/habitIcons";
+import { getHabitColorTheme, resolveHabitCategoryAndSubcategory } from "../lib/habitIcons";
 import {
   TrendingUp,
   Award,
@@ -370,12 +370,13 @@ export function HabitTrendsView() {
       });
 
       const reliability = scheduledCount === 0 ? 0 : Math.round((completedCount / scheduledCount) * 100);
+      const { category: resolvedCat, subcategory: resolvedSub } = resolveHabitCategoryAndSubcategory(h);
 
       return {
         id: h.id,
         name: h.name,
-        category: resolveHabitCategory(h),
-        subcategory: h.subcategory || h.sport || h.subject || "General",
+        category: resolvedCat || resolveHabitCategory(h),
+        subcategory: resolvedSub || "",
         completedCount,
         scheduledCount,
         reliability,
@@ -895,7 +896,7 @@ export function HabitTrendsView() {
                         ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
                         : "bg-blue-500/10 border border-blue-500/20 text-blue-400"
                     }`}>
-                      {item.subcategory}
+                      {item.subcategory || item.category}
                     </span>
                     <span className="text-xs font-bold text-white truncate max-w-[140px] sm:max-w-none">
                       {item.name}

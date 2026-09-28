@@ -70,6 +70,14 @@ export const habitService = {
 
     const rawColor = h.color || undefined;
 
+    const rawSubcategory = h.subcategory || h.sport || h.subject;
+    const cleanSubcategory =
+      rawSubcategory &&
+      typeof rawSubcategory === "string" &&
+      !["none", "null", "undefined", "n/a"].includes(rawSubcategory.trim().toLowerCase())
+        ? rawSubcategory.trim()
+        : undefined;
+
     return {
       id,
       name: h.title || h.name || "Unnamed Habit",
@@ -81,7 +89,7 @@ export const habitService = {
       notes: notesValue,
       icon: h.icon || "dumbbell",
       category: h.category || "Health & Fitness",
-      subcategory: h.subcategory || h.sport || h.subject || undefined,
+      subcategory: cleanSubcategory,
       sport: h.sport || undefined,
       subject: h.subject || undefined,
       color: rawColor,

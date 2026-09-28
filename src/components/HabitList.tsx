@@ -6,7 +6,7 @@ import { useStore, Habit } from '../store/useStore';
 import { toast } from 'react-hot-toast';
 import { isHabitScheduledForToday, getScheduledDaysMessage, getTodayHabitStats } from '../lib/habitUtils';
 import { EditHabitModal } from './EditHabitModal';
-import { getHabitIconComponent, getHabitColorTheme } from '../lib/habitIcons';
+import { getHabitIconComponent, getHabitColorTheme, resolveHabitCategoryAndSubcategory } from '../lib/habitIcons';
 import { getXpForDifficulty, extractXpAwarded, toDisplayDifficulty } from '../utils';
 import { perfLogger } from '../utils/perfLogger';
 import { isUserFrozen, formatFreezeDate, formatFreezeDateShort } from '../utils/freezeUtils';
@@ -197,20 +197,13 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
         {guardedDisplayHabits.map((habit) => {
           const isToday = isHabitScheduledForToday(habit);
           const isPending = pendingHabitIds?.has(habit.id);
+          const { displayText: categorySubcategoryDisplay, subcategory: resolvedSubcategory } = resolveHabitCategoryAndSubcategory(habit);
           const IconComp = getHabitIconComponent(
             habit.icon, 
             habit.name, 
-            habit.subcategory || habit.sport || habit.subject
+            resolvedSubcategory || habit.subcategory || habit.sport || habit.subject
           );
           const habitColor = getHabitColorTheme(habit.color || habit.category, habit.name);
-          const rawSub = habit.subcategory || habit.sport || habit.subject || "";
-          const habitSubcategory =
-            rawSub &&
-            String(rawSub).trim() !== "" &&
-            String(rawSub).trim().toLowerCase() !== "null" &&
-            String(rawSub).trim().toLowerCase() !== "undefined"
-              ? String(rawSub).trim()
-              : "";
           const hasNotes = Boolean(
             habit.notes &&
             typeof habit.notes === "string" &&
@@ -258,7 +251,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                       {habit.name}
                     </h4>
                     <p className="text-[10px] text-zinc-500 font-mono truncate">
-                      {habit.category} · {habitSubcategory || 'None'}
+                      {categorySubcategoryDisplay}
                     </p>
                     
                     {userFrozen ? (

@@ -641,3 +641,134 @@ export function getHabitColorTheme(colorId?: string, habitName: string = ""): Ha
   const index = Math.abs(hash) % HABIT_COLORS.length;
   return HABIT_COLORS[index];
 }
+
+/**
+ * Normalizes user-facing category formatting (e.g. "productivity" -> "Productivity", "health & fitness" -> "Health & Fitness")
+ */
+export function formatCategoryName(rawCategory?: string): string {
+  if (!rawCategory || typeof rawCategory !== "string") return "";
+  const trimmed = rawCategory.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower === "null" || lower === "undefined" || lower === "none" || lower === "n/a") return "";
+
+  // Standard category dictionary
+  const categoryMap: Record<string, string> = {
+    "health & fitness": "Health & Fitness",
+    "health and fitness": "Health & Fitness",
+    "health_and_fitness": "Health & Fitness",
+    "health": "Health & Fitness",
+    "fitness": "Health & Fitness",
+    "studies": "Studies",
+    "study": "Studies",
+    "sports": "Sports",
+    "sport": "Sports",
+    "mind & focus": "Mind & Focus",
+    "mind and focus": "Mind & Focus",
+    "mind_and_focus": "Mind & Focus",
+    "mind": "Mind & Focus",
+    "focus": "Mind & Focus",
+    "productivity": "Productivity",
+    "lifestyle": "Lifestyle",
+  };
+
+  if (categoryMap[lower]) {
+    return categoryMap[lower];
+  }
+
+  // Title case for custom categories
+  return trimmed
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/**
+ * Resolves authoritative category and subcategory strings for habit cards.
+ * Prevents rendering 'None', 'null', 'undefined', 'n/a' and retrieves known icon subcategory where applicable.
+ */
+export function resolveHabitCategoryAndSubcategory(habit: {
+  category?: string;
+  subcategory?: string;
+  sport?: string;
+  subject?: string;
+  icon?: string;
+}): {
+  category: string;
+  subcategory: string;
+  displayText: string;
+} {
+  // 1. Resolve raw subcategory from explicit fields
+  const rawSub = habit.subcategory || habit.sport || habit.subject || "";
+  let cleanSub = "";
+  if (
+    rawSub &&
+    typeof rawSub === "string" &&
+    !["none", "null", "undefined", "n/a"].includes(rawSub.trim().toLowerCase())
+  ) {
+    cleanSub = rawSub.trim();
+  }
+
+  // 2. If subcategory is missing or was 'None', look up the icon's subcategory or label
+  if (!cleanSub && habit.icon) {
+    const iconKey = String(habit.icon).trim().toLowerCase();
+    const matchedIcon = HABIT_ICONS.find(
+      (item) =>
+        item.id.toLowerCase() === iconKey ||
+        item.label.toLowerCase() === iconKey ||
+        (item.subcategory && item.subcategory.toLowerCase() === iconKey)
+    );
+    if (matchedIcon) {
+      cleanSub = matchedIcon.subcategory || matchedIcon.label || "";
+    }
+  }
+
+  // Clean and normalize subcategory title casing if known
+  if (cleanSub) {
+    const lowerSub = cleanSub.toLowerCase();
+    if (["none", "null", "undefined", "n/a"].includes(lowerSub)) {
+      cleanSub = "";
+    } else {
+      const matchedIcon = HABIT_ICONS.find(
+        (item) =>
+          item.id.toLowerCase() === lowerSub ||
+          item.label.toLowerCase() === lowerSub ||
+          (item.subcategory && item.subcategory.toLowerCase() === lowerSub)
+      );
+      if (matchedIcon) {
+        cleanSub = matchedIcon.subcategory || matchedIcon.label;
+      } else {
+        cleanSub = cleanSub.charAt(0).toUpperCase() + cleanSub.slice(1);
+      }
+    }
+  }
+
+  // 3. Resolve category with proper title casing
+  let formattedCat = formatCategoryName(habit.category);
+
+  // If category is missing, derive from matched icon if available
+  if (!formattedCat && habit.icon) {
+    const iconKey = String(habit.icon).trim().toLowerCase();
+    const matchedIcon = HABIT_ICONS.find(
+      (item) =>
+        item.id.toLowerCase() === iconKey ||
+        item.label.toLowerCase() === iconKey
+    );
+    if (matchedIcon?.category) {
+      formattedCat = formatCategoryName(matchedIcon.category);
+    }
+  }
+
+  if (!formattedCat) {
+    formattedCat = "Productivity";
+  }
+
+  // 4. Construct final user-facing text
+  // e.g. "Productivity · Goals" or "Productivity" (if genuinely no subcategory)
+  const displayText = cleanSub ? `${formattedCat} · ${cleanSub}` : formattedCat;
+
+  return {
+    category: formattedCat,
+    subcategory: cleanSub,
+    displayText,
+  };
+}
