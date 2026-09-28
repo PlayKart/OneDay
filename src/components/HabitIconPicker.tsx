@@ -14,22 +14,18 @@ interface HabitIconPickerProps {
   selectedIcon: string;
   selectedColor: string;
   selectedCategory?: string;
-  selectedSubcategory?: string;
   onSelectIcon: (iconId: string) => void;
   onSelectColor: (colorId: string) => void;
   onSelectCategory?: (category: string) => void;
-  onSelectSubcategory?: (subcategory: string) => void;
 }
 
 export function HabitIconPicker({
   selectedIcon,
   selectedColor,
   selectedCategory,
-  selectedSubcategory,
   onSelectIcon,
   onSelectColor,
   onSelectCategory,
-  onSelectSubcategory,
 }: HabitIconPickerProps) {
   const [activeCategory, setActiveCategory] = useState<HabitCategoryType>(
     (selectedCategory as HabitCategoryType) || "Health & Fitness"
@@ -42,24 +38,22 @@ export function HabitIconPicker({
   }, [selectedCategory]);
 
   const currentColorObj = HABIT_COLORS.find((c) => c.id === selectedColor) || HABIT_COLORS[0];
-  const ActiveIconComp = getHabitIconComponent(selectedIcon, "", selectedSubcategory || "");
+  const ActiveIconComp = getHabitIconComponent(selectedIcon, "");
 
   const handleCategoryClick = (cat: HabitCategoryType) => {
     setActiveCategory(cat);
     onSelectCategory?.(cat);
     
-    // Auto-select first icon/subcategory in new category
+    // Auto-select first icon in new category
     const items = cat === "Sports" ? SPORTS_OPTIONS : cat === "Studies" ? STUDIES_OPTIONS : HABIT_ICONS.filter((item) => item.category === cat);
     if (items.length > 0) {
       const firstItem = items[0];
       onSelectIcon(firstItem.id);
-      onSelectSubcategory?.(firstItem.subcategory || firstItem.label);
     }
   };
 
   const handleIconClick = (item: any) => {
     onSelectIcon(item.id);
-    onSelectSubcategory?.(item.subcategory || item.label);
   };
 
   const currentItems = (() => {

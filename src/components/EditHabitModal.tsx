@@ -5,10 +5,9 @@ import { X, Calendar, Flag, AlignLeft, Check, Trash } from "lucide-react";
 import { useStore, Habit } from "../store/useStore";
 import { toCanonicalDifficulty, toDisplayDifficulty } from "../utils";
 import { HabitIconPicker } from "./HabitIconPicker";
-import { HABIT_COLORS, HABIT_ICONS, SPORTS_OPTIONS, STUDIES_OPTIONS } from "../lib/habitIcons";
+import { HABIT_COLORS } from "../lib/habitIcons";
 import { habitService } from "../services/habitService";
 import { toast } from "react-hot-toast";
-import { SUBCATEGORY_OPTIONS } from "../lib/habitData";
 
 interface EditHabitModalProps {
   habit: Habit;
@@ -94,9 +93,6 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
             setSelectedColor(dbCat.toLowerCase());
           }
         }
-        if ((dbHabit as any).subcategory || (dbHabit as any).sport || (dbHabit as any).subject) {
-          // (dbHabit as any).subcategory;
-        }
       } catch (err) {
         console.warn("[EditHabitModal] Failed to load fresh habit from backend:", err);
       } finally {
@@ -154,10 +150,6 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
       return;
     }
 
-    const allIcons = [...HABIT_ICONS, ...SPORTS_OPTIONS, ...STUDIES_OPTIONS];
-    const selectedItem = allIcons.find(i => i.id === selectedIcon);
-    const subcategory = selectedItem?.subcategory || selectedItem?.label;
-
     const trimmedNotes = notes.trim();
     const payload = {
       name: trimmedName,
@@ -168,9 +160,6 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
       description: trimmedNotes,
       icon: selectedIcon,
       category: category,
-      subcategory: subcategory,
-      sport: category === "Sports" ? subcategory : undefined,
-      subject: category === "Studies" ? subcategory : undefined,
       color: selectedColor
     };
 
@@ -269,7 +258,7 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
              />
            </div>
 
-           {/* Habitify Icon, Category & Subcategory Picker */}
+           {/* Habit Icon & Category Picker */}
            <HabitIconPicker
              selectedIcon={selectedIcon}
              selectedColor={selectedColor}

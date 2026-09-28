@@ -289,7 +289,6 @@ export interface HabitIconOption {
   label: string;
   icon: LucideIcon;
   category: HabitCategoryType;
-  subcategory?: string;
 }
 
 export interface HabitColorOption {
@@ -328,16 +327,16 @@ export const HABIT_COLORS: HabitColorOption[] = [
 // ==========================================
 
 export const SPORTS_OPTIONS: HabitIconOption[] = [
-  { id: "cricket", label: "Cricket", icon: CricketIcon, category: "Sports", subcategory: "Cricket" },
-  { id: "football", label: "Football", icon: FootballIcon, category: "Sports", subcategory: "Football" },
-  { id: "basketball", label: "Basketball", icon: BasketballIcon, category: "Sports", subcategory: "Basketball" },
-  { id: "badminton", label: "Badminton", icon: BadmintonIcon, category: "Sports", subcategory: "Badminton" },
-  { id: "swimming", label: "Swimming", icon: Waves, category: "Sports", subcategory: "Swimming" },
-  { id: "tennis", label: "Tennis", icon: TennisIcon, category: "Sports", subcategory: "Tennis" },
-  { id: "running", label: "Running", icon: Footprints, category: "Sports", subcategory: "Running" },
-  { id: "cycling", label: "Cycling", icon: Bike, category: "Sports", subcategory: "Cycling" },
-  { id: "athletics", label: "Athletics", icon: Trophy, category: "Sports", subcategory: "Athletics" },
-  { id: "volleyball", label: "Volleyball", icon: VolleyballIcon, category: "Sports", subcategory: "Volleyball" },
+  { id: "cricket", label: "Cricket", icon: CricketIcon, category: "Sports" },
+  { id: "football", label: "Football", icon: FootballIcon, category: "Sports" },
+  { id: "basketball", label: "Basketball", icon: BasketballIcon, category: "Sports" },
+  { id: "badminton", label: "Badminton", icon: BadmintonIcon, category: "Sports" },
+  { id: "swimming", label: "Swimming", icon: Waves, category: "Sports" },
+  { id: "tennis", label: "Tennis", icon: TennisIcon, category: "Sports" },
+  { id: "running", label: "Running", icon: Footprints, category: "Sports" },
+  { id: "cycling", label: "Cycling", icon: Bike, category: "Sports" },
+  { id: "athletics", label: "Athletics", icon: Trophy, category: "Sports" },
+  { id: "volleyball", label: "Volleyball", icon: VolleyballIcon, category: "Sports" },
 ];
 
 // ==========================================
@@ -353,19 +352,19 @@ export const SPORTS_OPTIONS: HabitIconOption[] = [
 // ==========================================
 
 export const STUDIES_OPTIONS: HabitIconOption[] = [
-  { id: "maths", label: "Maths", icon: Calculator, category: "Studies", subcategory: "Maths" },
-  { id: "english", label: "English", icon: BookOpen, category: "Studies", subcategory: "English" },
-  { id: "physics", label: "Physics", icon: Atom, category: "Studies", subcategory: "Physics" },
-  { id: "chemistry", label: "Chemistry", icon: FlaskConical, category: "Studies", subcategory: "Chemistry" },
-  { id: "biology", label: "Biology", icon: Dna, category: "Studies", subcategory: "Biology" },
-  { id: "sanskrit", label: "Sanskrit", icon: SanskritIcon, category: "Studies", subcategory: "Sanskrit" },
-  { id: "hindi", label: "Hindi", icon: HindiIcon, category: "Studies", subcategory: "Hindi" },
-  { id: "art", label: "Art", icon: Palette, category: "Studies", subcategory: "Art" },
-  { id: "geography", label: "Geography", icon: Globe, category: "Studies", subcategory: "Geography" },
-  { id: "social_studies", label: "Social Studies", icon: Users, category: "Studies", subcategory: "Social Studies" },
-  { id: "history", label: "History", icon: Landmark, category: "Studies", subcategory: "History" },
-  { id: "economics", label: "Economics", icon: TrendingUp, category: "Studies", subcategory: "Economics" },
-  { id: "civics", label: "Civics", icon: Scale, category: "Studies", subcategory: "Civics" },
+  { id: "maths", label: "Maths", icon: Calculator, category: "Studies" },
+  { id: "english", label: "English", icon: BookOpen, category: "Studies" },
+  { id: "physics", label: "Physics", icon: Atom, category: "Studies" },
+  { id: "chemistry", label: "Chemistry", icon: FlaskConical, category: "Studies" },
+  { id: "biology", label: "Biology", icon: Dna, category: "Studies" },
+  { id: "sanskrit", label: "Sanskrit", icon: SanskritIcon, category: "Studies" },
+  { id: "hindi", label: "Hindi", icon: HindiIcon, category: "Studies" },
+  { id: "art", label: "Art", icon: Palette, category: "Studies" },
+  { id: "geography", label: "Geography", icon: Globe, category: "Studies" },
+  { id: "social_studies", label: "Social Studies", icon: Users, category: "Studies" },
+  { id: "history", label: "History", icon: Landmark, category: "Studies" },
+  { id: "economics", label: "Economics", icon: TrendingUp, category: "Studies" },
+  { id: "civics", label: "Civics", icon: Scale, category: "Studies" },
 ];
 
 // Complete combined catalog of habit icons
@@ -539,7 +538,7 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   check_circle_2: CheckCircle2,
 };
 
-export function getHabitIconComponent(iconId?: string, habitName: string = "", subcategory?: string): LucideIcon {
+export function getHabitIconComponent(iconId?: string, habitName: string = ""): LucideIcon {
   // 1. Direct Icon ID match
   if (iconId && typeof iconId === "string") {
     const raw = iconId.trim().toLowerCase();
@@ -550,13 +549,7 @@ export function getHabitIconComponent(iconId?: string, habitName: string = "", s
     if (ICON_MAP[underscored]) return ICON_MAP[underscored];
   }
 
-  // 2. Subcategory match if provided
-  if (subcategory && typeof subcategory === "string") {
-    const rawSub = subcategory.trim().toLowerCase();
-    if (ICON_MAP[rawSub]) return ICON_MAP[rawSub];
-  }
-
-  // 3. Habit name / context fuzzy matching
+  // 2. Habit name / context fuzzy matching
   const nameLower = habitName.toLowerCase();
   
   // Sports keywords
@@ -683,72 +676,21 @@ export function formatCategoryName(rawCategory?: string): string {
 }
 
 /**
- * Resolves authoritative category and subcategory strings for habit cards.
- * Prevents rendering 'None', 'null', 'undefined', 'n/a' and retrieves known icon subcategory where applicable.
+ * Resolves authoritative main category string for habit display.
+ * Display ONLY the main category (no subcategories).
  */
-export function resolveHabitCategoryAndSubcategory(habit: {
+export function resolveHabitCategory(habit?: {
   category?: string;
-  subcategory?: string;
-  sport?: string;
-  subject?: string;
   icon?: string;
-}): {
-  category: string;
-  subcategory: string;
-  displayText: string;
-} {
-  // 1. Resolve raw subcategory from explicit fields
-  const rawSub = habit.subcategory || habit.sport || habit.subject || "";
-  let cleanSub = "";
-  if (
-    rawSub &&
-    typeof rawSub === "string" &&
-    !["none", "null", "undefined", "n/a"].includes(rawSub.trim().toLowerCase())
-  ) {
-    cleanSub = rawSub.trim();
-  }
+} | null): string {
+  if (!habit) return "Productivity";
 
-  // 2. If subcategory is missing or was 'None', look up the icon's subcategory or label
-  if (!cleanSub && habit.icon) {
-    const iconKey = String(habit.icon).trim().toLowerCase();
-    const matchedIcon = HABIT_ICONS.find(
-      (item) =>
-        item.id.toLowerCase() === iconKey ||
-        item.label.toLowerCase() === iconKey ||
-        (item.subcategory && item.subcategory.toLowerCase() === iconKey)
-    );
-    if (matchedIcon) {
-      cleanSub = matchedIcon.subcategory || matchedIcon.label || "";
-    }
-  }
-
-  // Clean and normalize subcategory title casing if known
-  if (cleanSub) {
-    const lowerSub = cleanSub.toLowerCase();
-    if (["none", "null", "undefined", "n/a"].includes(lowerSub)) {
-      cleanSub = "";
-    } else {
-      const matchedIcon = HABIT_ICONS.find(
-        (item) =>
-          item.id.toLowerCase() === lowerSub ||
-          item.label.toLowerCase() === lowerSub ||
-          (item.subcategory && item.subcategory.toLowerCase() === lowerSub)
-      );
-      if (matchedIcon) {
-        cleanSub = matchedIcon.subcategory || matchedIcon.label;
-      } else {
-        cleanSub = cleanSub.charAt(0).toUpperCase() + cleanSub.slice(1);
-      }
-    }
-  }
-
-  // 3. Resolve category with proper title casing
   let formattedCat = formatCategoryName(habit.category);
 
   // If category is missing, derive from matched icon if available
   if (!formattedCat && habit.icon) {
     const iconKey = String(habit.icon).trim().toLowerCase();
-    const matchedIcon = HABIT_ICONS.find(
+    const matchedIcon = [...HABIT_ICONS, ...SPORTS_OPTIONS, ...STUDIES_OPTIONS].find(
       (item) =>
         item.id.toLowerCase() === iconKey ||
         item.label.toLowerCase() === iconKey
@@ -758,17 +700,26 @@ export function resolveHabitCategoryAndSubcategory(habit: {
     }
   }
 
-  if (!formattedCat) {
-    formattedCat = "Productivity";
-  }
+  return formattedCat || "Health & Fitness";
+}
 
-  // 4. Construct final user-facing text
-  // e.g. "Productivity · Goals" or "Productivity" (if genuinely no subcategory)
-  const displayText = cleanSub ? `${formattedCat} · ${cleanSub}` : formattedCat;
-
+/**
+ * Resolves authoritative category string for habit cards.
+ * Subcategory is completely omitted from display.
+ */
+export function resolveHabitCategoryAndSubcategory(habit: {
+  category?: string;
+  icon?: string;
+  [key: string]: any;
+}): {
+  category: string;
+  subcategory: string;
+  displayText: string;
+} {
+  const category = resolveHabitCategory(habit);
   return {
-    category: formattedCat,
-    subcategory: cleanSub,
-    displayText,
+    category,
+    subcategory: "",
+    displayText: category,
   };
 }

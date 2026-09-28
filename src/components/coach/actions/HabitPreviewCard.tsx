@@ -5,7 +5,7 @@ import { Check, Loader2, AlertCircle, RefreshCw, X, Edit3 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useStore } from "../../../store/useStore";
 import { CreateHabitActionPayload, HabitPreviewState } from "./types";
-import { getHabitIconComponent, getHabitColorTheme } from "../../../lib/habitIcons";
+import { getHabitIconComponent, getHabitColorTheme, formatCategoryName } from "../../../lib/habitIcons";
 import { getStandardActionDifficulty, normalizeSchedule, cleanHabitName } from "./actionParser";
 import { toCanonicalDifficulty } from "../../../utils";
 import { CoachCreatePreviewEditModal } from "./CoachCreatePreviewEditModal";
@@ -75,35 +75,21 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
     "";
   const notes = currentPreview.notes || reasonPurpose;
 
-  const subcategory =
-    (currentPreview as any).subcategory ||
-    rawPreview.subcategory ||
-    rawPreview.sport ||
-    rawPreview.subject ||
-    "";
-  const rawColor = currentPreview.category || rawPreview.color || rawPreview.colour || "emerald";
+  const rawCategory = currentPreview.category || rawPreview.category || rawPreview.color || rawPreview.colour || "emerald";
 
   const displayCategory = (() => {
-    const raw = (rawColor || "").toLowerCase();
+    const raw = (rawCategory || "").toLowerCase();
     if (raw.includes("sport")) return "Sports";
     if (raw.includes("stud")) return "Studies";
     if (raw.includes("mind") || raw.includes("focus")) return "Mind & Focus";
     if (raw.includes("prod")) return "Productivity";
     if (raw.includes("life")) return "Lifestyle";
-    if (subcategory) {
-      const isSport = ["cricket", "football", "soccer", "basketball", "badminton", "swimming", "swim", "tennis", "running", "run", "cycling", "bike", "athletics", "volleyball"].includes(subcategory.toLowerCase());
-      if (isSport) return "Sports";
-      const isStudy = [
-        "maths", "math", "english", "physics", "chemistry", "biology", "sanskrit", "hindi", "art",
-        "geography", "social studies", "social_studies", "socialstudies", "history", "economics", "civics"
-      ].includes(subcategory.toLowerCase());
-      if (isStudy) return "Studies";
-    }
-    return null;
+    if (raw.includes("health") || raw.includes("fit")) return "Health & Fitness";
+    return formatCategoryName(rawCategory) || "Health & Fitness";
   })();
 
-  const IconComp = getHabitIconComponent(currentPreview.icon, habitName, subcategory);
-  const colorTheme = getHabitColorTheme(displayCategory || rawColor, habitName);
+  const IconComp = getHabitIconComponent(currentPreview.icon, habitName);
+  const colorTheme = getHabitColorTheme(displayCategory || rawCategory, habitName);
 
   useEffect(() => {
     console.log("[COACH UI] habit preview rendered", actionId);
@@ -164,9 +150,6 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
         description: notes.trim() || reasonPurpose.trim(),
         icon: currentPreview.icon || "dumbbell",
         category: (displayCategory ? displayCategory.toLowerCase() : colorTheme.id) || "emerald",
-        subcategory: subcategory || undefined,
-        sport: displayCategory === "Sports" ? subcategory : undefined,
-        subject: displayCategory === "Studies" ? subcategory : undefined,
         color: colorTheme.id || "emerald",
         reminderTime: currentPreview.reminderTime || rawPreview.reminder || "",
       };
@@ -280,11 +263,9 @@ export const HabitPreviewCard: React.FC<HabitPreviewCardProps> = ({
               <h3 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
                 {habitName}
               </h3>
-              {(displayCategory || subcategory) && (
-                <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 mt-0.5">
-                  {displayCategory && <span>{displayCategory}</span>}
-                  {displayCategory && subcategory && <span className="text-zinc-600">•</span>}
-                  {subcategory && <span className="text-zinc-200 font-semibold">{subcategory}</span>}
+              {displayCategory && (
+                <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 mt-0.5 uppercase tracking-wider">
+                  <span>{displayCategory}</span>
                 </div>
               )}
               <div className="flex items-center gap-2 mt-1">

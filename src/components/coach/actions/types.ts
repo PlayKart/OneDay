@@ -57,9 +57,6 @@ export interface CreateHabitActionPayload {
   description?: string;
   icon?: string;
   category?: string;
-  subcategory?: string;
-  sport?: string;
-  subject?: string;
   reminderTime?: string;
 }
 
@@ -80,9 +77,6 @@ export interface UpdateHabitActionPayload {
   reasonPurpose?: string;
   icon?: string;
   category?: string;
-  subcategory?: string;
-  sport?: string;
-  subject?: string;
   action?: string;
   status?: string;
 }

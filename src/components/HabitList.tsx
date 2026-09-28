@@ -6,7 +6,7 @@ import { useStore, Habit } from '../store/useStore';
 import { toast } from 'react-hot-toast';
 import { isHabitScheduledForToday, getScheduledDaysMessage, getTodayHabitStats } from '../lib/habitUtils';
 import { EditHabitModal } from './EditHabitModal';
-import { getHabitIconComponent, getHabitColorTheme, resolveHabitCategoryAndSubcategory } from '../lib/habitIcons';
+import { getHabitIconComponent, getHabitColorTheme, resolveHabitCategory } from '../lib/habitIcons';
 import { getXpForDifficulty, extractXpAwarded, toDisplayDifficulty } from '../utils';
 import { perfLogger } from '../utils/perfLogger';
 import { isUserFrozen, formatFreezeDate, formatFreezeDateShort } from '../utils/freezeUtils';
@@ -197,12 +197,8 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
         {guardedDisplayHabits.map((habit) => {
           const isToday = isHabitScheduledForToday(habit);
           const isPending = pendingHabitIds?.has(habit.id);
-          const { displayText: categorySubcategoryDisplay, subcategory: resolvedSubcategory } = resolveHabitCategoryAndSubcategory(habit);
-          const IconComp = getHabitIconComponent(
-            habit.icon, 
-            habit.name, 
-            resolvedSubcategory || habit.subcategory || habit.sport || habit.subject
-          );
+          const categoryDisplay = resolveHabitCategory(habit);
+          const IconComp = getHabitIconComponent(habit.icon, habit.name);
           const habitColor = getHabitColorTheme(habit.color || habit.category, habit.name);
           const hasNotes = Boolean(
             habit.notes &&
@@ -250,8 +246,8 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                     }`}>
                       {habit.name}
                     </h4>
-                    <p className="text-[10px] text-zinc-500 font-mono truncate">
-                      {categorySubcategoryDisplay}
+                    <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider truncate">
+                      {categoryDisplay}
                     </p>
                     
                     {userFrozen ? (

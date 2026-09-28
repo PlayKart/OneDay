@@ -64,10 +64,6 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
       return;
     }
 
-    const allIcons = [...HABIT_ICONS, ...SPORTS_OPTIONS, ...STUDIES_OPTIONS];
-    const selectedItem = allIcons.find(i => i.id === selectedIcon);
-    const subcategory = selectedItem?.subcategory || selectedItem?.label;
-
     const payload = {
       name: trimmedName,
       repeatType,
@@ -76,9 +72,6 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
       notes: notes.trim(),
       icon: selectedIcon,
       category: category,
-      subcategory: subcategory,
-      sport: category === "Sports" ? subcategory : undefined,
-      subject: category === "Studies" ? subcategory : undefined,
       color: selectedColor
     };
 
@@ -145,7 +138,7 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
              />
            </div>
 
-           {/* Habitify Icon, Category & Subcategory Picker */}
+           {/* Habit Icon & Category Picker */}
            <HabitIconPicker
              selectedIcon={selectedIcon}
              selectedColor={selectedColor}
