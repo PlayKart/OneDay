@@ -16,6 +16,7 @@ import { toast } from "react-hot-toast";
 import { userService } from "../../services/userService";
 import { OnboardingModal } from "../OnboardingModal";
 import { getEquippedTitle } from "../../utils/titleUtils";
+import { getImprovementFocusDisplayList } from "../../constants/improvementFocus";
 
 function calculateAge(dobStr?: string | null): number | null {
   if (!dobStr || typeof dobStr !== "string") return null;
@@ -259,20 +260,34 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
           </div>
 
           {/* What I Want To Improve Card */}
-          <div className="bg-[#0D0D0D] border border-white/[0.08] rounded-3xl p-5 sm:p-6 space-y-3 shadow-md">
+          <div className="bg-[#0D0D0D] border border-white/[0.08] rounded-3xl p-5 sm:p-6 space-y-4 shadow-md">
             <div className="flex items-center gap-2 text-neutral-400">
               <Sparkles size={14} className="text-cyan-400" />
               <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-neutral-300">
                 What I Want To Improve
               </span>
             </div>
-            {(activeUser.what_to_improve || activeUser.whatToImprove) ? (
-              <p className="text-neutral-200 text-xs sm:text-sm leading-relaxed">
-                {activeUser.what_to_improve || activeUser.whatToImprove}
-              </p>
-            ) : (
-              <p className="text-neutral-600 text-xs italic">Not specified</p>
-            )}
+            {(() => {
+              const items = getImprovementFocusDisplayList(
+                activeUser.improvement_focus || activeUser.improvementFocus,
+                activeUser.improvement_focus_other || activeUser.improvementFocusOther
+              );
+              if (items.length > 0) {
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {items.map((item: string, i: number) => (
+                      <span
+                        key={i}
+                        className="px-3.5 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-300 text-xs font-bold transition-all"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                );
+              }
+              return <p className="text-neutral-600 text-xs italic">Not specified</p>;
+            })()}
           </div>
 
           {/* Hobbies & Interests Card */}

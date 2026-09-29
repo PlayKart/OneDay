@@ -9,7 +9,7 @@ import { User } from '../types';
 import { userService } from '../services/userService';
 import { toast } from 'react-hot-toast';
 import { VALID_GENDERS, normalizeGenderValue, countWords, getOnboardingStatus, resolveOnboardingStatus } from '../utils';
-import { IMPROVEMENT_FOCUS_OPTIONS } from '../constants/improvementFocus';
+import { IMPROVEMENT_FOCUS_OPTIONS, normalizeImprovementFocusKey } from '../constants/improvementFocus';
 import { OnboardingTransition, TransitionVariant, TransitionStatus } from './OnboardingTransition';
 
 const HOBBIES_LIST = [
@@ -50,12 +50,12 @@ interface OnboardingModalProps {
 }
 
 function parseStepNumber(val: any): number | null {
-  if (typeof val === "number" && !isNaN(val) && val >= 1 && val <= 8) {
+  if (typeof val === "number" && !isNaN(val) && val >= 1 && val <= 7) {
     return val;
   }
   if (typeof val === "string") {
     const parsed = parseInt(val, 10);
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 8) {
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 7) {
       return parsed;
     }
   }
@@ -114,7 +114,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
   const draftData = useMemo(() => getSavedDraftData(isEditing), [isEditing]);
 
   const [step, setStep] = useState<number>(() => getInitialOnboardingStep(user, isEditing));
-  const totalSteps = 8;
+  const totalSteps = 7;
 
   // Track if backend step has synced
   const hasSyncedBackendStep = React.useRef<boolean>(parseStepNumber(user?.onboardingStep) !== null);
@@ -156,7 +156,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
       user?.improvementFocus ||
       [];
     return Array.isArray(raw)
-      ? raw.map((s: string) => String(s).toLowerCase().trim()).filter(Boolean)
+      ? raw.map((s: string) => normalizeImprovementFocusKey(String(s))).filter(Boolean)
       : [];
   });
   const [improvementFocusOther, setImprovementFocusOther] = useState<string>(() => {
@@ -171,18 +171,6 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
     );
   });
   const [improvementValidationError, setImprovementValidationError] = useState<string | null>(null);
-
-  const [whatToImprove, setWhatToImprove] = useState<string>(() => {
-    return (
-      draftData?.what_to_improve ||
-      draftData?.whatToImprove ||
-      initialData?.what_to_improve ||
-      initialData?.whatToImprove ||
-      user?.what_to_improve ||
-      user?.whatToImprove ||
-      ""
-    );
-  });
 
   const [whyOneday, setWhyOneday] = useState<string>(() => {
     return (
@@ -209,6 +197,45 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
   const nonSpaceCharCount = useMemo(() => whyOneday.replace(/\s/g, '').length, [whyOneday]);
   const totalCharCount = useMemo(() => whyOneday.length, [whyOneday]);
 
+  // Re-sync form fields whenever modal opens in edit mode or initialData/user changes
+  useEffect(() => {
+    if (isOpen && isEditing) {
+      setStep(1);
+      setIsCompletedState(false);
+      setSaving(false);
+      const src = initialData || user;
+      if (src) {
+        setName(src.name || "");
+        setDob(src.dob || src.date_of_birth || src.dateOfBirth || "");
+        setGender(normalizeGenderValue(src.gender));
+        setHobbies(Array.isArray(src.hobbies) ? src.hobbies : []);
+        setSports(
+          Array.isArray(src.favouriteSports)
+            ? src.favouriteSports
+            : Array.isArray(src.sports)
+            ? src.sports
+            : []
+        );
+        const rawFocus = src.improvement_focus || src.improvementFocus || [];
+        setImprovementFocus(
+          Array.isArray(rawFocus)
+            ? rawFocus.map((s: string) => normalizeImprovementFocusKey(String(s))).filter(Boolean)
+            : []
+        );
+        setImprovementFocusOther(
+          src.improvement_focus_other || src.improvementFocusOther || ""
+        );
+        setWhyOneday(
+          src.why_oneday ||
+          src.whyOneday ||
+          src.reasonForJoining ||
+          src.reason ||
+          ""
+        );
+      }
+    }
+  }, [isOpen, isEditing, initialData, user]);
+
   // Save current step to localStorage
   useEffect(() => {
     if (!isEditing && step >= 1 && step <= totalSteps) {
@@ -232,8 +259,6 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
           favouriteSports: sports,
           improvement_focus: improvementFocus,
           improvement_focus_other: improvementFocusOther,
-          what_to_improve: whatToImprove,
-          whatToImprove,
           why_oneday: whyOneday,
           whyOneday: whyOneday,
           reasonForJoining: whyOneday,
@@ -314,7 +339,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
 
   if (!isOpen) return null;
 
-  // Real-time validation per step
+  // Real-time validation per step (Exactly 7 Steps)
   const validateStep = (currentStep: number) => {
     switch (currentStep) {
       case 1:
@@ -333,15 +358,13 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
         if (!improvementFocus || improvementFocus.length === 0) {
           return false;
         }
-        if (improvementFocus.includes("other") && !improvementFocusOther.trim()) {
+        const hasSomethingElse = improvementFocus.includes("something_else") || improvementFocus.includes("other");
+        if (hasSomethingElse && !improvementFocusOther.trim()) {
           return false;
         }
         return true;
       }
-      case 7:
-        // Optional step for What do you want to improve upon?
-        return true;
-      case 8: {
+      case 7: {
         const nonSpaceCount = (whyOneday || "").replace(/\s/g, '').length;
         const totalCount = (whyOneday || "").length;
         return nonSpaceCount >= 5 && totalCount <= 500;
@@ -364,10 +387,13 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
   };
 
   const toggleImprovementFocus = (id: string) => {
-    const canonicalId = id.toLowerCase().trim();
+    const canonicalId = normalizeImprovementFocusKey(id);
     setImprovementValidationError(null);
     if (improvementFocus.includes(canonicalId)) {
       setImprovementFocus(improvementFocus.filter(item => item !== canonicalId));
+      if (canonicalId === "something_else" || canonicalId === "other") {
+        setImprovementFocusOther("");
+      }
     } else {
       setImprovementFocus([...improvementFocus, canonicalId]);
     }
@@ -390,10 +416,11 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
       if (step === 3) toast.error("Please select a gender option.");
       if (step === 5) toast.error("Maximum 5 favorite sports allowed.");
       if (step === 6) {
+        const hasSomethingElse = improvementFocus.includes("something_else") || improvementFocus.includes("other");
         if (!improvementFocus || improvementFocus.length === 0) {
           setImprovementValidationError("Choose at least one area to continue.");
           toast.error("Choose at least one area to continue.");
-        } else if (improvementFocus.includes("other") && !improvementFocusOther.trim()) {
+        } else if (hasSomethingElse && !improvementFocusOther.trim()) {
           setImprovementValidationError("Tell us what you want to improve.");
           toast.error("Tell us what you want to improve.");
         }
@@ -456,9 +483,14 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
     console.log("[ONBOARDING] submit started");
 
     try {
+      const hasSomethingElse = improvementFocus.some(
+        (v) => v === "something_else" || v === "other"
+      );
       const canonicalImprovementFocus = improvementFocus
-        .map((v) => String(v).toLowerCase().trim())
+        .map((v) => normalizeImprovementFocusKey(v))
         .filter(Boolean);
+
+      const cleanOther = hasSomethingElse ? improvementFocusOther.trim() : "";
 
       const payload = {
         name: name.trim(),
@@ -471,9 +503,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
         favouriteSports: sports,
         sports,
         improvement_focus: canonicalImprovementFocus,
-        improvement_focus_other: canonicalImprovementFocus.includes("other") ? improvementFocusOther.trim() : "",
-        what_to_improve: whatToImprove.trim(),
-        whatToImprove: whatToImprove.trim(),
+        improvement_focus_other: cleanOther,
         why_oneday: cleanWhyOneday,
         whyOneday: cleanWhyOneday,
         reasonForJoining: cleanWhyOneday,
@@ -925,7 +955,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[290px] overflow-y-auto pr-1">
                       {IMPROVEMENT_FOCUS_OPTIONS.map((opt) => {
-                        const isSelected = improvementFocus.includes(opt.id);
+                        const isSelected = improvementFocus.includes(opt.id) || (opt.id === 'something_else' && (improvementFocus.includes('something_else') || improvementFocus.includes('other')));
                         return (
                           <button
                             key={opt.id}
@@ -952,7 +982,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
 
                     {/* Conditional Custom Input for Something Else */}
                     <AnimatePresence>
-                      {improvementFocus.includes('other') && (
+                      {(improvementFocus.includes('something_else') || improvementFocus.includes('other')) && (
                         <motion.div
                           initial={{ opacity: 0, height: 0, y: -4 }}
                           animate={{ opacity: 1, height: 'auto', y: 0 }}
@@ -961,7 +991,7 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
                           className="pt-1.5 space-y-1.5"
                         >
                           <label className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                            What specifically do you want to improve?
+                            Tell us what you want to improve
                           </label>
                           <input
                             type="text"
@@ -970,9 +1000,9 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
                               setImprovementFocusOther(e.target.value);
                               if (improvementValidationError) setImprovementValidationError(null);
                             }}
-                            placeholder="e.g. public speaking, music production, reading"
+                            placeholder="Tell us what you want to improve..."
                             className={`w-full bg-white/5 border rounded-2xl px-4 py-3 text-white text-xs font-semibold outline-none transition-all placeholder:text-slate-600 ${
-                              improvementFocus.includes('other') && !improvementFocusOther.trim() && improvementValidationError
+                              (improvementFocus.includes('something_else') || improvementFocus.includes('other')) && !improvementFocusOther.trim() && improvementValidationError
                                 ? 'border-rose-500/50 focus:border-rose-500 bg-rose-500/[0.04]'
                                 : 'border-white/10 focus:border-white/30'
                             }`}
@@ -1001,41 +1031,10 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
                 </motion.div>
               )}
 
-              {/* STEP 7: WHAT DO YOU WANT TO IMPROVE UPON? */}
+              {/* STEP 7: Why did you choose OneDay? */}
               {step === 7 && (
                 <motion.div
                   key="step7"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.25 }}
-                  className="space-y-6"
-                >
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400">Ambition & Growth</span>
-                    <h2 className="text-2xl font-black text-white tracking-tight uppercase">WHAT DO YOU WANT TO IMPROVE UPON?</h2>
-                    <p className="text-slate-400 text-xs">Share a sentence or short paragraph about your specific goals.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <textarea
-                        value={whatToImprove}
-                        onChange={(e) => setWhatToImprove(e.target.value)}
-                        rows={5}
-                        placeholder="What do you want to improve upon?"
-                        className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-2xl p-4 text-white text-sm outline-none transition-all resize-none placeholder:text-slate-600 leading-relaxed"
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* STEP 8: Why did you choose OneDay? */}
-              {step === 8 && (
-                <motion.div
-                  key="step8"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}

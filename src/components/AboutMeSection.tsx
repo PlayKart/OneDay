@@ -4,7 +4,7 @@ import { User as UserIcon, Edit3, AlertTriangle } from 'lucide-react';
 import { OnboardingModal } from './OnboardingModal';
 import { toast } from 'react-hot-toast';
 import { userService } from '../services/userService';
-import { getImprovementFocusLabel } from '../constants/improvementFocus';
+import { getImprovementFocusDisplayList } from '../constants/improvementFocus';
 
 function ProfileSkeleton() {
   return (
@@ -188,23 +188,25 @@ export function AboutMeSection() {
         </div>
 
         <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Improvement Focus</span>
-          {Array.isArray(activeUser.improvement_focus || activeUser.improvementFocus) && (activeUser.improvement_focus || activeUser.improvementFocus).length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {(activeUser.improvement_focus || activeUser.improvementFocus).map((focusKey: string, i: number) => {
-                const label = getImprovementFocusLabel(focusKey);
-                const isOther = focusKey.toLowerCase() === "other";
-                const otherText = activeUser.improvement_focus_other || activeUser.improvementFocusOther;
-                return (
-                  <span key={i} className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-cyan-300 text-xs font-bold">
-                    {isOther && otherText ? `Something Else (${otherText})` : label}
-                  </span>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-slate-500 text-xs italic">Not added yet</p>
-          )}
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">WHAT I WANT TO IMPROVE</span>
+          {(() => {
+            const items = getImprovementFocusDisplayList(
+              activeUser.improvement_focus || activeUser.improvementFocus,
+              activeUser.improvement_focus_other || activeUser.improvementFocusOther
+            );
+            if (items.length > 0) {
+              return (
+                <div className="flex flex-wrap gap-1.5">
+                  {items.map((item: string, i: number) => (
+                    <span key={i} className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-cyan-300 text-xs font-bold">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              );
+            }
+            return <p className="text-slate-500 text-xs italic">Not specified</p>;
+          })()}
         </div>
       </div>
 
