@@ -18,6 +18,9 @@ import {
   Layers,
   Loader2,
   AlertTriangle,
+  Info,
+  Clock,
+  ShieldAlert,
 } from "lucide-react";
 
 type Timeframe = 7 | 14 | 30;
@@ -27,27 +30,36 @@ interface DayData {
   displayDate: string; // "Aug 15"
   dayName: string; // "Mon"
   fullDayName: string; // "Monday"
+  hasData: boolean; // false if before user analytics start date
   completedCount: number;
   totalScheduled: number;
-  percentage: number;
+  completionRate: number | null; // null if !hasData or totalScheduled === 0
   completedHabits: string[];
 }
 
 interface DayOfWeekData {
   dayName: string;
-  avgPercentage: number;
+  avgPercentage: number | null; // null if totalScheduled === 0
   totalCompleted: number;
   totalScheduled: number;
-  count: number;
+  sampleDaysCount: number;
 }
 
 interface CategoryData {
   name: string;
   count: number;
   scheduled: number;
-  percentage: number;
-  reliability: number;
+  percentage: number; // check-in share %
+  reliability: number | null; // null if scheduled === 0
   color: string;
+}
+
+interface MaturityState {
+  level: "0" | "1-6" | "7-13" | "14-29" | "30+";
+  title: string;
+  label: string;
+  badgeBg: string;
+  badgeText: string;
 }
 
 export function HabitTrendsView() {
@@ -86,7 +98,49 @@ export function HabitTrendsView() {
     [habits]
   );
 
-  // Generate date range data for the past 30 calendar days ending today (exact 30-day window)
+  // 1. Determine the authoritative earliest analytics start date
+  const analyticsStartDate = useMemo(() => {
+    const dates: string[] = [];
+
+    // User account creation date
+    const rawUserCreated = user?.createdAt || (user as any)?.created_at || (user as any)?.joinedAt;
+    if (rawUserCreated) {
+      const d = new Date(rawUserCreated);
+      if (!isNaN(d.getTime())) {
+        dates.push(getTodayDateString(d));
+      }
+    }
+
+    // Earliest habit creation date or earliest completion date
+    safeHabits.forEach((h) => {
+      const rawHabitCreated = h.createdAt || (h as any)?.created_at;
+      if (rawHabitCreated) {
+        const d = new Date(rawHabitCreated);
+        if (!isNaN(d.getTime())) {
+          dates.push(getTodayDateString(d));
+        }
+      }
+      if (Array.isArray(h.completedDates)) {
+        h.completedDates.forEach((cd) => {
+          if (typeof cd === "string" && /^\d{4}-\d{2}-\d{2}$/.test(cd.trim())) {
+            dates.push(cd.trim());
+          }
+        });
+      }
+    });
+
+    const todayStr = getTodayDateString(new Date());
+
+    if (dates.length === 0) {
+      return todayStr;
+    }
+
+    dates.sort();
+    const earliest = dates[0];
+    return earliest > todayStr ? todayStr : earliest;
+  }, [user, safeHabits]);
+
+  // 2. Generate date range data for past 30 calendar days ending today (exact 30-day window: 29 days ago -> today)
   const dailyData: DayData[] = useMemo(() => {
     const result: DayData[] = [];
     const now = new Date();
@@ -102,6 +156,23 @@ export function HabitTrendsView() {
         });
         const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
         const fullDayName = d.toLocaleDateString("en-US", { weekday: "long" });
+
+        const hasData = dateStr >= analyticsStartDate;
+
+        if (!hasData) {
+          result.push({
+            dateStr,
+            displayDate,
+            dayName,
+            fullDayName,
+            hasData: false,
+            completedCount: 0,
+            totalScheduled: 0,
+            completionRate: null, // NO DATA
+            completedHabits: [],
+          });
+          continue;
+        }
 
         // Find scheduled habits for this date
         const scheduledHabits = safeHabits.filter((h) => {
@@ -128,18 +199,18 @@ export function HabitTrendsView() {
         });
 
         const completedCount = completedList.length;
-        const rawPercentage =
-          totalScheduled === 0 ? 0 : Math.round((completedCount / totalScheduled) * 100);
-        const percentage = isNaN(rawPercentage) || !isFinite(rawPercentage) ? 0 : rawPercentage;
+        const completionRate =
+          totalScheduled === 0 ? null : Math.round((completedCount / totalScheduled) * 100);
 
         result.push({
           dateStr,
           displayDate,
           dayName,
           fullDayName,
+          hasData: true,
           completedCount,
           totalScheduled,
-          percentage,
+          completionRate,
           completedHabits: completedList,
         });
       } catch (err) {
@@ -148,7 +219,59 @@ export function HabitTrendsView() {
     }
 
     return result;
-  }, [safeHabits]);
+  }, [safeHabits, analyticsStartDate]);
+
+  // Count available days in 30-day window
+  const availableDaysCount = useMemo(() => {
+    return dailyData.filter((d) => d.hasData).length;
+  }, [dailyData]);
+
+  // Data Maturity State
+  const maturityState: MaturityState = useMemo(() => {
+    if (availableDaysCount <= 0) {
+      return {
+        level: "0",
+        title: "NO ANALYTICS DATA",
+        label: "0 DAYS OF DATA",
+        badgeBg: "bg-slate-500/10 border-slate-500/20",
+        badgeText: "text-slate-400",
+      };
+    }
+    if (availableDaysCount < 7) {
+      return {
+        level: "1-6",
+        title: "EARLY INSIGHTS",
+        label: `${availableDaysCount} ${availableDaysCount === 1 ? "DAY" : "DAYS"} OF DATA`,
+        badgeBg: "bg-amber-500/10 border-amber-500/20",
+        badgeText: "text-amber-400",
+      };
+    }
+    if (availableDaysCount < 14) {
+      return {
+        level: "7-13",
+        title: "7-DAY INSIGHTS",
+        label: `${availableDaysCount} DAYS OF DATA`,
+        badgeBg: "bg-cyan-500/10 border-cyan-500/20",
+        badgeText: "text-cyan-400",
+      };
+    }
+    if (availableDaysCount < 30) {
+      return {
+        level: "14-29",
+        title: "14-DAY INSIGHTS",
+        label: `${availableDaysCount} DAYS OF DATA`,
+        badgeBg: "bg-purple-500/10 border-purple-500/20",
+        badgeText: "text-purple-400",
+      };
+    }
+    return {
+      level: "30+",
+      title: "FULL 30-DAY INSIGHTS",
+      label: "30 DAYS OF DATA",
+      badgeBg: "bg-emerald-500/10 border-emerald-500/20",
+      badgeText: "text-emerald-400",
+    };
+  }, [availableDaysCount]);
 
   // Filtered dataset according to timeframe selection (7, 14, or 30 days)
   const filteredDailyData = useMemo(() => {
@@ -156,80 +279,105 @@ export function HabitTrendsView() {
     return dailyData.slice(Math.max(0, dailyData.length - timeframe));
   }, [dailyData, timeframe]);
 
-  // Overall statistics
+  // Overall statistics with weighted occurrences & velocity validation
   const stats = useMemo(() => {
-    if (!Array.isArray(filteredDailyData) || filteredDailyData.length === 0) {
-      return { totalScheduled: 0, totalCompleted: 0, overallRate: 0, rateDiff: 0, isImproving: true };
+    const validDataDays = filteredDailyData.filter((d) => d.hasData);
+    const validScheduledDays = validDataDays.filter((d) => d.totalScheduled > 0);
+
+    const totalScheduled = validScheduledDays.reduce((acc, curr) => acc + curr.totalScheduled, 0);
+    const totalCompleted = validScheduledDays.reduce((acc, curr) => acc + curr.completedCount, 0);
+
+    const overallRate = totalScheduled === 0 ? null : Math.round((totalCompleted / totalScheduled) * 100);
+
+    // Velocity / Period comparison logic
+    let rateDiff: number | null = null;
+    let canCompareVelocity = false;
+
+    // Hide period-over-period velocity for 7-day timeframe (cannot divide 7 into equal whole-day groups)
+    if (timeframe === 14 || timeframe === 30) {
+      const halfLen = timeframe / 2; // 7 for 14-day, 15 for 30-day
+      const recentData = filteredDailyData.slice(halfLen);
+      const olderData = filteredDailyData.slice(0, halfLen);
+
+      const recentValidScheduled = recentData.filter((d) => d.hasData && d.totalScheduled > 0);
+      const olderValidScheduled = olderData.filter((d) => d.hasData && d.totalScheduled > 0);
+
+      if (recentValidScheduled.length > 0 && olderValidScheduled.length > 0) {
+        const recentScheduled = recentValidScheduled.reduce((acc, curr) => acc + curr.totalScheduled, 0);
+        const recentCompleted = recentValidScheduled.reduce((acc, curr) => acc + curr.completedCount, 0);
+
+        const olderScheduled = olderValidScheduled.reduce((acc, curr) => acc + curr.totalScheduled, 0);
+        const olderCompleted = olderValidScheduled.reduce((acc, curr) => acc + curr.completedCount, 0);
+
+        if (recentScheduled > 0 && olderScheduled > 0) {
+          const recentRate = Math.round((recentCompleted / recentScheduled) * 100);
+          const olderRate = Math.round((olderCompleted / olderScheduled) * 100);
+          rateDiff = recentRate - olderRate;
+          canCompareVelocity = true;
+        }
+      }
     }
-
-    const totalScheduled = filteredDailyData.reduce((acc, curr) => acc + (curr?.totalScheduled || 0), 0);
-    const totalCompleted = filteredDailyData.reduce((acc, curr) => acc + (curr?.completedCount || 0), 0);
-    const overallRate = totalScheduled === 0 ? 0 : Math.round((totalCompleted / totalScheduled) * 100);
-
-    const halfLen = Math.floor(filteredDailyData.length / 2);
-    const recentData = filteredDailyData.slice(halfLen);
-    const olderData = filteredDailyData.slice(0, halfLen);
-
-    const recentCompleted = recentData.reduce((acc, curr) => acc + (curr?.completedCount || 0), 0);
-    const recentScheduled = recentData.reduce((acc, curr) => acc + (curr?.totalScheduled || 0), 0);
-    const recentRate = recentScheduled === 0 ? 0 : Math.round((recentCompleted / recentScheduled) * 100);
-
-    const olderCompleted = olderData.reduce((acc, curr) => acc + (curr?.completedCount || 0), 0);
-    const olderScheduled = olderData.reduce((acc, curr) => acc + (curr?.totalScheduled || 0), 0);
-    const olderRate = olderScheduled === 0 ? 0 : Math.round((olderCompleted / olderScheduled) * 100);
-
-    const rateDiff = recentRate - olderRate;
 
     return {
       totalScheduled,
       totalCompleted,
-      overallRate: isNaN(overallRate) ? 0 : overallRate,
-      rateDiff: isNaN(rateDiff) ? 0 : rateDiff,
-      isImproving: rateDiff >= 0,
+      overallRate,
+      rateDiff,
+      canCompareVelocity,
+      validDaysCount: validDataDays.length,
     };
-  }, [filteredDailyData]);
+  }, [filteredDailyData, timeframe]);
 
-  // Day-of-week pattern breakdown (Mon-Sun)
+  // Day-of-week pattern breakdown (Mon-Sun) considering only available data
   const dayOfWeekPattern: DayOfWeekData[] = useMemo(() => {
     const daysOrder = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const map: Record<string, { completed: number; scheduled: number; count: number }> = {};
+    const map: Record<string, { completed: number; scheduled: number; sampleDaysCount: number }> = {};
 
     daysOrder.forEach((d) => {
-      map[d] = { completed: 0, scheduled: 0, count: 0 };
+      map[d] = { completed: 0, scheduled: 0, sampleDaysCount: 0 };
     });
 
-    if (Array.isArray(dailyData)) {
-      dailyData.forEach((day) => {
-        if (day && map[day.dayName]) {
-          map[day.dayName].completed += day.completedCount || 0;
-          map[day.dayName].scheduled += day.totalScheduled || 0;
-          map[day.dayName].count += 1;
-        }
-      });
-    }
+    dailyData.forEach((day) => {
+      if (day.hasData && map[day.dayName]) {
+        map[day.dayName].completed += day.completedCount;
+        map[day.dayName].scheduled += day.totalScheduled;
+        map[day.dayName].sampleDaysCount += 1;
+      }
+    });
 
     return daysOrder.map((d) => {
       const item = map[d];
       const avgPercentage =
-        item.scheduled === 0 ? 0 : Math.round((item.completed / item.scheduled) * 100);
+        item.scheduled === 0 ? null : Math.round((item.completed / item.scheduled) * 100);
       return {
         dayName: d,
-        avgPercentage: isNaN(avgPercentage) ? 0 : avgPercentage,
+        avgPercentage,
         totalCompleted: item.completed,
         totalScheduled: item.scheduled,
-        count: item.count,
+        sampleDaysCount: item.sampleDaysCount,
       };
     });
   }, [dailyData]);
 
-  // Best & Worst performing day
+  // Best performing day (Requires sufficient scheduled occurrences: totalScheduled >= 2 && totalCompleted >= 1)
   const bestDay = useMemo(() => {
     if (!Array.isArray(dayOfWeekPattern) || dayOfWeekPattern.length === 0) return null;
-    const sorted = [...dayOfWeekPattern].sort((a, b) => b.avgPercentage - a.avgPercentage);
-    return sorted[0] && sorted[0].avgPercentage > 0 ? sorted[0] : null;
+    const eligible = dayOfWeekPattern.filter(
+      (d) => d.avgPercentage !== null && d.totalScheduled >= 2 && d.totalCompleted >= 1
+    );
+    if (eligible.length === 0) return null;
+
+    eligible.sort((a, b) => {
+      if (b.avgPercentage! !== a.avgPercentage!) {
+        return b.avgPercentage! - a.avgPercentage!;
+      }
+      return b.totalCompleted - a.totalCompleted;
+    });
+
+    return eligible[0];
   }, [dayOfWeekPattern]);
 
-  // Category normalization and resolution (Sports & Studies are authoritative)
+  // Category normalization and resolution (Main categories)
   const resolveHabitCategory = (h: Habit): string => {
     if (!h) return "Lifestyle";
     const raw = String(h.category || "").trim().toLowerCase();
@@ -264,28 +412,21 @@ export function HabitTrendsView() {
 
   const categoryData: CategoryData[] = useMemo(() => {
     const completedCounts: Record<string, number> = {
-      "Sports": 0,
-      "Studies": 0,
-      "Health & Fitness": 0,
-      "Mind & Focus": 0,
-      "Productivity": 0,
-      "Lifestyle": 0,
+      "Sports": 0, "Studies": 0, "Health & Fitness": 0,
+      "Mind & Focus": 0, "Productivity": 0, "Lifestyle": 0,
     };
     const scheduledCounts: Record<string, number> = {
-      "Sports": 0,
-      "Studies": 0,
-      "Health & Fitness": 0,
-      "Mind & Focus": 0,
-      "Productivity": 0,
-      "Lifestyle": 0,
+      "Sports": 0, "Studies": 0, "Health & Fitness": 0,
+      "Mind & Focus": 0, "Productivity": 0, "Lifestyle": 0,
     };
 
-    let totalCompletions = 0;
+    let totalCategoryCompletions = 0;
 
     dailyData.forEach((day) => {
+      if (!day.hasData) return;
+
       safeHabits.forEach((h) => {
         if (!h) return;
-        // Use noon to calculate scheduling safely across timezones
         const d = new Date(day.dateStr + "T12:00:00");
         let isScheduled = false;
         try {
@@ -296,7 +437,9 @@ export function HabitTrendsView() {
 
         if (isScheduled) {
           const cat = resolveHabitCategory(h);
-          scheduledCounts[cat]++;
+          if (scheduledCounts[cat] !== undefined) {
+            scheduledCounts[cat]++;
+          }
 
           let completedOnThisDay = false;
           if (Array.isArray(h.completedDates) && h.completedDates.includes(day.dateStr)) {
@@ -306,8 +449,10 @@ export function HabitTrendsView() {
           }
 
           if (completedOnThisDay) {
-            completedCounts[cat]++;
-            totalCompletions++;
+            if (completedCounts[cat] !== undefined) {
+              completedCounts[cat]++;
+              totalCategoryCompletions++;
+            }
           }
         }
       });
@@ -317,14 +462,14 @@ export function HabitTrendsView() {
     return orderedCategories.map((name) => {
       const completed = completedCounts[name] || 0;
       const scheduled = scheduledCounts[name] || 0;
-      const reliability = scheduled === 0 ? 0 : Math.round((completed / scheduled) * 100);
+      const reliability = scheduled === 0 ? null : Math.round((completed / scheduled) * 100);
 
       return {
         name,
         count: completed,
         scheduled,
-        percentage: totalCompletions === 0 ? 0 : Math.round((completed / totalCompletions) * 100),
-        reliability: isNaN(reliability) ? 0 : reliability,
+        percentage: totalCategoryCompletions === 0 ? 0 : Math.round((completed / totalCategoryCompletions) * 100),
+        reliability,
         color: CATEGORY_COLORS[name] || "#64748b",
       };
     });
@@ -346,6 +491,8 @@ export function HabitTrendsView() {
       let scheduledCount = 0;
 
       dailyData.forEach((day) => {
+        if (!day.hasData) return;
+
         const d = new Date(day.dateStr + "T12:00:00");
         let isScheduled = false;
         try {
@@ -369,7 +516,7 @@ export function HabitTrendsView() {
         }
       });
 
-      const reliability = scheduledCount === 0 ? 0 : Math.round((completedCount / scheduledCount) * 100);
+      const reliability = scheduledCount === 0 ? null : Math.round((completedCount / scheduledCount) * 100);
       const resolvedCat = resolveGlobalHabitCategory(h) || resolveHabitCategory(h);
 
       return {
@@ -386,7 +533,7 @@ export function HabitTrendsView() {
 
   return (
     <div className="w-full space-y-6">
-      {/* ERROR HEADER CARD — Autoritatively Displays Server Failures */}
+      {/* ERROR HEADER CARD — Server Sync Failures */}
       {error && (
         <div className="p-5 bg-red-950/20 border border-red-500/35 rounded-3xl text-center space-y-4 max-w-lg mx-auto backdrop-blur-xl">
           <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-400 mx-auto">
@@ -410,17 +557,20 @@ export function HabitTrendsView() {
         </div>
       )}
 
-      {/* HEADER ROW & TIMEFRAME SELECTOR */}
+      {/* HEADER ROW, MATURITY BADGE & TIMEFRAME SELECTOR */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
               <BarChart3 size={18} />
             </div>
             <h2 className="text-xl font-black text-white tracking-tight">30-Day Discipline Trends</h2>
+            <span className={`text-[10px] font-mono font-black uppercase px-2.5 py-1 rounded-lg border ${maturityState.badgeBg} ${maturityState.badgeText}`}>
+              {maturityState.title} ({maturityState.label})
+            </span>
           </div>
-          <p className="text-slate-400 text-xs mt-1">
-            Analyze your consistency patterns, peak discipline days, and completion velocity.
+          <p className="text-slate-400 text-xs mt-1.5">
+            Analyze your consistency patterns, peak discipline days, and completion velocity based on actual available data.
           </p>
         </div>
 
@@ -456,15 +606,23 @@ export function HabitTrendsView() {
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-white">{stats.overallRate}%</div>
+            <div className="text-2xl font-black text-white">
+              {stats.overallRate !== null ? `${stats.overallRate}%` : "NO DATA"}
+            </div>
             <div className="flex items-center gap-1 text-[10px] font-bold mt-1">
-              {stats.isImproving ? (
-                <span className="text-emerald-400 flex items-center gap-0.5">
-                  <ArrowUpRight size={12} /> +{stats.rateDiff}% vs prev period
-                </span>
+              {stats.canCompareVelocity && stats.rateDiff !== null ? (
+                stats.rateDiff >= 0 ? (
+                  <span className="text-emerald-400 flex items-center gap-0.5">
+                    <ArrowUpRight size={12} /> +{stats.rateDiff}% vs prev period
+                  </span>
+                ) : (
+                  <span className="text-rose-400 flex items-center gap-0.5">
+                    <ArrowDownRight size={12} /> {stats.rateDiff}% vs prev period
+                  </span>
+                )
               ) : (
-                <span className="text-rose-400 flex items-center gap-0.5">
-                  <ArrowDownRight size={12} /> {stats.rateDiff}% vs prev period
+                <span className="text-slate-500 flex items-center gap-0.5 font-mono">
+                  <Info size={11} /> N/A (Requires 14+ days)
                 </span>
               )}
             </div>
@@ -484,7 +642,7 @@ export function HabitTrendsView() {
           <div className="mt-3">
             <div className="text-2xl font-black text-white">{stats.totalCompleted}</div>
             <div className="text-[10px] font-medium text-slate-400 mt-1">
-              Out of {stats.totalScheduled} scheduled habits
+              Out of {stats.totalScheduled} scheduled ({stats.validDaysCount} days)
             </div>
           </div>
         </div>
@@ -501,10 +659,12 @@ export function HabitTrendsView() {
           </div>
           <div className="mt-3">
             <div className="text-xl font-black text-white">
-              {bestDay ? bestDay.dayName : "N/A"}
+              {bestDay ? bestDay.dayName : "NOT ENOUGH DATA"}
             </div>
             <div className="text-[10px] font-bold text-purple-400 mt-1">
-              {bestDay ? `${bestDay.avgPercentage}% completion rate` : "No data yet"}
+              {bestDay
+                ? `${bestDay.avgPercentage}% rate (${bestDay.totalCompleted}/${bestDay.totalScheduled})`
+                : "Requires 2+ scheduled sessions"}
             </div>
           </div>
         </div>
@@ -530,7 +690,7 @@ export function HabitTrendsView() {
         </div>
       </div>
 
-      {/* SECTION 2: COMPLETION VELOCITY TIMELINE (Custom Responsive SVG Chart) */}
+      {/* SECTION 2: COMPLETION VELOCITY TIMELINE */}
       <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl relative overflow-hidden">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-6">
           <div>
@@ -539,7 +699,7 @@ export function HabitTrendsView() {
               Completion Velocity ({timeframe} Days)
             </h3>
             <p className="text-[11px] text-slate-400">
-              Daily habit completion percentage with 80% discipline target line.
+              Daily habit completion percentage with 80% discipline benchmark. Unavailable dates render as NO DATA.
             </p>
           </div>
           <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400">
@@ -554,7 +714,7 @@ export function HabitTrendsView() {
           </div>
         </div>
 
-        {/* Velocity Chart Bars / Sparkline */}
+        {/* Velocity Chart Bars */}
         <div className="w-full">
           {filteredDailyData.length > 0 ? (
             <div className="space-y-3">
@@ -571,15 +731,58 @@ export function HabitTrendsView() {
 
                 {filteredDailyData.map((d, idx) => {
                   const isHovered = hoveredDayIdx === idx;
-                  const barHeight = Math.max(d.percentage, 4);
+
+                  // 1. Unavailable date (NO DATA)
+                  if (!d.hasData) {
+                    return (
+                      <div
+                        key={idx}
+                        onMouseEnter={() => setHoveredDayIdx(idx)}
+                        onMouseLeave={() => setHoveredDayIdx(null)}
+                        className="flex-1 flex flex-col items-center h-full justify-end relative group/day cursor-pointer min-w-0"
+                      >
+                        {isHovered && (
+                          <div className="absolute -top-16 z-30 bg-[#0c0d12] border border-white/20 text-white rounded-xl p-2 shadow-2xl text-[10px] whitespace-nowrap pointer-events-none">
+                            <div className="font-bold text-slate-400">{d.fullDayName}, {d.displayDate}</div>
+                            <div className="text-slate-500 italic">NO DATA YET (Before account/habit start)</div>
+                          </div>
+                        )}
+                        <div className="w-full max-w-[20px] h-[6%] rounded-t-md bg-white/[0.02] border border-dashed border-white/10" />
+                      </div>
+                    );
+                  }
+
+                  // 2. Available date but 0 scheduled habits
+                  if (d.totalScheduled === 0) {
+                    return (
+                      <div
+                        key={idx}
+                        onMouseEnter={() => setHoveredDayIdx(idx)}
+                        onMouseLeave={() => setHoveredDayIdx(null)}
+                        className="flex-1 flex flex-col items-center h-full justify-end relative group/day cursor-pointer min-w-0"
+                      >
+                        {isHovered && (
+                          <div className="absolute -top-16 z-30 bg-[#0c0d12] border border-white/20 text-white rounded-xl p-2 shadow-2xl text-[10px] whitespace-nowrap pointer-events-none">
+                            <div className="font-bold text-slate-300">{d.fullDayName}, {d.displayDate}</div>
+                            <div className="text-slate-400">0 habits scheduled on this day</div>
+                          </div>
+                        )}
+                        <div className="w-full max-w-[20px] h-[6%] rounded-t-md bg-white/5 border border-white/5" />
+                      </div>
+                    );
+                  }
+
+                  // 3. Available date with scheduled habits
+                  const rate = d.completionRate ?? 0;
+                  const barHeight = Math.max(rate, 6);
                   const barColor =
-                    d.percentage >= 80
+                    rate >= 80
                       ? "bg-gradient-to-t from-emerald-600 to-emerald-400 border-emerald-300/40"
-                      : d.percentage >= 50
+                      : rate >= 50
                       ? "bg-gradient-to-t from-cyan-600 to-cyan-400 border-cyan-300/40"
-                      : d.percentage > 0
+                      : rate > 0
                       ? "bg-gradient-to-t from-amber-600 to-amber-400 border-amber-300/40"
-                      : "bg-white/5 border-white/5";
+                      : "bg-gradient-to-t from-rose-700 to-rose-500 border-rose-400/50 shadow-[0_0_8px_rgba(244,63,94,0.3)]";
 
                   return (
                     <div
@@ -588,17 +791,15 @@ export function HabitTrendsView() {
                       onMouseLeave={() => setHoveredDayIdx(null)}
                       className="flex-1 flex flex-col items-center h-full justify-end relative group/day cursor-pointer min-w-0"
                     >
-                      {/* Tooltip on hover */}
                       {isHovered && (
                         <div className="absolute -top-16 z-30 bg-[#0c0d12] border border-white/20 text-white rounded-xl p-2 shadow-2xl text-[10px] whitespace-nowrap pointer-events-none">
                           <div className="font-bold text-cyan-300">{d.fullDayName}, {d.displayDate}</div>
-                          <div className="text-slate-300">
-                            {d.completedCount} / {d.totalScheduled} Completed ({d.percentage}%)
+                          <div className="text-slate-200">
+                            {d.completedCount} / {d.totalScheduled} Completed ({rate}%)
                           </div>
                         </div>
                       )}
 
-                      {/* Bar */}
                       <div
                         style={{ height: `${barHeight}%` }}
                         className={`w-full max-w-[20px] rounded-t-md transition-all duration-300 border-t ${barColor} ${
@@ -627,7 +828,7 @@ export function HabitTrendsView() {
 
       {/* GRID: DAY-OF-WEEK PATTERN & CATEGORY BREAKDOWN */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* SECTION 3: DAY-OF-WEEK PATTERN (WITH RELIABILITY INDICATORS) */}
+        {/* SECTION 3: DAY-OF-WEEK PATTERN */}
         <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl flex flex-col justify-between h-full">
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -636,20 +837,24 @@ export function HabitTrendsView() {
                 Day-of-Week Pattern Reliability
               </h3>
               <span className="text-[10px] font-mono font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
-                30-Day Aggregate
+                {maturityState.label}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mb-5">
-              Average completion rate grouped by day of the week over the last 30 calendar days.
+              Average completion rate grouped by day of the week across available days.
             </p>
 
-            {/* Custom Interactive Day of Week Bars with Reliability badging */}
+            {/* Custom Interactive Day of Week Bars */}
             <div className="grid grid-cols-7 gap-1 sm:gap-2 pt-2">
               {dayOfWeekPattern.map((item, idx) => {
-                const barHeight = Math.max(item.avgPercentage, 6);
-                const isHigh = item.avgPercentage >= 80;
-                const isMid = item.avgPercentage >= 50;
-                const isLow = item.avgPercentage > 0;
+                const hasScheduled = item.avgPercentage !== null;
+                const rate = item.avgPercentage ?? 0;
+                const barHeight = hasScheduled ? Math.max(rate, 6) : 6;
+
+                const isHigh = hasScheduled && rate >= 80;
+                const isMid = hasScheduled && rate >= 50;
+                const isLow = hasScheduled && rate > 0;
+                const isZero = hasScheduled && rate === 0;
 
                 const barFill = isHigh
                   ? "bg-gradient-to-t from-emerald-600 to-emerald-400 border border-emerald-300/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
@@ -657,6 +862,8 @@ export function HabitTrendsView() {
                   ? "bg-gradient-to-t from-purple-600 to-purple-400 border border-purple-300/40"
                   : isLow
                   ? "bg-gradient-to-t from-amber-600 to-amber-400 border border-amber-300/40"
+                  : isZero
+                  ? "bg-gradient-to-t from-rose-700 to-rose-500 border border-rose-400/50"
                   : "bg-white/5 border border-white/10";
 
                 return (
@@ -666,7 +873,7 @@ export function HabitTrendsView() {
                   >
                     {/* Percentage text */}
                     <span className="text-[10px] font-mono font-extrabold text-white mb-1.5">
-                      {item.avgPercentage}%
+                      {hasScheduled ? `${rate}%` : "—"}
                     </span>
 
                     {/* Bar Container Track */}
@@ -682,20 +889,22 @@ export function HabitTrendsView() {
                       {item.dayName}
                     </span>
 
-                    {/* Reliability Badges */}
+                    {/* Reliability Badge */}
                     <span className={`text-[8px] font-mono font-black uppercase mt-1.5 px-1.5 py-0.5 rounded ${
-                      item.avgPercentage >= 80
+                      !hasScheduled
+                        ? "bg-white/5 text-slate-500 border border-white/10"
+                        : rate >= 80
                         ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : item.avgPercentage >= 50
+                        : rate >= 50
                         ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                        : item.avgPercentage > 0
+                        : rate > 0
                         ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                        : "bg-white/5 text-slate-500 border border-white/10"
+                        : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                     }`}>
-                      {item.avgPercentage >= 80 ? "HIGH" : item.avgPercentage >= 50 ? "MED" : item.avgPercentage > 0 ? "LOW" : "NONE"}
+                      {!hasScheduled ? "NO DATA" : rate >= 80 ? "HIGH" : rate >= 50 ? "MED" : rate > 0 ? "LOW" : "0%"}
                     </span>
 
-                    {/* Scheduled count */}
+                    {/* Sample fraction count */}
                     <span className="text-[9px] font-mono text-slate-500 mt-1">
                       {item.totalCompleted}/{item.totalScheduled}
                     </span>
@@ -740,10 +949,9 @@ export function HabitTrendsView() {
 
             {/* Visual SVG Donut + Category Breakdown List */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-              {/* SVG Donut Chart */}
+              {/* SVG Donut Chart (Check-In Share) */}
               <div className="flex flex-col items-center justify-center p-2 relative">
                 <svg className="w-36 h-36 transform -rotate-90" viewBox="0 0 100 100">
-                  {/* Background Circle */}
                   <circle
                     cx="50"
                     cy="50"
@@ -753,11 +961,10 @@ export function HabitTrendsView() {
                     strokeWidth="12"
                   />
 
-                  {/* Render category segments */}
                   {totalCategoryCheckIns > 0 ? (
                     (() => {
                       let accumulatedPercent = 0;
-                      const circumference = 2 * Math.PI * 38; // ~238.76
+                      const circumference = 2 * Math.PI * 38;
 
                       return categoryData
                         .filter((c) => c.count > 0)
@@ -797,7 +1004,6 @@ export function HabitTrendsView() {
                   )}
                 </svg>
 
-                {/* Center text in donut */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <span className="text-xl font-black text-white">
                     {totalCategoryCheckIns}
@@ -808,7 +1014,7 @@ export function HabitTrendsView() {
                 </div>
               </div>
 
-              {/* Category Breakdown list with authoritative metrics */}
+              {/* Category Breakdown list */}
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-hide">
                 {categoryData.map((cat, idx) => {
                   const isHovered = hoveredCategory === cat.name;
@@ -835,13 +1041,15 @@ export function HabitTrendsView() {
                         <div className="flex items-center gap-1.5 font-mono text-[10px] shrink-0">
                           <span className="text-slate-500">Rel:</span>
                           <span className={`font-black px-1.5 py-0.2 rounded ${
-                            cat.reliability >= 80 
-                              ? "bg-emerald-500/15 text-emerald-400" 
-                              : cat.reliability >= 50 
-                                ? "bg-cyan-500/15 text-cyan-400" 
-                                : "bg-amber-500/15 text-amber-400"
+                            cat.reliability === null
+                              ? "bg-white/5 text-slate-500"
+                              : cat.reliability >= 80 
+                                ? "bg-emerald-500/15 text-emerald-400" 
+                                : cat.reliability >= 50 
+                                  ? "bg-cyan-500/15 text-cyan-400" 
+                                  : "bg-amber-500/15 text-amber-400"
                           }`}>
-                            {cat.reliability}%
+                            {cat.reliability !== null ? `${cat.reliability}%` : "NOT ENOUGH DATA"}
                           </span>
                         </div>
                       </div>
@@ -851,7 +1059,7 @@ export function HabitTrendsView() {
                         <div
                           className="h-full rounded-full transition-all duration-500"
                           style={{
-                            width: `${cat.reliability}%`,
+                            width: `${cat.reliability ?? 0}%`,
                             backgroundColor: cat.color,
                           }}
                         />
@@ -864,12 +1072,12 @@ export function HabitTrendsView() {
           </div>
 
           <div className="text-[11px] text-slate-400 bg-white/[0.03] border border-white/5 rounded-2xl p-3.5 mt-5">
-            Reliability index calculates completions divided by scheduled frequencies. Maintain consistent routines to elevate score.
+            Reliability index calculates completions divided by scheduled frequencies across available days. Donut chart shows total check-in share.
           </div>
         </div>
       </div>
 
-      {/* SECTION 5: SPORTS & STUDIES SPECIFIC TRENDS UI (Authoritative mapping) */}
+      {/* SECTION 5: SPORTS & STUDIES SPECIFIC TRENDS UI */}
       {sportsAndStudiesMetrics.length > 0 && (
         <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl space-y-4">
           <div>
@@ -902,21 +1110,25 @@ export function HabitTrendsView() {
                     </span>
                   </div>
                   <p className="text-[10px] text-slate-400 font-mono">
-                    Completed {item.completedCount} of {item.scheduledCount} scheduled sessions
+                    {item.scheduledCount > 0
+                      ? `Completed ${item.completedCount} of ${item.scheduledCount} scheduled sessions`
+                      : "0 scheduled sessions"}
                   </p>
                 </div>
 
                 <div className="text-right shrink-0">
                   <div className={`text-xl font-black font-mono leading-none ${
-                    item.reliability >= 80
+                    item.reliability === null
+                      ? "text-slate-600 text-xs"
+                      : item.reliability >= 80
                       ? "text-emerald-400"
                       : item.reliability >= 50
-                        ? "text-cyan-400"
-                        : item.reliability > 0
-                          ? "text-amber-400"
-                          : "text-slate-600"
+                      ? "text-cyan-400"
+                      : item.reliability > 0
+                      ? "text-amber-400"
+                      : "text-rose-400"
                   }`}>
-                    {item.reliability}%
+                    {item.reliability !== null ? `${item.reliability}%` : "NOT ENOUGH DATA"}
                   </div>
                   <span className="text-[8px] font-mono text-slate-500 uppercase font-black tracking-widest mt-1 block">
                     Reliability
@@ -932,40 +1144,80 @@ export function HabitTrendsView() {
       <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl">
         <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2 mb-3">
           <CheckCircle2 size={16} className="text-cyan-400" />
-          30-Day Check-In Heatmap
+          30-Day Check-In Heatmap (29 Days Ago → Today)
         </h3>
 
         <div className="grid grid-cols-5 sm:grid-cols-10 md:grid-cols-15 lg:grid-cols-30 gap-1.5 pt-2">
           {dailyData.map((d, idx) => {
+            // 1. Unavailable date (Before analytics start date)
+            if (!d.hasData) {
+              return (
+                <div
+                  key={idx}
+                  title={`${d.fullDayName}, ${d.displayDate}: NO DATA YET (Before account/habit start)`}
+                  className="h-10 rounded-xl border border-dashed border-white/10 bg-[#0c0d12] flex flex-col items-center justify-center p-1 transition-all duration-200 hover:scale-110 cursor-pointer"
+                >
+                  <span className="text-[8px] font-bold text-slate-600 uppercase">
+                    {d.dayName ? d.dayName.charAt(0) : ""}
+                  </span>
+                  <span className="text-[8px] font-mono text-slate-600">—</span>
+                </div>
+              );
+            }
+
+            // 2. Available date with 0 scheduled habits
+            if (d.totalScheduled === 0) {
+              return (
+                <div
+                  key={idx}
+                  title={`${d.fullDayName}, ${d.displayDate}: No habits scheduled`}
+                  className="h-10 rounded-xl border border-white/5 bg-white/[0.03] flex flex-col items-center justify-center p-1 transition-all duration-200 hover:scale-110 cursor-pointer"
+                >
+                  <span className="text-[8px] font-bold text-slate-500 uppercase">
+                    {d.dayName ? d.dayName.charAt(0) : ""}
+                  </span>
+                  <span className="text-[8px] font-mono text-slate-500">—</span>
+                </div>
+              );
+            }
+
+            // 3. Available date with scheduled habits
+            const rate = d.completionRate ?? 0;
             const bgClass =
-              d.percentage >= 80
-                ? "bg-emerald-500/80 border-emerald-400/50 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
-                : d.percentage >= 50
-                ? "bg-cyan-500/60 border-cyan-400/40"
-                : d.percentage > 0
-                ? "bg-amber-500/40 border-amber-400/30"
-                : "bg-white/5 border-white/10";
+              rate >= 80
+                ? "bg-emerald-500/80 border-emerald-400/50 text-white shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+                : rate >= 50
+                ? "bg-cyan-500/60 border-cyan-400/40 text-cyan-100"
+                : rate > 0
+                ? "bg-amber-500/40 border-amber-400/30 text-amber-200"
+                : "bg-rose-950/50 border-rose-500/50 text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.3)]";
 
             return (
               <div
                 key={idx}
-                title={`${d.fullDayName}, ${d.displayDate}: ${d.percentage}% (${d.completedCount}/${d.totalScheduled} habits)`}
+                title={`${d.fullDayName}, ${d.displayDate}: ${rate}% (${d.completedCount}/${d.totalScheduled} habits completed)`}
                 className={`h-10 rounded-xl border flex flex-col items-center justify-center p-1 transition-all duration-200 hover:scale-110 cursor-pointer ${bgClass}`}
               >
                 <span className="text-[8px] font-bold text-white/70 uppercase">
                   {d.dayName ? d.dayName.charAt(0) : ""}
                 </span>
-                <span className="text-[9px] font-black text-white">{d.percentage}%</span>
+                <span className="text-[9px] font-black text-white">{rate}%</span>
               </div>
             );
           })}
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-slate-400 mt-4 pt-3 border-t border-white/5">
-          <span>Older (30 days ago)</span>
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] text-slate-400 mt-4 pt-3 border-t border-white/5 font-mono">
+          <span>29 days ago</span>
+          <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded bg-white/5 border border-white/10" /> 0%
+              <span className="w-2.5 h-2.5 rounded bg-[#0c0d12] border border-dashed border-white/10" /> NO DATA
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded bg-white/[0.03] border border-white/5" /> No Habits
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded bg-rose-950/50 border border-rose-500/50" /> 0% (Real Zero)
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded bg-amber-500/40" /> 1-49%
