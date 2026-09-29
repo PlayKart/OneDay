@@ -1,7 +1,7 @@
 // src/utils/greetingUtils.ts
 
 import { User, Habit } from "../types";
-import { isHabitScheduledForToday } from "../lib/habitUtils";
+import { isHabitScheduledForToday, getTodayHabitStats } from "../lib/habitUtils";
 import { getEquippedTitle, normalizeTitleString } from "./titleUtils";
 
 export interface GreetingContext {
@@ -87,6 +87,17 @@ export function getPersonalizedGreeting(context: GreetingContext): string {
   const isNight = hour >= 22 || hour < 4;
 
   const stateKey = `${dateStr}_${hour}_${completedToday}_${totalHabits}_${currentStreak}_${currentLevel}_${equippedTitle || "none"}`;
+
+  // REST DAY (Active habits exist, but 0 scheduled today)
+  const todayStats = getTodayHabitStats(safeHabits);
+  if (todayStats.isRestDay) {
+    const pool = [
+      firstName ? `Rest day, ${firstName}. Take time to recover.` : "Rest day. Take time to recover.",
+      "No habits scheduled for today. Enjoy the recovery.",
+      firstName ? `Your system is ready when you are, ${firstName}.` : "Your system is ready when you are.",
+    ];
+    return pickFromPool(pool, stateKey);
+  }
 
   // 1. ALL HABITS COMPLETED (Clean Sweep)
   if (totalHabits > 0 && completedToday >= totalHabits) {

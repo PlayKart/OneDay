@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, CheckCircle2, FileText, ChevronDown, AlignLeft } from 'lucide-react';
+import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, CheckCircle2, FileText, ChevronDown, AlignLeft, Coffee } from 'lucide-react';
 import { useStore, Habit } from '../store/useStore';
 import { toast } from 'react-hot-toast';
 import { isHabitScheduledForToday, getScheduledDaysMessage, getTodayHabitStats } from '../lib/habitUtils';
@@ -161,6 +161,8 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
           className={`p-4 rounded-2xl border transition-all ${
             userFrozen
               ? "bg-[#080C14] border-cyan-500/25 ring-1 ring-cyan-500/15 shadow-[0_4px_24px_rgba(6,182,212,0.05)]"
+              : todayStats.isRestDay
+              ? "bg-amber-500/[0.02] border-amber-500/20"
               : "bg-white/[0.02] border-white/[0.06]"
           } space-y-2.5`}
         >
@@ -172,6 +174,11 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   <Lock size={10} />
                   <span>HABITS PAUSED</span>
                 </span>
+              ) : todayStats.isRestDay ? (
+                <span className="text-[10px] font-mono font-black uppercase tracking-wider text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <Coffee size={10} />
+                  <span>REST DAY</span>
+                </span>
               ) : (
                 <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 bg-white/[0.04] px-2 py-0.5 rounded-md">
                   ACTIVE PROTOCOL
@@ -179,17 +186,29 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
               )}
             </div>
             <div className="text-right font-mono text-[11px] text-zinc-300">
-              <span className="font-bold text-white">{completedScheduledToday} of {totalScheduledToday}</span> Completed ({completionPercentage}%)
+              {todayStats.isRestDay ? (
+                <span className="font-extrabold text-amber-300 uppercase tracking-wider">REST DAY</span>
+              ) : (
+                <>
+                  <span className="font-bold text-white">{completedScheduledToday} of {totalScheduledToday}</span> Completed ({completionPercentage}%)
+                </>
+              )}
             </div>
           </div>
-          <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                userFrozen ? "bg-cyan-400/80" : "bg-white"
-              }`}
-              style={{ width: `${Math.min(100, Math.max(0, completionPercentage))}%` }}
-            />
-          </div>
+          {todayStats.isRestDay ? (
+            <p className="text-[11px] text-slate-400 font-medium">
+              No habits scheduled for today. Take the day off—your system is ready when you are.
+            </p>
+          ) : (
+            <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  userFrozen ? "bg-cyan-400/80" : "bg-white"
+                }`}
+                style={{ width: `${Math.min(100, Math.max(0, completionPercentage))}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -485,25 +504,44 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
         )})}
 
         {(guardedDisplayHabits || []).length === 0 && (
-          <div className="col-span-full py-12 px-6 text-center bg-white/[0.01] rounded-[2rem] border border-white/5 border-dashed flex flex-col items-center justify-center min-h-[280px]">
-            <CheckCircle2 size={38} strokeWidth={1.25} className="text-zinc-400 mb-4" />
-            <h3 className="text-zinc-300 font-extrabold uppercase tracking-[0.25em] text-xs mb-3">
-              NO ACTIVE HABITS
-            </h3>
-            <p className="text-slate-500 text-xs max-w-[320px] mx-auto leading-relaxed mb-8">
-              Every master was once a beginner. Establish your daily discipline protocol today and build your streak, one day at a time.
-            </p>
-            {onCreateClick && (
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={onCreateClick}
-                className="w-full max-w-[280px] py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-xl shadow-xl hover:bg-slate-200 transition-all cursor-pointer flex items-center justify-center gap-2 h-14"
-              >
-                <Plus size={16} strokeWidth={3} />
-                <span>CREATE YOUR FIRST HABIT</span>
-              </motion.button>
-            )}
-          </div>
+          todayStats.isRestDay ? (
+            /* STATE B: REST DAY */
+            <div className="col-span-full py-12 px-6 text-center bg-white/[0.01] rounded-[2rem] border border-amber-500/20 border-dashed flex flex-col items-center justify-center min-h-[220px]">
+              <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mb-3 text-amber-400">
+                <Coffee size={22} strokeWidth={2} />
+              </div>
+              <h3 className="text-amber-300 font-extrabold uppercase tracking-[0.2em] text-xs mb-2">
+                REST DAY
+              </h3>
+              <p className="text-slate-200 text-xs font-bold mb-1">
+                No habits scheduled for today.
+              </p>
+              <p className="text-slate-500 text-xs max-w-[320px] mx-auto leading-relaxed">
+                Take the day off. Your system is still here when you're ready.
+              </p>
+            </div>
+          ) : (
+            /* STATE A: NO ACTIVE HABITS */
+            <div className="col-span-full py-12 px-6 text-center bg-white/[0.01] rounded-[2rem] border border-white/5 border-dashed flex flex-col items-center justify-center min-h-[280px]">
+              <CheckCircle2 size={38} strokeWidth={1.25} className="text-zinc-400 mb-4" />
+              <h3 className="text-zinc-300 font-extrabold uppercase tracking-[0.25em] text-xs mb-3">
+                NO ACTIVE HABITS
+              </h3>
+              <p className="text-slate-500 text-xs max-w-[320px] mx-auto leading-relaxed mb-8">
+                Every master was once a beginner. Establish your daily discipline protocol today and build your streak, one day at a time.
+              </p>
+              {onCreateClick && (
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onCreateClick}
+                  className="w-full max-w-[280px] py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-xl shadow-xl hover:bg-slate-200 transition-all cursor-pointer flex items-center justify-center gap-2 h-14"
+                >
+                  <Plus size={16} strokeWidth={3} />
+                  <span>CREATE YOUR FIRST HABIT</span>
+                </motion.button>
+              )}
+            </div>
+          )
         )}
       </div>
     </div>

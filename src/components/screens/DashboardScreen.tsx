@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useStore } from "../../store/useStore";
 import { MotivationalQuote } from "../MotivationalQuote";
 import { HabitList } from "../HabitList";
-import { Target, Zap, Activity, Trophy, Plus, Shield, CheckCircle2, Lock, Snowflake } from "lucide-react";
+import { Target, Zap, Activity, Trophy, Plus, Shield, CheckCircle2, Lock, Snowflake, Coffee } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
 import { isHabitScheduledForToday, getTodayHabitStats } from "../../lib/habitUtils";
@@ -378,17 +378,21 @@ export function DashboardScreen() {
                 {completedToday}/{totalHabits} {isFrozen ? "Completed (Paused)" : "Done"}
               </span>
             )}
+            {stats.isRestDay && (
+              <span className="text-[10px] font-mono uppercase font-black tracking-wider px-2.5 py-1 rounded-md border text-amber-300 bg-amber-500/10 border-amber-500/20 self-start sm:self-auto">
+                REST DAY
+              </span>
+            )}
           </div>
           
-          {totalHabits > 0 ? (
-            <HabitList previewMode />
-          ) : (
+          {stats.hasNoActiveHabits ? (
+            /* STATE A: NO ACTIVE HABITS */
             <div className="py-12 text-center bg-white/[0.01] rounded-2xl border border-white/5 border-dashed flex flex-col items-center justify-center px-4">
               <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
                 <Activity size={24} className="text-slate-500" />
               </div>
               <p className="text-slate-300 font-black uppercase tracking-[0.15em] text-xs mb-2">
-                No Active Habits
+                NO ACTIVE HABITS
               </p>
               <p className="text-slate-500 text-[11px] max-w-xs mx-auto leading-relaxed mb-6 font-medium">
                 Establish your first tracking habit to activate your daily execution feed.
@@ -403,6 +407,25 @@ export function DashboardScreen() {
                 Create Habit
               </motion.button>
             </div>
+          ) : stats.isRestDay ? (
+            /* STATE B: REST DAY */
+            <div className="py-12 text-center bg-white/[0.01] rounded-2xl border border-white/5 border-dashed flex flex-col items-center justify-center px-4">
+              <div className="w-14 h-14 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mb-4 text-amber-400">
+                <Coffee size={24} strokeWidth={2} />
+              </div>
+              <p className="text-amber-300 font-black uppercase tracking-[0.2em] text-xs mb-2">
+                REST DAY
+              </p>
+              <p className="text-slate-200 text-xs font-bold mb-1">
+                No habits scheduled for today.
+              </p>
+              <p className="text-slate-500 text-[11px] max-w-xs mx-auto leading-relaxed font-medium">
+                Enjoy the recovery. Come back tomorrow and keep building. Your system is still here when you're ready.
+              </p>
+            </div>
+          ) : (
+            /* STATE C: HABITS SCHEDULED TODAY */
+            <HabitList previewMode />
           )}
         </motion.div>
       </div>

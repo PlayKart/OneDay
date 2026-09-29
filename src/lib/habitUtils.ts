@@ -6,6 +6,7 @@ export function getTodayDateString(dateObj: Date = new Date()): string {
 }
 
 export interface TodayHabitStats {
+  activeHabitsCount: number;
   todayHabits: any[];
   completedTodayList: any[];
   pendingTodayList: any[];
@@ -13,12 +14,15 @@ export interface TodayHabitStats {
   pendingTodayCount: number;
   totalTodayCount: number;
   completionPercentage: number;
+  isRestDay: boolean;
+  hasNoActiveHabits: boolean;
 }
 
 export function getTodayHabitStats(habits: any[]): TodayHabitStats {
   const safeHabits = Array.isArray(habits) ? habits : [];
   // 1. Filter out archived habits
   const activeHabits = safeHabits.filter((h) => h && !h.isArchived);
+  const activeHabitsCount = activeHabits.length;
   
   // 2. Filter to habits scheduled for today
   const todayHabits = activeHabits.filter(isHabitScheduledForToday);
@@ -38,7 +42,11 @@ export function getTodayHabitStats(habits: any[]): TodayHabitStats {
   const pendingTodayCount = Math.max(0, totalTodayCount - completedTodayCount);
   const completionPercentage = totalTodayCount === 0 ? 0 : Math.round((completedTodayCount / totalTodayCount) * 100);
 
+  const hasNoActiveHabits = activeHabitsCount === 0;
+  const isRestDay = activeHabitsCount > 0 && totalTodayCount === 0;
+
   return {
+    activeHabitsCount,
     todayHabits,
     completedTodayList,
     pendingTodayList,
@@ -46,6 +54,8 @@ export function getTodayHabitStats(habits: any[]): TodayHabitStats {
     pendingTodayCount,
     totalTodayCount,
     completionPercentage,
+    isRestDay,
+    hasNoActiveHabits,
   };
 }
 
