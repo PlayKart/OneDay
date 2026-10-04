@@ -50,7 +50,8 @@ export function AchievementUnlockModal() {
     : null;
 
   const renderIcon = () => {
-    const iconName = activeUnlock.icon?.toLowerCase() || "";
+    const rawIcon = activeUnlock.icon;
+    const iconName = typeof rawIcon === "string" ? rawIcon.toLowerCase() : "";
     if (iconName.includes("flame") || title.toLowerCase().includes("blood")) {
       return <Flame size={32} className="text-amber-400 stroke-[2.2]" />;
     }

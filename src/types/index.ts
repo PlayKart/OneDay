@@ -119,21 +119,30 @@ export interface Quote {
   fetchedAt?: number;
 }
 
+export type AchievementStatus = "LOCKED" | "IN_PROGRESS" | "UNLOCKED";
+
 export interface Achievement {
   id: string;
-  title: string;
+  name: string;
+  title: string; // alias for name
   description: string;
-  category?: string;
-  xpReward?: number;
-  xp_reward?: number;
-  icon?: string;
-  unlocked: boolean;
+  category?: string | null;
+  requirement?: string | null;
+  progress: number;
+  target: number;
+  maxProgress?: number; // alias for target
+  progressPercentage: number | null;
+  status: AchievementStatus;
+  isUnlocked: boolean;
+  unlocked: boolean; // alias for isUnlocked
   unlockedAt?: string | null;
   unlocked_at?: string | null;
   earnedAt?: string | null;
   earned_at?: string | null;
-  progress?: number;
-  maxProgress?: number;
+  rarity?: string | null;
+  xpReward?: number;
+  xp_reward?: number;
+  icon?: string;
 }
 
 export interface NotificationItem {

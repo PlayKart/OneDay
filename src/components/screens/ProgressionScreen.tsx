@@ -13,6 +13,8 @@ import {
   Lock,
   Zap,
   Target,
+  Clock,
+  RefreshCw,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "react-hot-toast";
@@ -35,22 +37,40 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
   const { user, equipTitle } = useStore();
   const [loadingTitles, setLoadingTitles] = useState(false);
   const [equippingTitle, setEquippingTitle] = useState<string | null>(null);
-  const [achievementFilter, setAchievementFilter] = useState<"all" | "earned" | "locked">("all");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "UNLOCKED" | "IN_PROGRESS" | "LOCKED">("ALL");
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
 
   const {
     achievements,
     earnedAchievements,
     lockedAchievements,
+    inProgressAchievements,
+    categories,
+    unlockedCount,
+    totalCount,
     loading: achievementsLoading,
+    error: achievementsError,
+    setSelectedAchievement,
     fetchAchievements,
   } = useAchievements(true);
 
-  // Filter achievements based on user tab selection
+  // Filter achievements based on status and category (Requirement 5)
   const filteredAchievements = React.useMemo(() => {
-    if (achievementFilter === "earned") return earnedAchievements;
-    if (achievementFilter === "locked") return lockedAchievements;
-    return achievements;
-  }, [achievementFilter, achievements, earnedAchievements, lockedAchievements]);
+    return achievements.filter((ach) => {
+      // 1. Status Filter
+      if (statusFilter === "UNLOCKED" && !ach.isUnlocked) return false;
+      if (statusFilter === "IN_PROGRESS" && (ach.isUnlocked || ach.status !== "IN_PROGRESS")) return false;
+      if (statusFilter === "LOCKED" && (ach.isUnlocked || ach.status === "IN_PROGRESS")) return false;
+
+      // 2. Category Filter (dynamically provided by backend)
+      if (selectedCategory !== "ALL") {
+        const achCat = ach.category ? ach.category.trim().toLowerCase() : "";
+        if (achCat !== selectedCategory.trim().toLowerCase()) return false;
+      }
+
+      return true;
+    });
+  }, [achievements, statusFilter, selectedCategory]);
 
   // Helper to render achievement icon
   const renderAchievementIcon = (category?: string, title?: string, isEarned = false) => {
@@ -445,27 +465,36 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
       </section>
 
       {/* 5. AUTHORITATIVE ACHIEVEMENTS */}
-      <section className="bg-[#0D0D0D] border border-white/[0.08] rounded-3xl p-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <section className="bg-[#0D0D0D] border border-white/[0.08] rounded-3xl p-6 space-y-6">
+        {/* Header & Overall Count (Requirement 16) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-white/[0.06]">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2 text-neutral-400">
               <Trophy size={16} className="text-amber-400" />
-              <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-white">
+              <h2 className="text-[11px] font-mono font-bold uppercase tracking-widest text-white">
                 Authoritative Achievements
-              </span>
+              </h2>
             </div>
             <p className="text-[11px] text-neutral-400 font-medium">
               Milestone achievements verified directly by OneDay backend protocol
             </p>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl self-start sm:self-center">
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
+              {unlockedCount} / {totalCount} ACHIEVEMENTS
+            </span>
+          </div>
+        </div>
+
+        {/* Status Filters (Requirement 3) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl overflow-x-auto scrollbar-hide max-w-full">
             <button
               type="button"
-              onClick={() => setAchievementFilter("all")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                achievementFilter === "all"
+              onClick={() => setStatusFilter("ALL")}
+              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+                statusFilter === "ALL"
                   ? "bg-white/15 text-white shadow-sm"
                   : "text-neutral-400 hover:text-white"
               }`}
@@ -474,20 +503,33 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
             </button>
             <button
               type="button"
-              onClick={() => setAchievementFilter("earned")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                achievementFilter === "earned"
-                  ? "bg-amber-500/20 text-amber-300 shadow-sm border border-amber-500/30"
+              onClick={() => setStatusFilter("UNLOCKED")}
+              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+                statusFilter === "UNLOCKED"
+                  ? "bg-emerald-500/20 text-emerald-300 shadow-sm border border-emerald-500/30"
                   : "text-neutral-400 hover:text-white"
               }`}
             >
-              Earned ({earnedAchievements.length})
+              Unlocked ({earnedAchievements.length})
             </button>
+            {inProgressAchievements.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setStatusFilter("IN_PROGRESS")}
+                className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+                  statusFilter === "IN_PROGRESS"
+                    ? "bg-amber-500/20 text-amber-300 shadow-sm border border-amber-500/30"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                In Progress ({inProgressAchievements.length})
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setAchievementFilter("locked")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                achievementFilter === "locked"
+              onClick={() => setStatusFilter("LOCKED")}
+              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+                statusFilter === "LOCKED"
                   ? "bg-white/15 text-white shadow-sm"
                   : "text-neutral-400 hover:text-white"
               }`}
@@ -495,35 +537,109 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
               Locked ({lockedAchievements.length})
             </button>
           </div>
+
+          {/* Dynamic Category Filtering from Backend (Requirement 5) */}
+          {categories.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
+              <span className="text-[9px] font-mono uppercase text-neutral-500 font-bold mr-1 shrink-0">
+                CATEGORY:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedCategory("ALL")}
+                className={`px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+                  selectedCategory === "ALL"
+                    ? "bg-white/20 text-white border border-white/30"
+                    : "bg-white/5 text-neutral-400 hover:text-white border border-white/5"
+                }`}
+              >
+                All
+              </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+                    selectedCategory === cat
+                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                      : "bg-white/5 text-neutral-400 hover:text-white border border-white/5"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {achievementsLoading && achievements.length === 0 ? (
-          <div className="p-8 rounded-2xl border border-white/5 bg-white/[0.01] text-center flex flex-col items-center justify-center gap-2.5">
-            <Loader2 size={20} className="animate-spin text-amber-400" />
-            <p className="text-neutral-400 text-xs font-mono uppercase tracking-wider">
-              Retrieving verified achievements...
+        {/* Error State with Clean Retry (Requirement 13) */}
+        {achievementsError ? (
+          <div className="p-6 rounded-2xl border border-rose-500/20 bg-rose-500/5 text-center space-y-3">
+            <p className="text-xs font-mono font-bold text-rose-300 uppercase tracking-wider">
+              {achievementsError}
             </p>
+            <p className="text-[11px] text-neutral-400 max-w-sm mx-auto">
+              The OneDay protocol could not sync authoritative achievements. Please check connection and retry.
+            </p>
+            <button
+              type="button"
+              onClick={() => fetchAchievements()}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-mono font-bold uppercase tracking-wider transition-all border border-white/10 cursor-pointer active:scale-95"
+            >
+              <RefreshCw size={12} className={achievementsLoading ? "animate-spin" : ""} />
+              <span>Retry Sync</span>
+            </button>
+          </div>
+        ) : achievementsLoading && achievements.length === 0 ? (
+          /* Skeleton Loading State (Requirement 11) */
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="p-4 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-between gap-4 animate-pulse"
+              >
+                <div className="flex items-center gap-3.5 flex-1">
+                  <div className="w-12 h-12 rounded-2xl bg-white/5 shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-32 bg-white/10 rounded" />
+                    <div className="h-3 w-48 bg-white/5 rounded" />
+                  </div>
+                </div>
+                <div className="h-7 w-20 bg-white/5 rounded-xl shrink-0" />
+              </div>
+            ))}
           </div>
         ) : filteredAchievements.length === 0 ? (
-          <div className="p-8 rounded-2xl border border-white/5 bg-white/[0.01] text-center space-y-1.5">
-            <p className="text-neutral-300 text-xs font-bold uppercase tracking-wider font-mono">
-              {achievementFilter === "earned" ? "No achievements earned yet" : "No achievements in category"}
-            </p>
-            <p className="text-neutral-500 text-[11px] max-w-sm mx-auto leading-relaxed">
-              {achievementFilter === "earned"
-                ? "Complete habits and maintain consistency to unlock authoritative milestones verified by the backend."
-                : "All available achievements have been completed."}
+          /* Empty State (Requirement 12) */
+          <div className="p-8 rounded-2xl border border-white/5 bg-white/[0.01] text-center space-y-2">
+            <h3 className="text-xs font-mono font-bold text-neutral-300 uppercase tracking-widest">
+              NO ACHIEVEMENTS YET
+            </h3>
+            <p className="text-[11px] text-neutral-500 max-w-sm mx-auto leading-relaxed">
+              Your achievements will appear here as you progress.
             </p>
           </div>
         ) : (
+          /* Achievement Cards (Requirement 4 & 6) */
           <div className="grid grid-cols-1 gap-3 pt-1">
             {filteredAchievements.map((ach) => {
-              const isEarned = Boolean(ach.unlocked);
-              const title = ach.title || "Achievement";
+              const isEarned = Boolean(ach.isUnlocked);
+              const title = ach.name || ach.title || "Achievement";
               const description = ach.description || "";
               const category = ach.category || "General";
+              const requirement = ach.requirement;
               const xpReward = ach.xpReward ?? ach.xp_reward ?? 0;
-              const rawEarnedAt = ach.earnedAt || ach.earned_at || ach.unlockedAt || ach.unlocked_at;
+              const progress = ach.progress;
+              const target = ach.target;
+              const percentage = ach.progressPercentage;
+              const isMultiStep = target > 1;
+
+              const rawEarnedAt =
+                ach.unlockedAt ||
+                ach.unlocked_at ||
+                ach.earnedAt ||
+                ach.earned_at;
 
               const formattedEarnedDate = rawEarnedAt
                 ? new Date(rawEarnedAt).toLocaleDateString(undefined, {
@@ -536,18 +652,23 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
               return (
                 <div
                   key={ach.id}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                  onClick={() => setSelectedAchievement(ach)}
+                  className={`p-4 sm:p-4.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer select-none active:scale-[0.99] ${
                     isEarned
-                      ? "bg-amber-500/[0.04] border-amber-500/25 shadow-[0_0_20px_rgba(245,158,11,0.06)]"
-                      : "bg-white/[0.015] border-white/5 opacity-80"
+                      ? "bg-amber-500/[0.04] hover:bg-amber-500/[0.07] border-amber-500/25 shadow-[0_0_20px_rgba(245,158,11,0.06)]"
+                      : ach.status === "IN_PROGRESS"
+                      ? "bg-white/[0.025] hover:bg-white/[0.04] border-white/10"
+                      : "bg-white/[0.015] hover:bg-white/[0.03] border-white/5 opacity-80"
                   }`}
                 >
-                  <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                  <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
                     {/* Icon container */}
                     <div
                       className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
                         isEarned
                           ? "bg-amber-500/15 border-amber-500/30 text-amber-300 shadow-inner"
+                          : ach.status === "IN_PROGRESS"
+                          ? "bg-white/[0.04] border-white/10 text-neutral-300"
                           : "bg-white/[0.03] border-white/5 text-neutral-500"
                       }`}
                     >
@@ -555,20 +676,22 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
                     </div>
 
                     {/* Content */}
-                    <div className="space-y-1 min-w-0">
+                    <div className="space-y-1.5 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h4
+                        <h3
                           className={`text-sm font-black uppercase tracking-wide truncate ${
                             isEarned ? "text-white" : "text-neutral-300"
                           }`}
                         >
                           {title}
-                        </h4>
+                        </h3>
 
                         {/* Category badge */}
-                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-neutral-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
-                          {category}
-                        </span>
+                        {category && (
+                          <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-neutral-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
+                            {category}
+                          </span>
+                        )}
 
                         {/* XP Reward Badge */}
                         {xpReward > 0 && (
@@ -586,28 +709,66 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
 
                       <p
                         className={`text-xs leading-relaxed ${
-                          isEarned ? "text-neutral-300" : "text-neutral-500"
+                          isEarned ? "text-neutral-300" : "text-neutral-400"
                         }`}
                       >
                         {description}
                       </p>
 
-                      {/* Earned date: ONLY show when authoritative earned_at is present from backend */}
+                      {/* Requirement note if provided */}
+                      {requirement && !isEarned && (
+                        <p className="text-[11px] text-neutral-500 italic">
+                          Goal: {requirement}
+                        </p>
+                      )}
+
+                      {/* Progress indicator when backend provides multi-step target (Requirement 3 & 10) */}
+                      {isMultiStep && (
+                        <div className="space-y-1 pt-1 max-w-xs">
+                          <div className="flex justify-between text-[10px] font-mono text-neutral-400">
+                            <span>
+                              {progress} / {target}
+                            </span>
+                            {percentage !== null && (
+                              <span className={isEarned ? "text-amber-400 font-bold" : "text-neutral-400"}>
+                                Progress: {percentage}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isEarned
+                                  ? "bg-gradient-to-r from-amber-500 to-amber-300"
+                                  : "bg-neutral-500"
+                              }`}
+                              style={{ width: `${Math.min(100, Math.max(0, percentage || 0))}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Earned date: ONLY show when authoritative earned_at is present from backend (Requirement 7) */}
                       {isEarned && formattedEarnedDate && (
                         <div className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400/90 pt-0.5">
                           <Check size={10} className="stroke-[3]" />
-                          <span>Earned on {formattedEarnedDate}</span>
+                          <span>Unlocked on {formattedEarnedDate}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Status badge: EARNED vs LOCKED */}
+                  {/* Status badge: UNLOCKED vs IN PROGRESS vs LOCKED (Requirement 3 & 4) */}
                   <div className="self-end sm:self-center shrink-0">
                     {isEarned ? (
-                      <span className="px-3 py-1.5 rounded-xl bg-amber-400/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                      <span className="px-3 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
                         <Check size={11} className="stroke-[3]" />
-                        <span>EARNED</span>
+                        <span>✓ UNLOCKED</span>
+                      </span>
+                    ) : ach.status === "IN_PROGRESS" ? (
+                      <span className="px-3 py-1.5 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <Clock size={11} />
+                        <span>IN PROGRESS</span>
                       </span>
                     ) : (
                       <span className="px-3 py-1.5 rounded-xl bg-white/5 text-neutral-500 border border-white/10 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">

@@ -2,20 +2,27 @@
 
 import { useEffect, useMemo } from "react";
 import { useAchievementStore } from "../store/achievementStore";
+import { Achievement } from "../types";
 
 export function useAchievements(autoFetch = false) {
   const {
     achievements,
     earnedAchievements,
+    categories,
+    unlockedCount,
+    totalCount,
     loading,
     error,
+    selectedAchievement,
     activeUnlock,
     achievementUnlockQueue,
     fetchAchievements,
     setAchievements,
+    setSelectedAchievement,
     processNewlyEarnedAchievements,
     dismissActiveUnlock,
     clearUnlockQueue,
+    resetAchievementState,
   } = useAchievementStore();
 
   useEffect(() => {
@@ -25,7 +32,12 @@ export function useAchievements(autoFetch = false) {
   }, [autoFetch, achievements.length, loading, fetchAchievements]);
 
   const lockedAchievements = useMemo(
-    () => achievements.filter((a) => !a.unlocked),
+    () => achievements.filter((a) => !a.isUnlocked && a.status !== "IN_PROGRESS"),
+    [achievements]
+  );
+
+  const inProgressAchievements = useMemo(
+    () => achievements.filter((a) => !a.isUnlocked && a.status === "IN_PROGRESS"),
     [achievements]
   );
 
@@ -33,10 +45,14 @@ export function useAchievements(autoFetch = false) {
     achievements,
     earnedAchievements,
     lockedAchievements,
-    unlockedCount: earnedAchievements.length,
-    totalCount: achievements.length,
+    inProgressAchievements,
+    categories,
+    unlockedCount: unlockedCount || earnedAchievements.length,
+    totalCount: totalCount || achievements.length,
     loading,
     error,
+    selectedAchievement,
+    setSelectedAchievement,
     activeUnlock,
     queueLength: achievementUnlockQueue.length,
     fetchAchievements,
@@ -44,5 +60,6 @@ export function useAchievements(autoFetch = false) {
     processNewlyEarnedAchievements,
     dismissActiveUnlock,
     clearUnlockQueue,
+    resetAchievementState,
   };
 }

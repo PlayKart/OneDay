@@ -184,11 +184,13 @@ export const useStore = create<StoreState>((set, get) => {
     if (fbUser) {
       console.log(`[AUTH] authenticated user: ${fbUser.uid} ${fbUser.email ? `(${fbUser.email})` : ""}`);
       console.log("[BOOT] session available: true");
+      useAchievementStore.getState().resetAchievementState();
       set({ firebaseUser: fbUser, initialized: true, loading: true });
       await get().refreshFromBackend();
     } else {
       console.log("[AUTH] authenticated user: none");
       console.log("[BOOT] session available: false");
+      useAchievementStore.getState().resetAchievementState();
       set({
         firebaseUser: null,
         user: null,
