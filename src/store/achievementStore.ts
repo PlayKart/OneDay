@@ -2,29 +2,162 @@
 
 import { create } from "zustand";
 import { Achievement } from "../types";
+import { achievementService, normalizeAchievement } from "../services/achievementService";
+import { playTitleUnlockSound } from "../utils/titleUtils";
 
 interface AchievementState {
   achievements: Achievement[];
+  earnedAchievements: Achievement[];
+  loading: boolean;
+  error: string | null;
+  achievementUnlockQueue: Achievement[];
+  activeUnlock: Achievement | null;
+
+  // Actions
+  fetchAchievements: () => Promise<void>;
   setAchievements: (achievements: Achievement[]) => void;
-  checkAndUnlock: (streak: number, completedCount: number, totalHabits: number) => void;
+  processNewlyEarnedAchievements: (newlyEarned: any[]) => void;
+  dismissActiveUnlock: () => void;
+  clearUnlockQueue: () => void;
 }
 
-export const useAchievementStore = create<AchievementState>((set) => ({
-  achievements: [
-    { id: "1", title: "First Step", description: "Complete your first habit", unlocked: false },
-    { id: "2", title: "Unstoppable", description: "Reach a 7-day streak", unlocked: false, progress: 0, maxProgress: 7 },
-    { id: "3", title: "Master System", description: "Maintain 5 active habits", unlocked: false, progress: 0, maxProgress: 5 },
-    { id: "4", title: "Apex Disciplinarian", description: "Reach level 5", unlocked: false, progress: 1, maxProgress: 5 },
-  ],
-  setAchievements: (achievements) => set({ achievements }),
-  checkAndUnlock: (streak, completedCount, totalHabits) => {
-    set((state) => ({
-      achievements: state.achievements.map((a) => {
-        if (a.id === "1") return { ...a, unlocked: completedCount > 0 };
-        if (a.id === "2") return { ...a, unlocked: streak >= 7, progress: streak };
-        if (a.id === "3") return { ...a, unlocked: totalHabits >= 5, progress: totalHabits };
-        return a;
-      }),
-    }));
+export const useAchievementStore = create<AchievementState>((set, get) => ({
+  achievements: [],
+  earnedAchievements: [],
+  loading: false,
+  error: null,
+  achievementUnlockQueue: [],
+  activeUnlock: null,
+
+  fetchAchievements: async () => {
+    try {
+      set({ loading: true, error: null });
+      const res = await achievementService.getAchievements();
+
+      set({
+        achievements: res.achievements,
+        earnedAchievements: res.earnedAchievements,
+        loading: false,
+      });
+
+      // NOTE (Rule 6): Page refresh / initial sync must NEVER replay unlock animations.
+      // Newly unlocked animations are ONLY queued when an action returns newlyEarnedAchievements.
+    } catch (err: any) {
+      console.warn("[ACHIEVEMENT STORE] fetchAchievements failed:", err?.message || err);
+      set({
+        loading: false,
+        error: err?.message || "Failed to load achievements",
+      });
+    }
+  },
+
+  setAchievements: (achievements: Achievement[]) => {
+    const earned = achievements.filter((a) => a.unlocked);
+    set({ achievements, earnedAchievements: earned });
+  },
+
+  /**
+   * Processes newly earned achievements returned by an action response (e.g. POST /api/complete).
+   * Sequential queue processing guarantees all newly earned items are displayed one by one.
+   */
+  processNewlyEarnedAchievements: (newlyEarned: any[]) => {
+    if (!Array.isArray(newlyEarned) || newlyEarned.length === 0) return;
+
+    const currentCatalog = get().achievements;
+    const currentQueue = get().achievementUnlockQueue;
+    const currentActive = get().activeUnlock;
+
+    const normalizedNew: Achievement[] = newlyEarned
+      .map((item) => {
+        if (!item) return null;
+        const id = String(item.id || item.achievementId || item.achievement_id || (typeof item === "string" ? item : ""));
+        const matched = currentCatalog.find((c) => c.id === id);
+
+        if (matched) {
+          return {
+            ...matched,
+            unlocked: true,
+            earnedAt: item.earnedAt || item.earned_at || item.unlockedAt || matched.earnedAt || new Date().toISOString(),
+            unlockedAt: item.earnedAt || item.earned_at || item.unlockedAt || matched.unlockedAt || new Date().toISOString(),
+          };
+        }
+
+        return normalizeAchievement(item, true);
+      })
+      .filter((a): a is Achievement => a !== null && Boolean(a.id));
+
+    if (normalizedNew.length === 0) return;
+
+    // Filter out items already in queue or currently displayed
+    const existingIds = new Set<string>();
+    if (currentActive?.id) existingIds.add(currentActive.id);
+    currentQueue.forEach((q) => existingIds.add(q.id));
+
+    const freshQueueItems = normalizedNew.filter((item) => !existingIds.has(item.id));
+    if (freshQueueItems.length === 0) return;
+
+    // Trigger haptic and audio chime for newly unlocked achievement
+    try {
+      playTitleUnlockSound();
+      if (typeof window !== "undefined" && "navigator" in window && "vibrate" in navigator) {
+        navigator.vibrate(35);
+      }
+    } catch {
+      // Safe ignore
+    }
+
+    // Also update catalog and earned state with newly unlocked achievements
+    const updatedCatalog = currentCatalog.map((c) => {
+      const match = freshQueueItems.find((f) => f.id === c.id);
+      if (match) {
+        return { ...c, unlocked: true, earnedAt: match.earnedAt, unlockedAt: match.unlockedAt };
+      }
+      return c;
+    });
+
+    const combinedEarned = updatedCatalog.filter((a) => a.unlocked);
+
+    if (!currentActive) {
+      set({
+        achievements: updatedCatalog,
+        earnedAchievements: combinedEarned,
+        activeUnlock: freshQueueItems[0],
+        achievementUnlockQueue: freshQueueItems.slice(1),
+      });
+    } else {
+      set({
+        achievements: updatedCatalog,
+        earnedAchievements: combinedEarned,
+        achievementUnlockQueue: [...currentQueue, ...freshQueueItems],
+      });
+    }
+  },
+
+  dismissActiveUnlock: () => {
+    const queue = get().achievementUnlockQueue;
+    if (queue.length > 0) {
+      const nextActive = queue[0];
+      const remainingQueue = queue.slice(1);
+      set({
+        activeUnlock: nextActive,
+        achievementUnlockQueue: remainingQueue,
+      });
+
+      // Sound feedback for next queued achievement
+      try {
+        playTitleUnlockSound();
+        if (typeof window !== "undefined" && "navigator" in window && "vibrate" in navigator) {
+          navigator.vibrate(35);
+        }
+      } catch {
+        // Safe ignore
+      }
+    } else {
+      set({ activeUnlock: null, achievementUnlockQueue: [] });
+    }
+  },
+
+  clearUnlockQueue: () => {
+    set({ activeUnlock: null, achievementUnlockQueue: [] });
   },
 }));

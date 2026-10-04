@@ -1,14 +1,48 @@
 // src/hooks/useAchievements.ts
 
+import { useEffect, useMemo } from "react";
 import { useAchievementStore } from "../store/achievementStore";
 
-export function useAchievements() {
-  const { achievements, setAchievements, checkAndUnlock } = useAchievementStore();
+export function useAchievements(autoFetch = false) {
+  const {
+    achievements,
+    earnedAchievements,
+    loading,
+    error,
+    activeUnlock,
+    achievementUnlockQueue,
+    fetchAchievements,
+    setAchievements,
+    processNewlyEarnedAchievements,
+    dismissActiveUnlock,
+    clearUnlockQueue,
+  } = useAchievementStore();
+
+  useEffect(() => {
+    if (autoFetch && achievements.length === 0 && !loading) {
+      fetchAchievements();
+    }
+  }, [autoFetch, achievements.length, loading, fetchAchievements]);
+
+  const lockedAchievements = useMemo(
+    () => achievements.filter((a) => !a.unlocked),
+    [achievements]
+  );
 
   return {
     achievements,
-    unlockedCount: achievements.filter((a) => a.unlocked).length,
+    earnedAchievements,
+    lockedAchievements,
+    unlockedCount: earnedAchievements.length,
+    totalCount: achievements.length,
+    loading,
+    error,
+    activeUnlock,
+    queueLength: achievementUnlockQueue.length,
+    fetchAchievements,
     setAchievements,
-    checkAndUnlock,
+    processNewlyEarnedAchievements,
+    dismissActiveUnlock,
+    clearUnlockQueue,
   };
 }

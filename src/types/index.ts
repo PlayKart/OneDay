@@ -123,9 +123,15 @@ export interface Achievement {
   id: string;
   title: string;
   description: string;
+  category?: string;
+  xpReward?: number;
+  xp_reward?: number;
   icon?: string;
   unlocked: boolean;
-  unlockedAt?: string;
+  unlockedAt?: string | null;
+  unlocked_at?: string | null;
+  earnedAt?: string | null;
+  earned_at?: string | null;
   progress?: number;
   maxProgress?: number;
 }

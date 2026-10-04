@@ -27,6 +27,7 @@ import {
   Statistics 
 } from '../types';
 import { CoachPendingAction, HabitPreviewState } from '../components/coach/actions/types';
+import { useAchievementStore } from './achievementStore';
 
 export { apiRequest, normalizeCompletedDates };
 export type { ChatSession, ChatMessage, Habit, TabState, BackendUser as User };
@@ -303,6 +304,7 @@ export const useStore = create<StoreState>((set, get) => {
       try {
         await syncService.syncUserData(true);
         get().fetchSessions().catch((sErr) => console.warn("Failed to fetch chat sessions:", sErr));
+        useAchievementStore.getState().fetchAchievements().catch((aErr) => console.warn("Failed to fetch achievements:", aErr));
       } catch (err: any) {
         console.error("[SYNC ERROR] refreshFromBackend failed:", err?.message || err);
       }
@@ -494,6 +496,47 @@ export const useStore = create<StoreState>((set, get) => {
                 titleUnlockData: activeUnlock,
               };
             });
+          }
+        }
+
+        // Check for newlyEarnedAchievements from backend (Requirement 5)
+        const newlyEarnedAchievements =
+          root?.newlyEarnedAchievements ||
+          root?.newly_earned_achievements ||
+          root?.newlyUnlockedAchievements ||
+          root?.newly_unlocked_achievements ||
+          userObj?.newlyEarnedAchievements ||
+          userObj?.newly_earned_achievements ||
+          (res as any)?.newlyEarnedAchievements ||
+          (res as any)?.newly_earned_achievements;
+
+        if (Array.isArray(newlyEarnedAchievements) && newlyEarnedAchievements.length > 0) {
+          console.log("[useStore] Backend returned newly earned achievements:", newlyEarnedAchievements);
+          useAchievementStore.getState().processNewlyEarnedAchievements(newlyEarnedAchievements);
+        }
+
+        // Authoritative update for earnedAchievements if returned
+        const returnedEarnedAchievements =
+          root?.earnedAchievements ||
+          root?.earned_achievements ||
+          userObj?.earnedAchievements ||
+          userObj?.earned_achievements ||
+          (res as any)?.earnedAchievements ||
+          (res as any)?.earned_achievements;
+
+        if (Array.isArray(returnedEarnedAchievements)) {
+          const currentCatalog = useAchievementStore.getState().achievements;
+          const earnedIds = new Set(
+            returnedEarnedAchievements.map((e: any) =>
+              String(e.id || e.achievementId || e.achievement_id || (typeof e === "string" ? e : ""))
+            )
+          );
+          if (currentCatalog.length > 0) {
+            const updatedCatalog = currentCatalog.map((c) => ({
+              ...c,
+              unlocked: earnedIds.has(c.id) || c.unlocked,
+            }));
+            useAchievementStore.getState().setAchievements(updatedCatalog);
           }
         }
 

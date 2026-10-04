@@ -282,10 +282,17 @@ export function DashboardScreen() {
 
         {/* Card 3: Level & XP */}
         <motion.div 
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.history.pushState({}, "", "/settings/progress");
+              window.dispatchEvent(new PopStateEvent("popstate"));
+            }
+            setActiveTab("settings");
+          }}
           whileHover={{ y: -3, borderColor: "rgba(255,255,255,0.18)" }}
           animate={xpPop ? { scale: [1, 1.015, 1], borderColor: ["rgba(255,255,255,0.08)", "rgba(255,255,255,0.3)", "rgba(255,255,255,0.08)"] } : {}}
           transition={{ duration: 0.4 }}
-          className="bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] p-5 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col justify-between select-none relative overflow-hidden transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)] min-h-[160px]"
+          className="bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] p-5 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col justify-between select-none relative overflow-hidden transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)] min-h-[160px] cursor-pointer"
         >
           {/* Top Row: Icon + Pill */}
           <div className="flex justify-between items-center mb-4 relative z-10">

@@ -10,10 +10,14 @@ import {
   Loader2,
   Flame,
   TrendingUp,
+  Lock,
+  Zap,
+  Target,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "react-hot-toast";
 import { userService } from "../../services/userService";
+import { useAchievements } from "../../hooks/useAchievements";
 import {
   KNOWN_TITLES,
   getAllUserTitles,
@@ -31,11 +35,55 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
   const { user, equipTitle } = useStore();
   const [loadingTitles, setLoadingTitles] = useState(false);
   const [equippingTitle, setEquippingTitle] = useState<string | null>(null);
+  const [achievementFilter, setAchievementFilter] = useState<"all" | "earned" | "locked">("all");
+
+  const {
+    achievements,
+    earnedAchievements,
+    lockedAchievements,
+    loading: achievementsLoading,
+    fetchAchievements,
+  } = useAchievements(true);
+
+  // Filter achievements based on user tab selection
+  const filteredAchievements = React.useMemo(() => {
+    if (achievementFilter === "earned") return earnedAchievements;
+    if (achievementFilter === "locked") return lockedAchievements;
+    return achievements;
+  }, [achievementFilter, achievements, earnedAchievements, lockedAchievements]);
+
+  // Helper to render achievement icon
+  const renderAchievementIcon = (category?: string, title?: string, isEarned = false) => {
+    const t = (title || "").toLowerCase();
+    const c = (category || "").toLowerCase();
+    const cls = isEarned ? "text-amber-400" : "text-neutral-500";
+
+    if (t.includes("first") || t.includes("blood") || t.includes("step")) {
+      return <Flame size={20} className={cls} />;
+    }
+    if (t.includes("streak") || t.includes("dominance") || c.includes("streak")) {
+      return <Zap size={20} className={cls} />;
+    }
+    if (t.includes("commander") || t.includes("level") || c.includes("progression")) {
+      return <Award size={20} className={cls} />;
+    }
+    if (t.includes("century") || t.includes("xp") || c.includes("xp")) {
+      return <Sparkles size={20} className={cls} />;
+    }
+    if (t.includes("habit") || t.includes("master") || c.includes("habit")) {
+      return <Target size={20} className={cls} />;
+    }
+    if (t.includes("shield") || t.includes("freeze")) {
+      return <Shield size={20} className={cls} />;
+    }
+    return <Trophy size={20} className={cls} />;
+  };
 
   // Refresh user titles and progression from backend
   const refreshProgression = useCallback(async () => {
     try {
       setLoadingTitles(true);
+      fetchAchievements().catch(() => {});
       const [profileData, titlesData] = await Promise.all([
         userService.getUserProfile(),
         userService.getUserTitles().catch((e) => {
@@ -389,6 +437,185 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
                       "EQUIP"
                     )}
                   </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* 5. AUTHORITATIVE ACHIEVEMENTS */}
+      <section className="bg-[#0D0D0D] border border-white/[0.08] rounded-3xl p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2 text-neutral-400">
+              <Trophy size={16} className="text-amber-400" />
+              <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-white">
+                Authoritative Achievements
+              </span>
+            </div>
+            <p className="text-[11px] text-neutral-400 font-medium">
+              Milestone achievements verified directly by OneDay backend protocol
+            </p>
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl self-start sm:self-center">
+            <button
+              type="button"
+              onClick={() => setAchievementFilter("all")}
+              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                achievementFilter === "all"
+                  ? "bg-white/15 text-white shadow-sm"
+                  : "text-neutral-400 hover:text-white"
+              }`}
+            >
+              All ({achievements.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setAchievementFilter("earned")}
+              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                achievementFilter === "earned"
+                  ? "bg-amber-500/20 text-amber-300 shadow-sm border border-amber-500/30"
+                  : "text-neutral-400 hover:text-white"
+              }`}
+            >
+              Earned ({earnedAchievements.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setAchievementFilter("locked")}
+              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                achievementFilter === "locked"
+                  ? "bg-white/15 text-white shadow-sm"
+                  : "text-neutral-400 hover:text-white"
+              }`}
+            >
+              Locked ({lockedAchievements.length})
+            </button>
+          </div>
+        </div>
+
+        {achievementsLoading && achievements.length === 0 ? (
+          <div className="p-8 rounded-2xl border border-white/5 bg-white/[0.01] text-center flex flex-col items-center justify-center gap-2.5">
+            <Loader2 size={20} className="animate-spin text-amber-400" />
+            <p className="text-neutral-400 text-xs font-mono uppercase tracking-wider">
+              Retrieving verified achievements...
+            </p>
+          </div>
+        ) : filteredAchievements.length === 0 ? (
+          <div className="p-8 rounded-2xl border border-white/5 bg-white/[0.01] text-center space-y-1.5">
+            <p className="text-neutral-300 text-xs font-bold uppercase tracking-wider font-mono">
+              {achievementFilter === "earned" ? "No achievements earned yet" : "No achievements in category"}
+            </p>
+            <p className="text-neutral-500 text-[11px] max-w-sm mx-auto leading-relaxed">
+              {achievementFilter === "earned"
+                ? "Complete habits and maintain consistency to unlock authoritative milestones verified by the backend."
+                : "All available achievements have been completed."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 pt-1">
+            {filteredAchievements.map((ach) => {
+              const isEarned = Boolean(ach.unlocked);
+              const title = ach.title || "Achievement";
+              const description = ach.description || "";
+              const category = ach.category || "General";
+              const xpReward = ach.xpReward ?? ach.xp_reward ?? 0;
+              const rawEarnedAt = ach.earnedAt || ach.earned_at || ach.unlockedAt || ach.unlocked_at;
+
+              const formattedEarnedDate = rawEarnedAt
+                ? new Date(rawEarnedAt).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : null;
+
+              return (
+                <div
+                  key={ach.id}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    isEarned
+                      ? "bg-amber-500/[0.04] border-amber-500/25 shadow-[0_0_20px_rgba(245,158,11,0.06)]"
+                      : "bg-white/[0.015] border-white/5 opacity-80"
+                  }`}
+                >
+                  <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                    {/* Icon container */}
+                    <div
+                      className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+                        isEarned
+                          ? "bg-amber-500/15 border-amber-500/30 text-amber-300 shadow-inner"
+                          : "bg-white/[0.03] border-white/5 text-neutral-500"
+                      }`}
+                    >
+                      {renderAchievementIcon(category, title, isEarned)}
+                    </div>
+
+                    {/* Content */}
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4
+                          className={`text-sm font-black uppercase tracking-wide truncate ${
+                            isEarned ? "text-white" : "text-neutral-300"
+                          }`}
+                        >
+                          {title}
+                        </h4>
+
+                        {/* Category badge */}
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-neutral-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
+                          {category}
+                        </span>
+
+                        {/* XP Reward Badge */}
+                        {xpReward > 0 && (
+                          <span
+                            className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                              isEarned
+                                ? "bg-amber-500/15 border border-amber-500/25 text-amber-300"
+                                : "bg-white/5 border border-white/10 text-neutral-400"
+                            }`}
+                          >
+                            +{xpReward} XP
+                          </span>
+                        )}
+                      </div>
+
+                      <p
+                        className={`text-xs leading-relaxed ${
+                          isEarned ? "text-neutral-300" : "text-neutral-500"
+                        }`}
+                      >
+                        {description}
+                      </p>
+
+                      {/* Earned date: ONLY show when authoritative earned_at is present from backend */}
+                      {isEarned && formattedEarnedDate && (
+                        <div className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400/90 pt-0.5">
+                          <Check size={10} className="stroke-[3]" />
+                          <span>Earned on {formattedEarnedDate}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status badge: EARNED vs LOCKED */}
+                  <div className="self-end sm:self-center shrink-0">
+                    {isEarned ? (
+                      <span className="px-3 py-1.5 rounded-xl bg-amber-400/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                        <Check size={11} className="stroke-[3]" />
+                        <span>EARNED</span>
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1.5 rounded-xl bg-white/5 text-neutral-500 border border-white/10 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <Lock size={11} />
+                        <span>LOCKED</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}

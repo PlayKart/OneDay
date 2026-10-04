@@ -23,6 +23,7 @@ import { OnboardingTransition } from './components/OnboardingTransition';
 const TitleUnlockModal = lazy(() => import('./components/TitleUnlockModal').then(m => ({ default: m.TitleUnlockModal })));
 const TitleLossModal = lazy(() => import('./components/TitleLossModal').then(m => ({ default: m.TitleLossModal })));
 const LevelUpModal = lazy(() => import('./components/LevelUpAnimation').then(m => ({ default: m.LevelUpModal })));
+const AchievementUnlockModal = lazy(() => import('./components/AchievementUnlockModal').then(m => ({ default: m.AchievementUnlockModal })));
 const OnboardingModal = lazy(() => import('./components/OnboardingModal').then(m => ({ default: m.OnboardingModal })));
 const AppIntroFlow = lazy(() => import('./components/AppIntroFlow').then(m => ({ default: m.AppIntroFlow })));
 
@@ -447,6 +448,7 @@ export default function App() {
         <TitleUnlockModal />
         <TitleLossModal />
         <LevelUpModal />
+        <AchievementUnlockModal />
       </div>
     </div>
   );
