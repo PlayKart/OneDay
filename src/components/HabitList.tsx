@@ -10,9 +10,10 @@ import { getHabitIconComponent, getHabitColorTheme, resolveHabitCategory } from 
 import { getXpForDifficulty, extractXpAwarded, toDisplayDifficulty } from '../utils';
 import { perfLogger } from '../utils/perfLogger';
 import { isUserFrozen, formatFreezeDate, formatFreezeDateShort } from '../utils/freezeUtils';
+import { HabitListSkeleton } from './SkeletonLoaders';
 
 export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?: boolean; onCreateClick?: () => void }) => {
-  const { user, habits, completeHabit, undoHabit, deleteHabit, refreshFromBackend, loading, pendingHabitIds } = useStore();
+  const { user, habits, completeHabit, undoHabit, deleteHabit, refreshFromBackend, loading, pendingHabitIds, profileSynced } = useStore();
   const userFrozen = isUserFrozen(user);
   
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -504,7 +505,12 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
         )})}
 
         {(guardedDisplayHabits || []).length === 0 && (
-          todayStats.isRestDay ? (
+          (loading || !profileSynced) ? (
+            /* PROGRESSIVE LOADING STATE: Clean skeleton while backend syncs in background */
+            <div className="col-span-full py-2">
+              <HabitListSkeleton />
+            </div>
+          ) : todayStats.isRestDay ? (
             /* STATE B: REST DAY */
             <div className="col-span-full py-12 px-6 text-center bg-white/[0.01] rounded-[2rem] border border-amber-500/20 border-dashed flex flex-col items-center justify-center min-h-[220px]">
               <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mb-3 text-amber-400">

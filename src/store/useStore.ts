@@ -136,41 +136,55 @@ const getInitialActiveTab = (): TabState => {
 
 export const useStore = create<StoreState>((set, get) => {
   const authStartTime = performance.now();
+  try {
+    performance.mark("calibrationStart");
+  } catch (_) {}
 
   // Diagnostic log for boot
   console.log("[BOOT] initialization started");
   console.log("[BOOT] auth initialization started");
 
   let authListenerFired = false;
+  let calibrationHandled = false;
 
-  // 1. Process potential redirect results from signInWithRedirect
-  getRedirectResult(auth)
-    .then(async (result) => {
-      if (result && result.user) {
-        console.log("[AUTH] Successful redirect login. User UID:", result.user.uid);
-        set({ firebaseUser: result.user, initialized: true, loading: true });
-        await get().refreshFromBackend();
-      }
-    })
-    .catch((err) => {
-      console.warn("[AUTH] Error handling redirect result:", err);
-    });
+  // 1. Process potential redirect results from signInWithRedirect non-blockingly
+  try {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result && result.user) {
+          console.log("[AUTH] Successful redirect login. User UID:", result.user.uid);
+          set({ firebaseUser: result.user, initialized: true });
+          get().refreshFromBackend().catch((e) => console.warn("[AUTH] post-redirect refresh:", e));
+        }
+      })
+      .catch((err) => {
+        console.warn("[AUTH] Error handling redirect result:", err);
+      });
+  } catch (err) {
+    console.warn("[AUTH] getRedirectResult error:", err);
+  }
 
-  // Fallback safety timer in case Firebase Auth listener is stalled (e.g. offline/IndexedDB issue)
+  // Fallback safety timer in case Firebase Auth listener is stalled (2000ms timeout)
   const authTimeoutId = setTimeout(() => {
     if (!authListenerFired) {
       authListenerFired = true;
+      calibrationHandled = true;
       console.warn("[BOOT] auth initialization fallback timeout reached");
       console.log(`[PERF] auth: ${Math.round(performance.now() - authStartTime)}ms (timeout)`);
       console.log("[BOOT] auth initialization completed");
       console.log("[BOOT] authenticated user: none (fallback)");
       console.log("[BOOT] session available: false");
+      try {
+        performance.mark("calibrationComplete");
+        performance.mark("protocolAlphaInit");
+      } catch (_) {}
       set({ initialized: true, firebaseUser: null, loading: false });
     }
-  }, 4000);
+  }, 2000);
 
   // 2. Listen to Auth state changes and boot store sync
-  onAuthStateChanged(auth, async (fbUser) => {
+  // Requirement 1 & 4: Calibration completion triggers Protocol Alpha exactly once within ~1ms
+  onAuthStateChanged(auth, (fbUser) => {
     if (!authListenerFired) {
       authListenerFired = true;
       clearTimeout(authTimeoutId);
@@ -181,15 +195,41 @@ export const useStore = create<StoreState>((set, get) => {
     perfLogger.mark("authReady", authDuration);
     console.log("[BOOT] auth initialization completed");
 
+    // Exact calibration completion event timestamp
+    try {
+      performance.mark("calibrationComplete");
+      performance.mark("protocolAlphaInit");
+    } catch (_) {}
+
     if (fbUser) {
       console.log(`[AUTH] authenticated user: ${fbUser.uid} ${fbUser.email ? `(${fbUser.email})` : ""}`);
       console.log("[BOOT] session available: true");
-      useAchievementStore.getState().resetAchievementState();
-      set({ firebaseUser: fbUser, initialized: true, loading: true });
-      await get().refreshFromBackend();
+
+      // Prevent duplicate calibration restarts if token refreshes
+      if (!calibrationHandled) {
+        calibrationHandled = true;
+        useAchievementStore.getState().resetAchievementState();
+
+        // Immediate transition to Protocol Alpha (approx 1 ms target):
+        // Set user and initialized state synchronously so Protocol Alpha renders immediately without blocking
+        set({
+          firebaseUser: fbUser,
+          initialized: true,
+          loading: true,
+        });
+
+        // Non-blocking asynchronous background sync: does NOT delay Protocol Alpha
+        get().refreshFromBackend().catch((e) => {
+          console.warn("[BACKGROUND SYNC] refreshFromBackend background notice:", e);
+        });
+      } else {
+        // Subsequent auth state update (e.g. token refresh)
+        set({ firebaseUser: fbUser, initialized: true });
+      }
     } else {
       console.log("[AUTH] authenticated user: none");
       console.log("[BOOT] session available: false");
+      calibrationHandled = true;
       useAchievementStore.getState().resetAchievementState();
       set({
         firebaseUser: null,
@@ -304,9 +344,10 @@ export const useStore = create<StoreState>((set, get) => {
       set({ loading: true, backendError: null });
 
       try {
-        await syncService.syncUserData(true);
+        // Requirement 4: Prevent duplicate API calls by reusing active in-flight sync promise
+        await syncService.syncUserData(false);
         get().fetchSessions().catch((sErr) => console.warn("Failed to fetch chat sessions:", sErr));
-        useAchievementStore.getState().fetchAchievements().catch((aErr) => console.warn("Failed to fetch achievements:", aErr));
+        // Removed redundant duplicate achievement fetch: syncUserData (dashboardData) already fetches authoritative achievements
       } catch (err: any) {
         console.error("[SYNC ERROR] refreshFromBackend failed:", err?.message || err);
       }

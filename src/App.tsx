@@ -62,22 +62,34 @@ export function getAppState({
   profileSynced: boolean;
   backendError: string | null;
 }): AppState {
-  // 1. Auth not yet initialized
+  // 1. Auth not yet initialized -> "Calibrating Your System"
   if (!initialized) {
     return "INITIALIZING";
   }
 
-  // 2. Unauthenticated user
+  // 2. Unauthenticated user -> Landing Screen
   if (!firebaseUser) {
     return "UNAUTHENTICATED";
   }
 
-  // 3. Authenticated - Check onboarding status (3-state: complete, incomplete, unknown)
+  const uid = firebaseUser.uid || user?.id || "";
+
+  // 3. Fast-path: Check cached onboarding / intro status so Protocol Alpha appears immediately (~1ms target)
+  const isCachedOnboarded =
+    Boolean(uid) &&
+    (localStorage.getItem(`oneday_onboarded_${uid}`) === "true" ||
+      localStorage.getItem(`oneday_intro_seen_${uid}`) === "true");
+
+  // Check authoritative backend onboarding status
   const onboardingStatus: OnboardingLogicalStatus = user ? resolveOnboardingStatus(user) : "unknown";
 
-  // 4. Explicitly completed onboarding (Rule 14: Never redirect an onboarded user away during background loading)
-  if (onboardingStatus === "complete") {
-    const uid = firebaseUser.uid || user?.id || "";
+  // 4. Completed onboarding (authoritatively confirmed or cached from previous verified session)
+  if (onboardingStatus === "complete" || (onboardingStatus === "unknown" && isCachedOnboarded)) {
+    if (uid && onboardingStatus === "complete") {
+      try {
+        localStorage.setItem(`oneday_onboarded_${uid}`, "true");
+      } catch (_) {}
+    }
     const seenIntro = hasSeenAppIntro(uid, user);
     if (!seenIntro) {
       return "AUTHENTICATED_INTRO";
@@ -90,22 +102,12 @@ export function getAppState({
     return "AUTHENTICATED_SYNC_ERROR";
   }
 
-  // 6. If profile is still syncing / loading OR profile is not yet synced, and onboarding status is unknown
-  if ((loading || !profileSynced) && onboardingStatus === "unknown") {
-    return "AUTHENTICATED_LOADING";
-  }
-
-  // 7. Explicitly incomplete onboarding (ONLY when status is confirmed incomplete)
+  // 6. Explicitly incomplete onboarding (ONLY when status is confirmed incomplete by backend)
   if (onboardingStatus === "incomplete") {
     return "AUTHENTICATED_ONBOARDING_INCOMPLETE";
   }
 
-  // 8. If onboarding status is unknown after sync finished
-  if (onboardingStatus === "unknown") {
-    return "AUTHENTICATED_LOADING";
-  }
-
-  // Fallback safe state: loading, NEVER onboarding
+  // 7. Unknown onboarding status on first-time load without local cache -> Protocol Alpha loading screen
   return "AUTHENTICATED_LOADING";
 }
 
@@ -135,6 +137,28 @@ export default function App() {
   useEffect(() => {
     console.log("[BOOT] initialization started");
   }, []);
+
+  // Performance measurement: measure transition between calibration complete and Protocol Alpha visible
+  useEffect(() => {
+    if (appState === "AUTHENTICATED_READY" || appState === "AUTHENTICATED_LOADING") {
+      try {
+        performance.mark("protocolAlphaAppVisible");
+        if (performance.getEntriesByName("calibrationComplete").length > 0) {
+          const measures = performance.getEntriesByName("calibrationToProtocolAlphaTotal");
+          if (measures.length === 0) {
+            const measure = performance.measure(
+              "calibrationToProtocolAlphaTotal",
+              "calibrationComplete",
+              "protocolAlphaAppVisible"
+            );
+            console.log(
+              `[PERF] Calibration complete -> Protocol Alpha UI transition latency: ${measure.duration.toFixed(2)}ms (target: ~1ms)`
+            );
+          }
+        }
+      } catch (_) {}
+    }
+  }, [appState]);
 
   // Detailed Route State Logging & URL History Synchronization
   useEffect(() => {

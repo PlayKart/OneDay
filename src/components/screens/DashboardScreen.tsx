@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useStore } from "../../store/useStore";
+import { User } from "../../types";
 import { MotivationalQuote } from "../MotivationalQuote";
 import { HabitList } from "../HabitList";
 import { Target, Zap, Activity, Trophy, Plus, Shield, CheckCircle2, Lock, Snowflake, Coffee } from "lucide-react";
@@ -27,6 +28,22 @@ export function DashboardScreen() {
     const elapsed = Math.round(performance.now());
     console.log(`[PERF] dashboard-ready: ${elapsed}ms`);
     perfLogger.mark("dashboardReady", elapsed);
+
+    // Requirement 1 & 6: Measure exact calibration completion -> Protocol Alpha visible transition latency
+    try {
+      performance.mark("protocolAlphaVisible");
+      if (performance.getEntriesByName("calibrationComplete").length > 0) {
+        const existing = performance.getEntriesByName("calibrationToProtocolAlpha");
+        if (existing.length === 0) {
+          const measure = performance.measure(
+            "calibrationToProtocolAlpha",
+            "calibrationComplete",
+            "protocolAlphaVisible"
+          );
+          console.log(`[PERF] Calibration -> Protocol Alpha transition: ${measure.duration.toFixed(2)}ms (target: ~1ms)`);
+        }
+      }
+    } catch (_) {}
   }, []);
 
   useEffect(() => {
@@ -44,7 +61,18 @@ export function DashboardScreen() {
     }
   }, [user?.xp, user?.level, prevXp, prevLevel]);
 
-  if (!user) return null;
+  // Requirement 3: Progressive rendering: render Protocol Alpha immediately with fallback/skeleton states
+  const fallbackUser: User = {
+    id: "active",
+    name: "Champion",
+    xp: 0,
+    level: 1,
+    streak: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    levelProgress: 0,
+  };
+  const activeUser: User = user || fallbackUser;
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const safeHabits = Array.isArray(habits) ? habits : [];
@@ -54,26 +82,26 @@ export function DashboardScreen() {
   const totalHabits = stats.totalTodayCount;
   const completionPercentage = stats.completionPercentage;
 
-  const rawXP = typeof user.xp === "number" && !isNaN(user.xp) ? Math.max(0, user.xp) : 0;
-  const rawLevel = typeof user.level === "number" && !isNaN(user.level) && user.level >= 1 ? Math.floor(user.level) : 1;
+  const rawXP = typeof activeUser.xp === "number" && !isNaN(activeUser.xp) ? Math.max(0, activeUser.xp) : 0;
+  const rawLevel = typeof activeUser.level === "number" && !isNaN(activeUser.level) && activeUser.level >= 1 ? Math.floor(activeUser.level) : 1;
   const currentLevel = rawLevel >= 1000 ? 1000 : rawLevel;
   const currentXP = rawLevel >= 1000 ? 49950 : rawXP;
   const xpRequiredForNextLevel = 100;
   const progressPercentage = rawLevel >= 1000 ? 100 : calculateLevelProgress(rawXP, rawLevel, xpRequiredForNextLevel);
 
-  const equippedTitle = getEquippedTitle(user);
-  const isStreakLoading = typeof user.currentStreak !== "number" && typeof user.streak !== "number";
-  const activeStreak = typeof user.currentStreak === "number" && !isNaN(user.currentStreak)
-    ? user.currentStreak
-    : (typeof user.streak === "number" && !isNaN(user.streak) ? user.streak : 0);
-  const longestStreak = typeof user.longestStreak === "number" && !isNaN(user.longestStreak)
-    ? user.longestStreak
-    : (typeof (user as any).longest_streak === "number" && !isNaN((user as any).longest_streak)
-    ? (user as any).longest_streak
+  const equippedTitle = getEquippedTitle(activeUser);
+  const isStreakLoading = !user || (typeof activeUser.currentStreak !== "number" && typeof activeUser.streak !== "number");
+  const activeStreak = typeof activeUser.currentStreak === "number" && !isNaN(activeUser.currentStreak)
+    ? activeUser.currentStreak
+    : (typeof activeUser.streak === "number" && !isNaN(activeUser.streak) ? activeUser.streak : 0);
+  const longestStreak = typeof activeUser.longestStreak === "number" && !isNaN(activeUser.longestStreak)
+    ? activeUser.longestStreak
+    : (typeof (activeUser as any).longest_streak === "number" && !isNaN((activeUser as any).longest_streak)
+    ? (activeUser as any).longest_streak
     : null);
 
   const greeting = getPersonalizedGreeting({
-    user, habits, completedTodayCount: completedToday, totalHabitsCount: totalHabits, isFrozen: Boolean(isFrozen),
+    user: activeUser, habits, completedTodayCount: completedToday, totalHabitsCount: totalHabits, isFrozen: Boolean(isFrozen),
   });
 
   return (

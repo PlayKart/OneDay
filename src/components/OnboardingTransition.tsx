@@ -66,19 +66,16 @@ export function OnboardingTransition({
       return;
     }
 
-    // 2. If in SUCCESS state, advance to 100% and trigger onComplete
+    // 2. If in SUCCESS state, advance to 100% and immediately trigger onComplete (0ms artificial wait)
     if (currentStatus === "success") {
-      const interval = setInterval(() => {
-        setInternalProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            return 100;
-          }
-          return Math.min(100, prev + 8);
-        });
-      }, 30);
-
-      return () => clearInterval(interval);
+      setInternalProgress(100);
+      if (!completedFired) {
+        setCompletedFired(true);
+        if (onCompleteRef.current) {
+          onCompleteRef.current();
+        }
+      }
+      return;
     }
 
     // 3. If in SYNCING state with persistent=false (standalone / auto mode)
@@ -113,18 +110,15 @@ export function OnboardingTransition({
         clearTimeout(timeoutId);
       };
     }
-  }, [currentStatus, status, persistent, timeoutMs]);
+  }, [currentStatus, status, persistent, timeoutMs, completedFired]);
 
-  // Handle firing onComplete when progress hits 100% in success state
+  // Immediate firing of onComplete if progress hits 100%
   useEffect(() => {
     if (currentStatus === "success" && effectiveProgress >= 100 && !completedFired) {
       setCompletedFired(true);
-      const timer = setTimeout(() => {
-        if (onCompleteRef.current) {
-          onCompleteRef.current();
-        }
-      }, 300);
-      return () => clearTimeout(timer);
+      if (onCompleteRef.current) {
+        onCompleteRef.current();
+      }
     }
   }, [currentStatus, effectiveProgress, completedFired]);
 
@@ -170,10 +164,10 @@ export function OnboardingTransition({
       </div>
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 15 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.98 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
         className="relative w-full max-w-md bg-[#0a0a0a]/90 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-[0_0_80px_rgba(0,0,0,0.8)] backdrop-blur-xl flex flex-col items-center text-center overflow-hidden"
       >
         {/* ==========================================================
