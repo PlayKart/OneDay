@@ -534,10 +534,15 @@ export const useStore = create<StoreState>((set, get) => {
             )
           );
           if (currentCatalog.length > 0) {
-            const updatedCatalog = currentCatalog.map((c) => ({
-              ...c,
-              unlocked: earnedIds.has(c.id) || c.unlocked,
-            }));
+            const updatedCatalog = currentCatalog.map((c) => {
+              const isEarned = earnedIds.has(c.id) || c.isUnlocked;
+              return {
+                ...c,
+                isUnlocked: isEarned,
+                unlocked: isEarned,
+                status: (isEarned ? "UNLOCKED" : c.status) as any,
+              };
+            });
             useAchievementStore.getState().setAchievements(updatedCatalog);
           }
         }

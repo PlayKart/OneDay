@@ -393,13 +393,29 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
                 <div
                   key={normalized}
                   onClick={() => {
-                    if (!isCurrent && !equippingTitle) {
-                      handleEquipTitle(normalized);
-                    }
+                    const normTitle = normalizeTitleUpper(rawTitle);
+                    const signature = KNOWN_TITLES[normTitle] || "Verified OneDay identity title.";
+                    setSelectedAchievement({
+                      id: normTitle.toLowerCase().replace(/\s+/g, "_"),
+                      name: normTitle,
+                      title: normTitle,
+                      description: signature,
+                      category: "TITLE",
+                      requirement: "Unlocked through dedication & consistency in the OneDay protocol.",
+                      status: "UNLOCKED",
+                      isUnlocked: true,
+                      unlocked: true,
+                      progress: 1,
+                      target: 1,
+                      maxProgress: 1,
+                      progressPercentage: 100,
+                      unlockedAt: null,
+                      icon: "Award",
+                    });
                   }}
                   className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                     isCurrent
-                      ? "bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.08)] cursor-default"
+                      ? "bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.08)] cursor-pointer"
                       : equippingTitle
                       ? "bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed"
                       : "bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] cursor-pointer"

@@ -14,12 +14,18 @@ import {
   Check,
   Lock,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { useAchievementStore } from "../store/achievementStore";
+import { useStore } from "../store/useStore";
+import { getEquippedTitle, normalizeTitleUpper, markTitleAsSeen } from "../utils/titleUtils";
+import { toast } from "react-hot-toast";
 
 export function AchievementDetailModal() {
   const { selectedAchievement, setSelectedAchievement } = useAchievementStore();
+  const { user, equipTitle } = useStore();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [equipping, setEquipping] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.matchMedia) {
@@ -57,6 +63,13 @@ export function AchievementDetailModal() {
   const target = selectedAchievement.target;
   const percentage = selectedAchievement.progressPercentage;
 
+  // Title equip state calculations
+  const equippedTitle = getEquippedTitle(user);
+  const normalizedTitle = normalizeTitleUpper(title);
+  const isAlreadyEquipped =
+    Boolean(equippedTitle) && normalizeTitleUpper(equippedTitle) === normalizedTitle;
+  const currentUserId = user?.id || user?.userId;
+
   const rawEarnedAt =
     selectedAchievement.unlockedAt ||
     selectedAchievement.unlocked_at ||
@@ -72,6 +85,21 @@ export function AchievementDetailModal() {
     : null;
 
   const remaining = Math.max(0, target - progress);
+
+  const handleEquipTitle = async () => {
+    if (equipping || isAlreadyEquipped || !isUnlocked) return;
+    setEquipping(true);
+    try {
+      const confirmedTitle = await equipTitle(normalizedTitle);
+      markTitleAsSeen(confirmedTitle, currentUserId);
+      toast.success(`'${confirmedTitle}' equipped as your active identity title.`);
+    } catch (err: any) {
+      console.error("[ACHIEVEMENT MODAL] Equip title failed:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to equip title.");
+    } finally {
+      setEquipping(false);
+    }
+  };
 
   const renderIcon = () => {
     const rawIcon = selectedAchievement.icon;
@@ -271,14 +299,50 @@ export function AchievementDetailModal() {
             </div>
           )}
 
-          {/* Dismiss Button */}
-          <button
-            type="button"
-            onClick={() => setSelectedAchievement(null)}
-            className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider transition-all border border-white/10 active:scale-95 cursor-pointer mt-2"
-          >
-            Close Detail
-          </button>
+          {/* Action Buttons Section */}
+          <div className="space-y-2 pt-2">
+            {/* Title Equip UX (Requirement: TITLE EQUIP UX FIX) */}
+            {isUnlocked && (
+              <button
+                type="button"
+                onClick={handleEquipTitle}
+                disabled={isAlreadyEquipped || equipping}
+                className={`w-full py-3.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                  isAlreadyEquipped
+                    ? "bg-amber-400/20 text-amber-300 border border-amber-500/30 cursor-default shadow-sm"
+                    : equipping
+                    ? "bg-gradient-to-r from-amber-500 to-amber-600 text-black opacity-80 cursor-wait"
+                    : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black shadow-[0_0_25px_rgba(245,158,11,0.35)] active:scale-[0.98] cursor-pointer"
+                }`}
+              >
+                {equipping ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin text-black" />
+                    <span>Equipping Title...</span>
+                  </>
+                ) : isAlreadyEquipped ? (
+                  <>
+                    <Check size={14} className="stroke-[3]" />
+                    <span>✓ EQUIPPED</span>
+                  </>
+                ) : (
+                  <>
+                    <Award size={14} />
+                    <span>EQUIP TITLE</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Dismiss Button */}
+            <button
+              type="button"
+              onClick={() => setSelectedAchievement(null)}
+              className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider transition-all border border-white/10 active:scale-95 cursor-pointer"
+            >
+              Close Detail
+            </button>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
