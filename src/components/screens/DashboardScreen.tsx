@@ -14,15 +14,22 @@ import { perfLogger } from "../../utils/perfLogger";
 import { useFreezeCountdown } from "../../utils/freezeUtils";
 
 export function DashboardScreen() {
-  const { user, habits, setActiveTab, refreshFromBackend } = useStore();
+  const { 
+    user, 
+    habits, 
+    setActiveTab, 
+    refreshFromBackend,
+    activeLevelUpEvent,
+    isAcknowledgingLevelUp,
+    levelUpError,
+    acknowledgeActiveLevelUpEvent,
+  } = useStore();
   const { isFrozen, formattedEndDate, timeRemaining, credits } = useFreezeCountdown(user, () => {
     refreshFromBackend();
   });
 
   const [prevXp, setPrevXp] = useState<number>(user?.xp ?? 0);
-  const [prevLevel, setPrevLevel] = useState<number>(user?.level ?? 1);
   const [xpPop, setXpPop] = useState(false);
-  const [showLevelUp, setShowLevelUp] = useState(false);
 
   useEffect(() => {
     const elapsed = Math.round(performance.now());
@@ -53,13 +60,8 @@ export function DashboardScreen() {
       const timer = setTimeout(() => setXpPop(false), 900);
       setPrevXp(user.xp);
     }
-    if (user.level > prevLevel) {
-      setShowLevelUp(true);
-      setPrevLevel(user.level);
-    } else if (user.level < prevLevel) {
-      setPrevLevel(user.level);
-    }
-  }, [user?.xp, user?.level, prevXp, prevLevel]);
+  }, [user?.xp, prevXp]);
+
 
   // Requirement 3: Progressive rendering: render Protocol Alpha immediately with fallback/skeleton states
   const fallbackUser: User = {
@@ -465,16 +467,15 @@ export function DashboardScreen() {
         </motion.div>
       </div>
 
-      {/* Level Up Premium Celebration Overlay */}
+      {/* Level Up Authoritative Event Modal (Requirements 4, 6, 7, 8, 14) */}
       <AnimatePresence>
-        {showLevelUp && (
+        {activeLevelUpEvent && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/90 backdrop-blur-md"
-              onClick={() => setShowLevelUp(false)}
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 30 }}
@@ -489,26 +490,35 @@ export function DashboardScreen() {
               </div>
               <div className="space-y-2">
                 <div className="text-[10px] font-black tracking-widest text-amber-400 uppercase">PROTOCOL UPGRADE</div>
-                <h3 className="text-2xl font-black tracking-tighter text-white uppercase">Level {user.level} Unlocked</h3>
+                <h3 className="text-2xl font-black tracking-tighter text-white uppercase">Level {activeLevelUpEvent.level} Unlocked</h3>
                 <p className="text-slate-400 text-xs leading-relaxed max-w-[240px] mx-auto">
-                  Your commitment is registering at elite level. Keep backing up your claims with daily execution.
+                  {activeLevelUpEvent.message || "Your commitment is registering at elite level. Keep backing up your claims with daily execution."}
                 </p>
               </div>
               <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Upgrade Bonus</span>
-                <span className="text-xs font-black text-amber-400">+100 Max Capacity</span>
+                <span className="text-xs font-black text-amber-400">
+                  {activeLevelUpEvent.bonus || activeLevelUpEvent.upgradeBonus || activeLevelUpEvent.reward || "+100 Max Capacity"}
+                </span>
               </div>
+              {levelUpError && (
+                <div className="text-red-400 text-xs font-semibold bg-red-500/10 border border-red-500/20 rounded-xl p-2.5">
+                  {levelUpError}
+                </div>
+              )}
               <motion.button
                 whileTap={{ scale: 0.97 }}
-                onClick={() => setShowLevelUp(false)}
-                className="w-full bg-white hover:bg-slate-200 text-black font-black uppercase tracking-widest text-xs py-4 rounded-xl h-12 transition-all cursor-pointer shadow-lg"
+                onClick={() => acknowledgeActiveLevelUpEvent()}
+                disabled={isAcknowledgingLevelUp}
+                className="w-full bg-white hover:bg-slate-200 text-black font-black uppercase tracking-widest text-xs py-4 rounded-xl h-12 transition-all cursor-pointer shadow-lg disabled:opacity-50 disabled:cursor-wait"
               >
-                Accept Progression
+                {isAcknowledgingLevelUp ? "Syncing..." : "Accept Progression"}
               </motion.button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
     </div>
   );
 }

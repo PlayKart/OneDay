@@ -170,3 +170,18 @@ export interface Settings {
   pwaInstalled: boolean;
   compactView: boolean;
 }
+
+export interface LevelUpEvent {
+  id: string;
+  eventId?: string;
+  level: number;
+  previousLevel?: number;
+  bonus?: string;
+  reward?: string;
+  upgradeBonus?: string;
+  message?: string;
+  protocolBrief?: string;
+  createdAt?: string;
+  acknowledged?: boolean;
+}
+

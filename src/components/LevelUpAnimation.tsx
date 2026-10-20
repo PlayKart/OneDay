@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Trophy } from "lucide-react";
 import { MonolithLogo } from "./MonolithLogo";
 import { useStore } from "../store/useStore";
 
@@ -356,17 +356,53 @@ export function LevelUpAnimation({
 }
 
 export function LevelUpModal() {
-  const { levelUpData, setLevelUpData } = useStore();
+  const { 
+    activeTab, 
+    activeLevelUpEvent, 
+    isAcknowledgingLevelUp, 
+    levelUpError, 
+    acknowledgeActiveLevelUpEvent 
+  } = useStore();
 
-  if (!levelUpData) return null;
+  // On the dashboard tab, DashboardScreen already renders the authoritative modal.
+  // On other tabs, render it here so genuine events are never missed.
+  if (activeTab === "dashboard" || !activeLevelUpEvent) return null;
 
   return (
-    <LevelUpAnimation
-      level={levelUpData.currentLevel}
-      previousLevel={levelUpData.previousLevel}
-      xp={levelUpData.xp}
-      progress={levelUpData.progress}
-      onClose={() => setLevelUpData(null)}
-    />
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
+      <div className="relative bg-[#0c0c0c] border border-amber-500/35 rounded-3xl p-8 max-w-sm w-full shadow-[0_0_50px_rgba(245,158,11,0.25)] space-y-6 z-10 text-center overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 via-transparent to-transparent pointer-events-none" />
+        <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.15)]">
+          <Trophy size={32} strokeWidth={2.5} />
+        </div>
+        <div className="space-y-2">
+          <div className="text-[10px] font-black tracking-widest text-amber-400 uppercase">PROTOCOL UPGRADE</div>
+          <h3 className="text-2xl font-black tracking-tighter text-white uppercase">Level {activeLevelUpEvent.level} Unlocked</h3>
+          <p className="text-slate-400 text-xs leading-relaxed max-w-[240px] mx-auto">
+            {activeLevelUpEvent.message || "Your commitment is registering at elite level. Keep backing up your claims with daily execution."}
+          </p>
+        </div>
+        <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Upgrade Bonus</span>
+          <span className="text-xs font-black text-amber-400">
+            {activeLevelUpEvent.bonus || activeLevelUpEvent.upgradeBonus || activeLevelUpEvent.reward || "+100 Max Capacity"}
+          </span>
+        </div>
+        {levelUpError && (
+          <div className="text-red-400 text-xs font-semibold bg-red-500/10 border border-red-500/20 rounded-xl p-2.5">
+            {levelUpError}
+          </div>
+        )}
+        <button
+          onClick={() => acknowledgeActiveLevelUpEvent()}
+          disabled={isAcknowledgingLevelUp}
+          className="w-full bg-white hover:bg-slate-200 text-black font-black uppercase tracking-widest text-xs py-4 rounded-xl h-12 transition-all cursor-pointer shadow-lg disabled:opacity-50 disabled:cursor-wait"
+        >
+          {isAcknowledgingLevelUp ? "Syncing..." : "Accept Progression"}
+        </button>
+      </div>
+    </div>
   );
 }
+

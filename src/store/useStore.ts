@@ -24,13 +24,18 @@ import {
   TabState, 
   NotificationItem, 
   Achievement, 
-  Statistics 
+  Statistics,
+  LevelUpEvent
 } from '../types';
 import { CoachPendingAction, HabitPreviewState } from '../components/coach/actions/types';
 import { useAchievementStore } from './achievementStore';
+import { progressionService, normalizeLevelUpEvent } from '../services/progressionService';
 
 export { apiRequest, normalizeCompletedDates };
 export type { ChatSession, ChatMessage, Habit, TabState, BackendUser as User };
+
+let inFlightFetchPendingLevelUpEvents: Promise<void> | null = null;
+
 
 interface StoreState {
   firebaseUser: FirebaseUser | null;
@@ -48,6 +53,10 @@ interface StoreState {
   titleUnlockData: { title: string; signature: string; level: number } | null;
   titleLossData: { title: string; signature: string; reason?: string } | null;
   levelUpData: { previousLevel: number; currentLevel: number; xp: number; progress: number } | null;
+  pendingLevelUpEvents: LevelUpEvent[];
+  activeLevelUpEvent: LevelUpEvent | null;
+  isAcknowledgingLevelUp: boolean;
+  levelUpError: string | null;
 
   // Multi-session chat state
   chatSessions: ChatSession[];
@@ -78,7 +87,11 @@ interface StoreState {
   setTitleUnlockData: (data: { title: string; signature: string; level: number } | null) => void;
   setTitleLossData: (data: { title: string; signature: string; reason?: string } | null) => void;
   setLevelUpData: (data: { previousLevel: number; currentLevel: number; xp: number; progress: number } | null) => void;
+  fetchPendingLevelUpEvents: () => Promise<void>;
+  enqueueLevelUpEvents: (events: LevelUpEvent[]) => void;
+  acknowledgeActiveLevelUpEvent: () => Promise<boolean>;
   refreshFromBackend: () => Promise<void>;
+
   addHabit: (habitData: Partial<Habit>) => Promise<void>;
   editHabit: (habitId: string, habitData: Partial<Habit>) => Promise<Habit>;
   deleteHabit: (habitId: string) => Promise<void>;
@@ -222,9 +235,15 @@ export const useStore = create<StoreState>((set, get) => {
         get().refreshFromBackend().catch((e) => {
           console.warn("[BACKGROUND SYNC] refreshFromBackend background notice:", e);
         });
+
+        // Requirement 3: Fetch pending level-up events from the backend after authentication
+        get().fetchPendingLevelUpEvents().catch((e) => {
+          console.warn("[PROGRESSION] Initial pending level-up fetch notice:", e);
+        });
       } else {
         // Subsequent auth state update (e.g. token refresh)
         set({ firebaseUser: fbUser, initialized: true });
+        get().fetchPendingLevelUpEvents().catch(() => {});
       }
     } else {
       console.log("[AUTH] authenticated user: none");
@@ -237,6 +256,10 @@ export const useStore = create<StoreState>((set, get) => {
         habits: [],
         chatSessions: [],
         chatMessages: [],
+        pendingLevelUpEvents: [],
+        activeLevelUpEvent: null,
+        isAcknowledgingLevelUp: false,
+        levelUpError: null,
         initialized: true,
         profileSynced: false,
         loading: false,
@@ -262,6 +285,11 @@ export const useStore = create<StoreState>((set, get) => {
     titleUnlockData: null,
     titleLossData: null,
     levelUpData: null,
+    pendingLevelUpEvents: [],
+    activeLevelUpEvent: null,
+    isAcknowledgingLevelUp: false,
+    levelUpError: null,
+
 
     chatSessions: [],
     activeChatId: null,
@@ -332,6 +360,92 @@ export const useStore = create<StoreState>((set, get) => {
     setTitleLossData: (data) => set({ titleLossData: data }),
     setLevelUpData: (data) => set({ levelUpData: data }),
 
+    fetchPendingLevelUpEvents: async () => {
+      // Requirement 13: Prevent duplicate modal opening and repeated API calls
+      if (inFlightFetchPendingLevelUpEvents) {
+        return inFlightFetchPendingLevelUpEvents;
+      }
+
+      inFlightFetchPendingLevelUpEvents = (async () => {
+        try {
+          const events = await progressionService.fetchPendingLevelUpEvents();
+          if (events && events.length > 0) {
+            get().enqueueLevelUpEvents(events);
+          }
+        } catch (err: any) {
+          console.warn("[useStore] fetchPendingLevelUpEvents notice:", err?.message || err);
+        } finally {
+          inFlightFetchPendingLevelUpEvents = null;
+        }
+      })();
+
+      return inFlightFetchPendingLevelUpEvents;
+    },
+
+    enqueueLevelUpEvents: (newEvents: LevelUpEvent[]) => {
+      if (!newEvents || newEvents.length === 0) return;
+
+      set((state) => {
+        const existingIds = new Set(state.pendingLevelUpEvents.map((e) => e.id));
+        if (state.activeLevelUpEvent) {
+          existingIds.add(state.activeLevelUpEvent.id);
+        }
+
+        const filtered = newEvents.filter((e) => {
+          if (!e || !e.id || existingIds.has(e.id)) return false;
+          existingIds.add(e.id);
+          return true;
+        });
+
+        if (filtered.length === 0) return {};
+
+        const updatedQueue = [...state.pendingLevelUpEvents, ...filtered];
+        const nextActive = state.activeLevelUpEvent || updatedQueue[0];
+        const nextQueue = state.activeLevelUpEvent ? updatedQueue : updatedQueue.slice(1);
+
+        return {
+          pendingLevelUpEvents: nextQueue,
+          activeLevelUpEvent: nextActive,
+        };
+      });
+    },
+
+    acknowledgeActiveLevelUpEvent: async () => {
+      const activeEvent = get().activeLevelUpEvent;
+      if (!activeEvent) return false;
+
+      set({ isAcknowledgingLevelUp: true, levelUpError: null });
+
+      try {
+        await progressionService.acknowledgeLevelUpEvent(activeEvent.id);
+
+        set((state) => {
+          const nextQueue = state.pendingLevelUpEvents.filter((e) => e.id !== activeEvent.id);
+          const nextActive = nextQueue.length > 0 ? nextQueue[0] : null;
+
+          return {
+            pendingLevelUpEvents: nextActive ? nextQueue.slice(1) : [],
+            activeLevelUpEvent: nextActive,
+            isAcknowledgingLevelUp: false,
+            levelUpError: null,
+          };
+        });
+
+        toast.success(`Protocol upgrade to Level ${activeEvent.level} confirmed.`);
+        return true;
+      } catch (err: any) {
+        const msg = err?.message || "Failed to acknowledge progression with server. Please try again.";
+        console.error("[useStore] Failed to acknowledge level up event:", err);
+        set({
+          isAcknowledgingLevelUp: false,
+          levelUpError: msg,
+          // Requirement 8: If acknowledgement fails, preserve event so it can be retried
+        });
+        toast.error(msg);
+        return false;
+      }
+    },
+
     refreshFromBackend: async () => {
       const activeFbUser = auth.currentUser || get().firebaseUser;
 
@@ -347,11 +461,12 @@ export const useStore = create<StoreState>((set, get) => {
         // Requirement 4: Prevent duplicate API calls by reusing active in-flight sync promise
         await syncService.syncUserData(false);
         get().fetchSessions().catch((sErr) => console.warn("Failed to fetch chat sessions:", sErr));
-        // Removed redundant duplicate achievement fetch: syncUserData (dashboardData) already fetches authoritative achievements
+        get().fetchPendingLevelUpEvents().catch((pErr) => console.warn("Failed to fetch pending level-up events:", pErr));
       } catch (err: any) {
         console.error("[SYNC ERROR] refreshFromBackend failed:", err?.message || err);
       }
     },
+
 
     addHabit: async (habitData) => {
       try {
@@ -661,7 +776,33 @@ export const useStore = create<StoreState>((set, get) => {
           Math.max(prevLevel, Math.floor(backendXp / 100) + 1);
 
         const backendProgress = calculateLevelProgress(backendXp, backendLevel, 100);
-        const isLevelUp = backendLevel > prevLevel;
+
+        // Check for genuine backend level-up events (Requirements 4, 5, 10, 11)
+        const rawBackendLevelEvents =
+          root?.levelUpEvents ||
+          root?.level_up_events ||
+          root?.pendingLevelUpEvents ||
+          root?.pending_level_up_events ||
+          root?.events ||
+          root?.levelUpEvent ||
+          root?.level_up_event ||
+          userObj?.levelUpEvents ||
+          userObj?.level_up_events;
+
+        if (rawBackendLevelEvents) {
+          const rawEventsArray = Array.isArray(rawBackendLevelEvents)
+            ? rawBackendLevelEvents
+            : [rawBackendLevelEvents];
+
+          const genuineEvents = rawEventsArray
+            .map(normalizeLevelUpEvent)
+            .filter((e): e is LevelUpEvent => e !== null && !e.acknowledged);
+
+          if (genuineEvents.length > 0) {
+            console.log("[useStore] Processing genuine level-up events returned by backend:", genuineEvents);
+            get().enqueueLevelUpEvents(genuineEvents);
+          }
+        }
 
         const finalUser: BackendUser | null = originalUser
           ? {
@@ -686,18 +827,9 @@ export const useStore = create<StoreState>((set, get) => {
             pendingHabitIds: nextPending,
             habits: updatedHabits,
             user: finalUser,
-            ...(isLevelUp
-              ? {
-                  levelUpData: {
-                    previousLevel: prevLevel,
-                    currentLevel: backendLevel,
-                    xp: backendXp,
-                    progress: backendProgress,
-                  },
-                }
-              : {}),
           };
         });
+
 
         console.log(
           `[HABIT COMPLETION SUCCESS]\nhabitId: ${habitId}\nearnedXP: ${earnedXp}\nnewXP: ${backendXp}\ncompletedToday: ${completedTodayCount}/${totalTodayCount} (${todayPct}%)\nstreak: ${backendStreak}\nlongestStreak: ${backendLongest}`

@@ -9,7 +9,7 @@ import { markTitleAsSeen, playTitleUnlockSound, sanitizeTitleDescription, normal
 import { toast } from "react-hot-toast";
 
 export function TitleUnlockModal() {
-  const { titleUnlockData, setTitleUnlockData, equipTitle, user, levelUpData } = useStore();
+  const { titleUnlockData, setTitleUnlockData, equipTitle, user, levelUpData, activeLevelUpEvent } = useStore();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [isEquipped, setIsEquipped] = useState(false);
   const [equipping, setEquipping] = useState(false);
@@ -27,7 +27,7 @@ export function TitleUnlockModal() {
 
   // Haptic feedback and optional sound on title reveal
   useEffect(() => {
-    if (!titleUnlockData || levelUpData) {
+    if (!titleUnlockData || levelUpData || activeLevelUpEvent) {
       setIsEquipped(false);
       return;
     }
@@ -41,10 +41,11 @@ export function TitleUnlockModal() {
         // Safe ignore
       }
     }
-  }, [titleUnlockData, levelUpData]);
+  }, [titleUnlockData, levelUpData, activeLevelUpEvent]);
 
   // Queue sequencing: wait until Level Up modal is dismissed
-  if (!titleUnlockData || levelUpData) return null;
+  if (!titleUnlockData || levelUpData || activeLevelUpEvent) return null;
+
 
   const currentUserId = user?.id || user?.userId;
   const rawTitle = titleUnlockData.title;

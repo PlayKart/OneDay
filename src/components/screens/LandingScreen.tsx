@@ -19,6 +19,7 @@ import {
   Zap,
   Target,
   ChevronRight,
+  ChevronDown,
   Layers,
   Activity,
   Compass,
@@ -31,9 +32,43 @@ import { PrivacyPage } from "../PrivacyPage";
 import { TermsPage } from "../TermsPage";
 import { MonolithLogo } from "../MonolithLogo";
 
+const FAQS = [
+  {
+    question: "What makes OneDay special?",
+    answer:
+      "OneDay brings habit tracking, streaks, progression titles, and an AI Coach together in one place. It helps you understand your progress, stay consistent, and build a system that supports your goals—not just track tasks.",
+  },
+  {
+    question: "How does habit tracking work?",
+    answer:
+      "Create habits based on your goals, choose their schedules and difficulty levels, and check them off when completed. OneDay tracks your progress and helps you build consistency over time.",
+  },
+  {
+    question: "What is the AI Coach?",
+    answer:
+      "The AI Coach helps you think through challenges, plan your next steps, and work toward your goals. It can use relevant information available in your OneDay profile and habit data to provide more personalized guidance.",
+  },
+  {
+    question: "What are 30-Day Habit Trends?",
+    answer:
+      "30-Day Habit Trends help you review your habit activity over the past 30 days. You can explore your check-in heatmap and available analytics to understand patterns, recognize consistency, and identify areas where you may want to improve.",
+  },
+  {
+    question: "What happens if I miss a day and lose my streak?",
+    answer:
+      "OneDay’s Streak Freeze feature can protect your streak during a missed day when the protection rules apply. Freeze Credits are consumable: activating a freeze uses one credit, and you cannot activate another while a freeze is already active.",
+  },
+  {
+    question: "How do Freeze Credits work?",
+    answer:
+      "New users receive 1 Freeze Credit during their first month. After their first month, the allocation changes to 2 Freeze Credits per month, according to OneDay’s existing credit schedule. Each activation consumes one credit, and credits are subject to the existing Streak Freeze rules.",
+  },
+];
+
 interface LandingScreenProps {
   onLoginSuccess: () => void;
 }
+
 
 export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -41,6 +76,11 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
   const [isChecked, setIsChecked] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  const toggleFaq = (index: number) => {
+    setOpenFaqIndex((prev) => (prev === index ? null : index));
+  };
 
   const openAuthModal = () => {
     setIsChecked(false);
@@ -61,12 +101,15 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
       const featuresEl = document.getElementById("features");
       const aboutEl = document.getElementById("about");
       const systemEl = document.getElementById("discipline-system");
+      const faqEl = document.getElementById("faq");
 
       if (!featuresEl || !aboutEl) return;
 
       const scrollPos = window.scrollY + 250; // Offset for navbar & threshold
 
-      if (systemEl && scrollPos >= systemEl.offsetTop) {
+      if (faqEl && scrollPos >= faqEl.offsetTop) {
+        document.title = "FAQ — OneDay";
+      } else if (systemEl && scrollPos >= systemEl.offsetTop) {
         document.title = "Discipline Protocol — OneDay";
       } else if (scrollPos >= aboutEl.offsetTop) {
         document.title = "About — OneDay";
@@ -80,6 +123,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
 
   const handleGoogleLogin = async () => {
     if (!termsAccepted) {
@@ -208,7 +252,9 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 <button onClick={() => scrollToSection("coaching")} className="hover:text-white transition-colors cursor-pointer py-1">AI Coach</button>
                 <button onClick={() => scrollToSection("discipline-system")} className="hover:text-white transition-colors cursor-pointer py-1">Protocol</button>
                 <button onClick={() => scrollToSection("about")} className="hover:text-white transition-colors cursor-pointer py-1">Team</button>
+                <button onClick={() => scrollToSection("faq")} className="hover:text-white transition-colors cursor-pointer py-1">FAQ</button>
               </div>
+
 
               <button 
                 onClick={openAuthModal}
@@ -753,7 +799,90 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
               </div>
             </section>
 
+            {/* FREQUENTLY ASKED QUESTIONS SECTION */}
+            <section id="faq" className="px-5 max-w-4xl mx-auto py-16 md:py-24 scroll-mt-28 relative">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[350px] bg-violet-600/5 rounded-full blur-[120px] pointer-events-none" />
+
+              <div className="text-center space-y-4 max-w-2xl mx-auto relative z-10 mb-10 md:mb-14">
+                <motion.h2 
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-80px" }}
+                  transition={{ duration: 0.6 }}
+                  className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white"
+                >
+                  Frequently Asked Questions
+                </motion.h2>
+                <motion.p 
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-80px" }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                  className="text-sm md:text-base text-zinc-400 leading-relaxed font-medium"
+                >
+                  Everything you need to know about OneDay.
+                </motion.p>
+              </div>
+
+              <div className="space-y-3.5 relative z-10 max-w-3xl mx-auto">
+                {FAQS.map((faq, idx) => {
+                  const isOpen = openFaqIndex === idx;
+                  return (
+                    <motion.div
+                      key={faq.question}
+                      initial={{ opacity: 0, y: 15 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: "-40px" }}
+                      transition={{ duration: 0.4, delay: idx * 0.05 }}
+                      className="bg-white/[0.02] hover:bg-white/[0.035] backdrop-blur-2xl border border-white/[0.06] hover:border-white/[0.12] rounded-2xl md:rounded-3xl transition-all duration-300 overflow-hidden group"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleFaq(idx)}
+                        aria-expanded={isOpen}
+                        aria-controls={`faq-answer-${idx}`}
+                        id={`faq-question-${idx}`}
+                        className="w-full text-left p-5 md:p-6 flex items-center justify-between gap-4 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 rounded-2xl md:rounded-3xl select-none"
+                      >
+                        <span className="text-sm md:text-base font-semibold text-white tracking-tight group-hover:text-violet-200 transition-colors">
+                          {faq.question}
+                        </span>
+                        <div
+                          className={`w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center text-zinc-400 group-hover:text-white transition-all duration-300 flex-shrink-0 ${
+                            isOpen ? "rotate-180 bg-white/10 text-white border-white/20" : ""
+                          }`}
+                          aria-hidden="true"
+                        >
+                          <ChevronDown size={15} />
+                        </div>
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            id={`faq-answer-${idx}`}
+                            role="region"
+                            aria-labelledby={`faq-question-${idx}`}
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.28, ease: [0.04, 0.62, 0.23, 0.98] }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-5 pb-5 md:px-6 md:pb-6 pt-0 text-xs md:text-sm text-zinc-400 leading-relaxed font-normal border-t border-white/[0.04] mt-1 pt-3.5">
+                              {faq.answer}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </section>
+
             {/* FINAL CTA SECTION */}
+
             <section className="px-5 max-w-5xl mx-auto py-16 md:py-24 relative">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
