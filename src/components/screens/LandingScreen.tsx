@@ -20,6 +20,8 @@ import {
   Target,
   ChevronRight,
   ChevronDown,
+  Menu,
+  X,
   Layers,
   Activity,
   Compass,
@@ -77,10 +79,12 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const toggleFaq = (index: number) => {
     setOpenFaqIndex((prev) => (prev === index ? null : index));
   };
+
 
   const openAuthModal = () => {
     setIsChecked(false);
@@ -255,16 +259,105 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 <button onClick={() => scrollToSection("faq")} className="hover:text-white transition-colors cursor-pointer py-1">FAQ</button>
               </div>
 
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={openAuthModal}
+                  className="bg-white text-black px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs md:text-sm font-semibold tracking-tight hover:bg-zinc-100 active:scale-95 transition-all cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center gap-1.5"
+                >
+                  <span>Start Now</span>
+                  <ChevronRight size={14} className="text-black/60" />
+                </button>
 
-              <button 
-                onClick={openAuthModal}
-                className="bg-white text-black px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs md:text-sm font-semibold tracking-tight hover:bg-zinc-100 active:scale-95 transition-all cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center gap-1.5"
-              >
-                <span>Start Now</span>
-                <ChevronRight size={14} className="text-black/60" />
-              </button>
+                {/* Mobile Menu Toggle Button */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  aria-label="Toggle mobile menu"
+                  aria-expanded={mobileMenuOpen}
+                  className="md:hidden p-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition-colors cursor-pointer flex items-center justify-center"
+                >
+                  {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+              </div>
             </nav>
+
+            {/* Mobile Navigation Dropdown / Drawer */}
+            <AnimatePresence>
+              {mobileMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  className="md:hidden absolute top-full left-0 right-0 bg-[#060608]/95 backdrop-blur-3xl border-b border-white/10 overflow-hidden shadow-2xl z-50"
+                >
+                  <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col space-y-4">
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        scrollToSection("features");
+                      }}
+                      className="text-left text-sm font-semibold text-zinc-300 hover:text-white py-2.5 border-b border-white/[0.04] transition-colors cursor-pointer flex items-center justify-between"
+                    >
+                      <span>Features</span>
+                      <ChevronRight size={14} className="text-zinc-600" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        scrollToSection("coaching");
+                      }}
+                      className="text-left text-sm font-semibold text-zinc-300 hover:text-white py-2.5 border-b border-white/[0.04] transition-colors cursor-pointer flex items-center justify-between"
+                    >
+                      <span>AI Coach</span>
+                      <ChevronRight size={14} className="text-zinc-600" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        scrollToSection("discipline-system");
+                      }}
+                      className="text-left text-sm font-semibold text-zinc-300 hover:text-white py-2.5 border-b border-white/[0.04] transition-colors cursor-pointer flex items-center justify-between"
+                    >
+                      <span>Protocol</span>
+                      <ChevronRight size={14} className="text-zinc-600" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        scrollToSection("about");
+                      }}
+                      className="text-left text-sm font-semibold text-zinc-300 hover:text-white py-2.5 border-b border-white/[0.04] transition-colors cursor-pointer flex items-center justify-between"
+                    >
+                      <span>Team</span>
+                      <ChevronRight size={14} className="text-zinc-600" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        scrollToSection("faq");
+                      }}
+                      className="text-left text-sm font-semibold text-zinc-300 hover:text-white py-2.5 border-b border-white/[0.04] transition-colors cursor-pointer flex items-center justify-between"
+                    >
+                      <span>FAQ</span>
+                      <ChevronRight size={14} className="text-zinc-600" />
+                    </button>
+                    <div className="pt-2">
+                      <button
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          openAuthModal();
+                        }}
+                        className="w-full bg-white text-black font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider text-center cursor-pointer shadow-lg hover:bg-zinc-100 active:scale-95 transition-all"
+                      >
+                        Start Now
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </header>
+
 
           <main className="relative z-10 space-y-20 md:space-y-36 pt-4">
             {/* HERO SECTION */}
