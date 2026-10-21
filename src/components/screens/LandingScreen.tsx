@@ -207,11 +207,22 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
   };
 
   const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-    }
+    setMobileMenuOpen(false);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        const headerOffset = 80;
+        const elementPosition = el.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth"
+        });
+      }
+    });
   };
+
 
   return (
     <AnimatePresence mode="wait">
