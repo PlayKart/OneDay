@@ -412,7 +412,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                   transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
                   className="text-sm md:text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed font-medium"
                 >
-                  OneDay combines habit tracking, intelligent coaching, focus tools, streaks and progression into one personal system for building consistency.
+                  OneDay combines habit tracking, intelligent coaching, streaks and progression into one personal system for building consistency.
                 </motion.p>
 
                 {/* Action CTA Buttons */}
@@ -458,7 +458,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
                 {/* CARD 1 */}
                 <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl md:rounded-3xl p-6 md:p-8 hover:border-violet-500/40 hover:bg-white/[0.04] transition-all duration-300 group relative overflow-hidden shadow-2xl">
                   <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-violet-600/5 rounded-full blur-2xl group-hover:bg-violet-600/15 transition-all duration-500" />
@@ -501,21 +501,6 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                   <h3 className="text-base md:text-lg font-bold text-white tracking-tight mb-2">PROGRESSION</h3>
                   <p className="text-xs md:text-sm text-zinc-400 leading-relaxed">
                     Turn consistency into XP, levels and measurable growth. Gamify consistency elegantly without childish distractions.
-                  </p>
-                </div>
-
-                {/* CARD 4 */}
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl md:rounded-3xl p-6 md:p-8 hover:border-violet-500/40 hover:bg-white/[0.04] transition-all duration-300 group relative overflow-hidden shadow-2xl">
-                  <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-violet-600/5 rounded-full blur-2xl group-hover:bg-violet-600/15 transition-all duration-500" />
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="w-9 h-9 rounded-xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] flex items-center justify-center text-xs font-mono font-bold text-violet-400">
-                      04
-                    </div>
-                    <Clock size={18} className="text-zinc-500 group-hover:text-violet-400 transition-colors" />
-                  </div>
-                  <h3 className="text-base md:text-lg font-bold text-white tracking-tight mb-2">FOCUS</h3>
-                  <p className="text-xs md:text-sm text-zinc-400 leading-relaxed">
-                    Create focused sessions and eliminate distractions. Harness optimized intervals to keep your head in deep productive work.
                   </p>
                 </div>
               </div>
@@ -587,7 +572,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 {/* Card 1 */}
                 <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 hover:border-violet-500/30 hover:bg-white/[0.04] transition-all duration-300 flex flex-col justify-between space-y-5 group shadow-xl">
                   <div className="w-11 h-11 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] flex items-center justify-center text-violet-400 group-hover:scale-105 group-hover:text-violet-300 transition-all">
@@ -628,32 +613,6 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 </div>
 
                 {/* Card 4 */}
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 hover:border-violet-500/30 hover:bg-white/[0.04] transition-all duration-300 flex flex-col justify-between space-y-5 group shadow-xl">
-                  <div className="w-11 h-11 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] flex items-center justify-center text-violet-400 group-hover:scale-105 group-hover:text-violet-300 transition-all">
-                    <Clock size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm md:text-base font-bold text-white mb-1.5 tracking-tight">FOCUS SYSTEM</h3>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Create focused work sessions. Set dedicated timers designed to isolate you from notification noise.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Card 5 */}
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 hover:border-violet-500/30 hover:bg-white/[0.04] transition-all duration-300 flex flex-col justify-between space-y-5 group shadow-xl">
-                  <div className="w-11 h-11 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] flex items-center justify-center text-violet-400 group-hover:scale-105 group-hover:text-violet-300 transition-all">
-                    <Target size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm md:text-base font-bold text-white mb-1.5 tracking-tight">SMART REMINDERS</h3>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Remember what matters when it matters. Clean alerts configured to match your daily checkpoints.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Card 6 */}
                 <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 hover:border-violet-500/30 hover:bg-white/[0.04] transition-all duration-300 flex flex-col justify-between space-y-5 group shadow-xl">
                   <div className="w-11 h-11 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] flex items-center justify-center text-violet-400 group-hover:scale-105 group-hover:text-violet-300 transition-all">
                     <BarChart3 size={20} />
