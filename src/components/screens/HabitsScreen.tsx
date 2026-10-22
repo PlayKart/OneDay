@@ -83,7 +83,7 @@ export function HabitsScreen() {
               </div>
 
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/60 border border-cyan-500/30 text-[10px] font-mono font-bold text-cyan-300/90 shadow-sm">
-                <Lock size={11} className="text-cyan-400" />
+                <Lock size={11} aria-hidden="true" className="text-cyan-400" />
                 <span className="uppercase tracking-wider">LOCKED UNTIL EXPIRATION</span>
               </div>
             </div>
@@ -105,7 +105,7 @@ export function HabitsScreen() {
               <>
                 <span className="w-1 h-1 rounded-full bg-cyan-500/50" />
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-                  <Snowflake size={11} className="text-cyan-300" />
+                  <Snowflake size={11} aria-hidden="true" className="text-cyan-300" />
                   <span>STREAK PROTECTED · HABITS PAUSED</span>
                 </span>
               </>
@@ -115,8 +115,11 @@ export function HabitsScreen() {
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           {/* SubTab Toggle: List vs Trends */}
-          <div className="flex items-center bg-white/[0.04] border border-white/10 p-1 rounded-2xl">
+          <div role="tablist" aria-label="Habits view options" className="flex items-center bg-white/[0.04] border border-white/10 p-1 rounded-2xl">
             <button
+              role="tab"
+              aria-selected={activeSubTab === "list"}
+              aria-label="List view"
               onClick={() => setActiveSubTab("list")}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeSubTab === "list"
@@ -124,10 +127,13 @@ export function HabitsScreen() {
                   : "text-slate-400 hover:text-white"
               }`}
             >
-              <ListFilter size={14} />
+              <ListFilter size={14} aria-hidden="true" />
               <span>List</span>
             </button>
             <button
+              role="tab"
+              aria-selected={activeSubTab === "trends"}
+              aria-label="30-Day Trends view"
               onClick={() => setActiveSubTab("trends")}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeSubTab === "trends"
@@ -135,7 +141,7 @@ export function HabitsScreen() {
                   : "text-slate-400 hover:text-white"
               }`}
             >
-              <BarChart3 size={14} />
+              <BarChart3 size={14} aria-hidden="true" />
               <span>30-Day Trends</span>
             </button>
           </div>
@@ -143,9 +149,10 @@ export function HabitsScreen() {
           {/* New Habit Button */}
           <button
             onClick={() => setIsModalOpen(true)}
+            aria-label="Create New Habit"
             className="flex items-center gap-2 bg-white text-black font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition-all text-xs uppercase tracking-widest shrink-0 cursor-pointer shadow-sm"
           >
-            <Plus size={16} />
+            <Plus size={16} aria-hidden="true" />
             <span className="hidden sm:inline">New Habit</span>
           </button>
         </div>
@@ -182,7 +189,7 @@ export function HabitsScreen() {
             title="Create New Habit"
             aria-label="Create New Habit"
           >
-            <Plus size={22} strokeWidth={2.5} />
+            <Plus size={22} strokeWidth={2.5} aria-hidden="true" />
           </motion.button>
         </div>
       )}

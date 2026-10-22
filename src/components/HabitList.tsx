@@ -257,7 +257,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                       ? 'bg-white/[0.04] border border-white/[0.08] text-zinc-500 opacity-50 grayscale' 
                       : `${habitColor.bg} ${habitColor.border} border ${habitColor.text}`
                 }`}>
-                  <IconComp size={18} />
+                  <IconComp size={18} aria-hidden="true" />
                 </div>
 
                   <div className="flex flex-col gap-0.5 min-w-0 flex-1">
@@ -297,14 +297,16 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                           <div className="mt-1">
                             <button
                               type="button"
+                              aria-label={isExpanded ? `Hide notes for ${habit.name}` : `Show notes for ${habit.name}`}
+                              aria-expanded={isExpanded}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleExpandHabit(habit.id);
                               }}
                               className="text-[10px] font-bold text-white bg-white/5 hover:bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors"
                             >
-                              <FileText size={10} />
-                              NOTES {isExpanded ? <ChevronDown size={10} /> : <ChevronDown size={10} className="rotate-180"/>}
+                              <FileText size={10} aria-hidden="true" />
+                              NOTES {isExpanded ? <ChevronDown size={10} aria-hidden="true" /> : <ChevronDown size={10} className="rotate-180" aria-hidden="true" />}
                             </button>
                             
                             {isExpanded && (
@@ -377,6 +379,15 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                     }
                   }}
                   disabled={loading || isPending}
+                  aria-label={
+                    userFrozen
+                      ? `Habit completion paused for ${habit.name}`
+                      : habit.completedToday
+                        ? `Revert completion for ${habit.name}`
+                        : isToday
+                          ? `Mark ${habit.name} as completed`
+                          : `Habit ${habit.name} not scheduled for today`
+                  }
                   whileTap={{ scale: 0.85 }}
                   animate={!userFrozen && habit.completedToday ? { scale: [1, 1.25, 1], rotate: [0, 10, -10, 0] } : {}}
                   transition={{ duration: 0.4 }}
@@ -391,11 +402,11 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   }`}
                 >
                   {isPending ? (
-                    <Loader2 size={18} className="animate-spin text-white" />
+                    <Loader2 size={18} className="animate-spin text-white" aria-hidden="true" />
                   ) : userFrozen ? (
-                    <Lock size={16} className="text-cyan-300 stroke-[2.5]" />
+                    <Lock size={16} className="text-cyan-300 stroke-[2.5]" aria-hidden="true" />
                   ) : (
-                    <Check size={18} className={habit.completedToday ? '' : (isToday ? 'text-white/40 sm:group-hover:text-white/20' : 'text-white/10')} />
+                    <Check size={18} aria-hidden="true" className={habit.completedToday ? '' : (isToday ? 'text-white/40 sm:group-hover:text-white/20' : 'text-white/10')} />
                   )}
                 </motion.button>
 

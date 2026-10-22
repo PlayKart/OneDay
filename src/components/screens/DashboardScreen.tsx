@@ -215,7 +215,7 @@ export function DashboardScreen() {
               <>
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-700" />
                 <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-amber-400/90 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
-                  <Shield size={10} />
+                  <Shield size={10} aria-hidden="true" />
                   {equippedTitle}
                 </span>
               </>
@@ -240,7 +240,7 @@ export function DashboardScreen() {
           {/* Top Row: Icon + Pill */}
           <div className="flex justify-between items-center mb-4 relative z-10">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-300">
-              <CheckCircle2 size={18} className="text-zinc-300 stroke-[2]" />
+              <CheckCircle2 size={18} aria-hidden="true" className="text-zinc-300 stroke-[2]" />
             </div>
             <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-zinc-400 bg-white/[0.04] border border-white/[0.06] px-2.5 py-1 rounded-md">
               Today
@@ -275,9 +275,9 @@ export function DashboardScreen() {
           <div className="flex justify-between items-center mb-4 relative z-10">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-300">
               {isFrozen ? (
-                <Target size={18} className="text-cyan-300 stroke-[2]" />
+                <Target size={18} aria-hidden="true" className="text-cyan-300 stroke-[2]" />
               ) : (
-                <Zap size={18} className="text-zinc-300 stroke-[2]" />
+                <Zap size={18} aria-hidden="true" className="text-zinc-300 stroke-[2]" />
               )}
             </div>
             <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-zinc-400 bg-white/[0.04] border border-white/[0.06] px-2.5 py-1 rounded-md">
@@ -312,12 +312,25 @@ export function DashboardScreen() {
 
         {/* Card 3: Level & XP */}
         <motion.div 
+          role="button"
+          tabIndex={0}
+          aria-label={`Level ${currentLevel}, ${currentXP} XP total. Tap to view progress and achievements.`}
           onClick={() => {
             if (typeof window !== "undefined") {
               window.history.pushState({}, "", "/settings/progress");
               window.dispatchEvent(new PopStateEvent("popstate"));
             }
             setActiveTab("settings");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              if (typeof window !== "undefined") {
+                window.history.pushState({}, "", "/settings/progress");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }
+              setActiveTab("settings");
+            }
           }}
           whileHover={{ y: -3, borderColor: "rgba(255,255,255,0.18)" }}
           animate={xpPop ? { scale: [1, 1.015, 1], borderColor: ["rgba(255,255,255,0.08)", "rgba(255,255,255,0.3)", "rgba(255,255,255,0.08)"] } : {}}
@@ -327,7 +340,7 @@ export function DashboardScreen() {
           {/* Top Row: Icon + Pill */}
           <div className="flex justify-between items-center mb-4 relative z-10">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-300">
-              <Trophy size={18} className="text-zinc-300 stroke-[2]" />
+              <Trophy size={18} aria-hidden="true" className="text-zinc-300 stroke-[2]" />
             </div>
             <div className="flex items-center gap-1.5">
               {xpPop && (
@@ -357,8 +370,15 @@ export function DashboardScreen() {
                   {currentXP} XP Total
                 </div>
               </div>
-              <div className="relative w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center shrink-0 mb-0.5">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 44 44">
+              <div 
+                role="progressbar"
+                aria-label={`Level ${currentLevel} progress: ${Math.round(progressPercentage)}% toward Level ${currentLevel + 1}`}
+                aria-valuenow={Math.round(progressPercentage)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="relative w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center shrink-0 mb-0.5"
+              >
+                <svg aria-hidden="true" className="w-full h-full transform -rotate-90" viewBox="0 0 44 44">
                   <circle cx="22" cy="22" r="18" className="stroke-white/[0.08]" strokeWidth="2.5" fill="none" />
                   <circle
                     cx="22"
@@ -401,7 +421,7 @@ export function DashboardScreen() {
               </h2>
               {isFrozen && (
                 <p className="text-[11px] text-cyan-300 font-mono flex items-center gap-1.5 mt-1">
-                  <Lock size={11} className="text-cyan-400" />
+                  <Lock size={11} aria-hidden="true" className="text-cyan-400" />
                   <span>HABITS PAUSED · Your streak is protected while Streak Freeze is active.</span>
                 </p>
               )}
@@ -426,7 +446,7 @@ export function DashboardScreen() {
             /* STATE A: NO ACTIVE HABITS */
             <div className="py-12 text-center bg-white/[0.01] rounded-2xl border border-white/5 border-dashed flex flex-col items-center justify-center px-4">
               <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                <Activity size={24} className="text-slate-500" />
+                <Activity size={24} aria-hidden="true" className="text-slate-500" />
               </div>
               <p className="text-slate-300 font-black uppercase tracking-[0.15em] text-xs mb-2">
                 NO ACTIVE HABITS
@@ -440,7 +460,7 @@ export function DashboardScreen() {
                 onClick={() => setActiveTab("habits")}
                 className="py-3 px-6 bg-white text-black font-black uppercase tracking-wider text-[10px] rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                <Plus size={14} strokeWidth={3} />
+                <Plus size={14} strokeWidth={3} aria-hidden="true" />
                 Create Habit
               </motion.button>
             </div>
@@ -448,7 +468,7 @@ export function DashboardScreen() {
             /* STATE B: REST DAY */
             <div className="py-12 text-center bg-white/[0.01] rounded-2xl border border-white/5 border-dashed flex flex-col items-center justify-center px-4">
               <div className="w-14 h-14 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mb-4 text-amber-400">
-                <Coffee size={24} strokeWidth={2} />
+                <Coffee size={24} strokeWidth={2} aria-hidden="true" />
               </div>
               <p className="text-amber-300 font-black uppercase tracking-[0.2em] text-xs mb-2">
                 REST DAY
@@ -486,7 +506,7 @@ export function DashboardScreen() {
             >
               <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 via-transparent to-transparent pointer-events-none" />
               <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.15)]">
-                <Trophy size={32} strokeWidth={2.5} />
+                <Trophy size={32} strokeWidth={2.5} aria-hidden="true" />
               </div>
               <div className="space-y-2">
                 <div className="text-[10px] font-black tracking-widest text-amber-400 uppercase">PROTOCOL UPGRADE</div>

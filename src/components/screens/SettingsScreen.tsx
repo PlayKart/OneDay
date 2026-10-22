@@ -13,6 +13,9 @@ import {
   ChevronRight,
   ArrowRight,
   ArrowLeft,
+  Instagram,
+  Mail,
+  ExternalLink,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
@@ -23,6 +26,7 @@ import { ProgressionScreen } from "./ProgressionScreen";
 import { AccountScreen } from "./AccountScreen";
 import { getEquippedTitle } from "../../utils/titleUtils";
 import { StreakProtectionSection } from "../settings/StreakProtectionSection";
+import { ONEDAY_CONTACT } from "../../constants";
 
 export type SettingsSubView =
   | "main"
@@ -201,10 +205,12 @@ export function SettingsScreen() {
       <div className="p-4 sm:p-6 md:p-8 max-w-2xl mx-auto space-y-6">
         <button
           onClick={handleBackToMain}
+          aria-label="Back to Settings"
           className="group inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-xs font-bold tracking-wider uppercase cursor-pointer"
         >
           <ArrowLeft
             size={14}
+            aria-hidden="true"
             className="transform group-hover:-translate-x-0.5 transition-transform"
           />
           Settings
@@ -220,10 +226,12 @@ export function SettingsScreen() {
       <div className="p-4 sm:p-6 md:p-8 max-w-2xl mx-auto space-y-6">
         <button
           onClick={handleBackToMain}
+          aria-label="Back to Settings"
           className="group inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-xs font-bold tracking-wider uppercase cursor-pointer"
         >
           <ArrowLeft
             size={14}
+            aria-hidden="true"
             className="transform group-hover:-translate-x-0.5 transition-transform"
           />
           Settings
@@ -256,7 +264,16 @@ export function SettingsScreen() {
       <section>
         <motion.div
           whileTap={{ scale: 0.99 }}
+          role="button"
+          tabIndex={0}
+          aria-label={`View profile for ${userDisplayName}`}
           onClick={() => handleViewChange("profile")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleViewChange("profile");
+            }
+          }}
           className="group relative overflow-hidden rounded-2xl bg-[#0D0D0D] border border-white/[0.08] p-5 sm:p-6 transition-all duration-200 hover:border-white/[0.16] cursor-pointer"
         >
           <div className="flex items-start gap-4">
@@ -265,11 +282,11 @@ export function SettingsScreen() {
               {firebaseUser?.photoURL ? (
                 <img
                   src={firebaseUser.photoURL}
-                  alt=""
+                  alt={`${userDisplayName}'s profile avatar`}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
+                <span className="text-lg sm:text-xl font-extrabold text-white tracking-tight" aria-hidden="true">
                   {userDisplayName.charAt(0).toUpperCase()}
                 </span>
               )}
@@ -310,11 +327,13 @@ export function SettingsScreen() {
               View Profile
               <ArrowRight
                 size={13}
+                aria-hidden="true"
                 className="transform group-hover:translate-x-0.5 transition-transform"
               />
             </span>
             <ChevronRight
               size={14}
+              aria-hidden="true"
               className="text-neutral-600 group-hover:text-neutral-400 transition-colors"
             />
           </div>
@@ -338,7 +357,7 @@ export function SettingsScreen() {
           >
             <div className="flex items-start gap-3.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
-                <Trophy size={16} />
+                <Trophy size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-white tracking-tight">
@@ -354,6 +373,7 @@ export function SettingsScreen() {
               <span>View</span>
               <ArrowRight
                 size={12}
+                aria-hidden="true"
                 className="transform group-hover:translate-x-0.5 transition-transform"
               />
             </div>
@@ -367,7 +387,7 @@ export function SettingsScreen() {
           >
             <div className="flex items-start gap-3.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
-                <Sliders size={16} />
+                <Sliders size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-white tracking-tight">
@@ -383,6 +403,7 @@ export function SettingsScreen() {
               <span>Manage</span>
               <ArrowRight
                 size={12}
+                aria-hidden="true"
                 className="transform group-hover:translate-x-0.5 transition-transform"
               />
             </div>
@@ -404,7 +425,7 @@ export function SettingsScreen() {
           >
             <div className="flex items-start gap-3.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0 mt-0.5">
-                <UserIcon size={16} />
+                <UserIcon size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-white tracking-tight">
@@ -417,6 +438,7 @@ export function SettingsScreen() {
             </div>
             <ChevronRight
               size={16}
+              aria-hidden="true"
               className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0"
             />
           </button>
@@ -429,7 +451,7 @@ export function SettingsScreen() {
           >
             <div className="flex items-start gap-3.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-400 group-hover:text-neutral-200 transition-colors shrink-0 mt-0.5">
-                <LogOut size={16} />
+                <LogOut size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-neutral-300 group-hover:text-white transition-colors tracking-tight">
@@ -462,7 +484,7 @@ export function SettingsScreen() {
           >
             <div className="flex items-start gap-3.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
-                <Download size={16} />
+                <Download size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-white tracking-tight">
@@ -475,6 +497,7 @@ export function SettingsScreen() {
             </div>
             <ChevronRight
               size={16}
+              aria-hidden="true"
               className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0"
             />
           </button>
@@ -487,7 +510,7 @@ export function SettingsScreen() {
           >
             <div className="flex items-start gap-3.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
-                <ShieldCheck size={16} />
+                <ShieldCheck size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-white tracking-tight">
@@ -500,6 +523,7 @@ export function SettingsScreen() {
             </div>
             <ChevronRight
               size={16}
+              aria-hidden="true"
               className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0"
             />
           </button>
@@ -512,7 +536,7 @@ export function SettingsScreen() {
           >
             <div className="flex items-start gap-3.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
-                <FileText size={16} />
+                <FileText size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-white tracking-tight">
@@ -525,9 +549,74 @@ export function SettingsScreen() {
             </div>
             <ChevronRight
               size={16}
+              aria-hidden="true"
               className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0"
             />
           </button>
+        </div>
+      </section>
+
+      {/* 6. CONNECT WITH ONEDAY */}
+      <section className="space-y-2.5">
+        <h2 className="text-[11px] font-bold tracking-widest text-neutral-400 uppercase px-1">
+          CONNECT WITH ONEDAY
+        </h2>
+        <div className="rounded-2xl bg-[#0D0D0D] border border-white/[0.08] divide-y divide-white/[0.06] overflow-hidden">
+          {/* Instagram Link */}
+          <a
+            href={ONEDAY_CONTACT.instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors text-left group cursor-pointer"
+            aria-label="Follow OneDay on Instagram @onedayapp.co"
+          >
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 group-hover:text-white transition-colors shrink-0 mt-0.5">
+                <Instagram size={16} aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-white tracking-tight">
+                  Instagram
+                </h3>
+                <p className="text-xs text-neutral-400 leading-relaxed mt-0.5 font-mono">
+                  {ONEDAY_CONTACT.instagramHandle}
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-neutral-400 group-hover:text-white transition-colors">
+              <span>Follow</span>
+              <ExternalLink size={13} aria-hidden="true" className="text-neutral-500 group-hover:text-neutral-300" />
+            </div>
+          </a>
+
+          {/* Email Link */}
+          <a
+            href={ONEDAY_CONTACT.emailMailto}
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors text-left group cursor-pointer"
+            aria-label="Send email to onedayappco@gmail.com"
+          >
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 group-hover:text-white transition-colors shrink-0 mt-0.5">
+                <Mail size={16} aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-white tracking-tight">
+                  Email Support
+                </h3>
+                <p className="text-xs text-neutral-400 leading-relaxed mt-0.5 font-mono">
+                  {ONEDAY_CONTACT.email}
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-neutral-400 group-hover:text-white transition-colors">
+              <span>Send Email</span>
+              <ArrowRight
+                size={12}
+                aria-hidden="true"
+                className="transform group-hover:translate-x-0.5 transition-transform"
+              />
+            </div>
+          </a>
         </div>
       </section>
 

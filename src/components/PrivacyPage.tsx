@@ -2,12 +2,14 @@ import React from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, Shield, Lock, Eye, Database, Cpu, Trash2 } from "lucide-react";
 
+import { ONEDAY_CONTACT } from "../constants";
+
 interface PrivacyPageProps {
   onBack: () => void;
 }
 
 export function PrivacyPage({ onBack }: PrivacyPageProps) {
-  const contactEmail = import.meta.env.VITE_SUPPORT_EMAIL || "privacy@oneday.app";
+  const contactEmail = ONEDAY_CONTACT.email;
 
   return (
     <motion.div

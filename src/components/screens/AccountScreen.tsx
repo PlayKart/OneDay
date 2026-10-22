@@ -193,10 +193,11 @@ export function AccountScreen({
         <button
           type="button"
           onClick={onBack}
+          aria-label="Back to Settings"
           className="w-11 h-11 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0"
           title="Back to Settings"
         >
-          <ArrowLeft size={18} strokeWidth={2.5} className="text-white" />
+          <ArrowLeft size={18} strokeWidth={2.5} aria-hidden="true" className="text-white" />
         </button>
         <div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase">
@@ -213,9 +214,9 @@ export function AccountScreen({
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-2xl bg-neutral-900 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
             {firebaseUser?.photoURL ? (
-              <img src={firebaseUser.photoURL} alt="" className="w-full h-full object-cover" />
+              <img src={firebaseUser.photoURL} alt={`${userDisplayName}'s profile avatar`} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-xl font-black text-white">
+              <span className="text-xl font-black text-white" aria-hidden="true">
                 {userDisplayName.charAt(0).toUpperCase()}
               </span>
             )}
@@ -227,7 +228,7 @@ export function AccountScreen({
             <p className="text-xs text-neutral-400 font-mono truncate">{userEmail}</p>
             <div className="pt-1 flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-wider">
-                <ShieldCheck size={11} />
+                <ShieldCheck size={11} aria-hidden="true" />
                 Authenticated
               </span>
             </div>
@@ -239,7 +240,7 @@ export function AccountScreen({
           {/* Email */}
           <div className="py-3.5 flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5 text-neutral-400">
-              <Mail size={15} />
+              <Mail size={15} aria-hidden="true" />
               <span className="font-medium">Primary Email</span>
             </div>
             <span className="text-neutral-200 font-mono font-bold truncate max-w-[200px] sm:max-w-xs">
@@ -250,7 +251,7 @@ export function AccountScreen({
           {/* Provider */}
           <div className="py-3.5 flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5 text-neutral-400">
-              <KeyRound size={15} />
+              <KeyRound size={15} aria-hidden="true" />
               <span className="font-medium">Sign-in Provider</span>
             </div>
             <span className="text-neutral-200 font-semibold px-2 py-0.5 rounded bg-white/5 border border-white/10">
@@ -261,7 +262,7 @@ export function AccountScreen({
           {/* Account ID / UID */}
           <div className="py-3.5 flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5 text-neutral-400">
-              <Fingerprint size={15} />
+              <Fingerprint size={15} aria-hidden="true" />
               <span className="font-medium">Account ID</span>
             </div>
             <div className="flex items-center gap-2">
@@ -271,10 +272,11 @@ export function AccountScreen({
               <button
                 type="button"
                 onClick={handleCopyId}
+                aria-label={copiedId ? "Account ID copied" : "Copy Account ID"}
                 className="p-1 rounded bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors cursor-pointer"
                 title="Copy Account ID"
               >
-                {copiedId ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                {copiedId ? <Check size={12} aria-hidden="true" className="text-emerald-400" /> : <Copy size={12} aria-hidden="true" />}
               </button>
             </div>
           </div>
@@ -282,7 +284,7 @@ export function AccountScreen({
           {/* Member Since */}
           <div className="py-3.5 flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5 text-neutral-400">
-              <Calendar size={15} />
+              <Calendar size={15} aria-hidden="true" />
               <span className="font-medium">Member Since</span>
             </div>
             <span className="text-neutral-300 font-mono">{creationTime}</span>
@@ -291,7 +293,7 @@ export function AccountScreen({
           {/* Last Sign In */}
           <div className="py-3.5 flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5 text-neutral-400">
-              <Clock size={15} />
+              <Clock size={15} aria-hidden="true" />
               <span className="font-medium">Last Active</span>
             </div>
             <span className="text-neutral-300 font-mono">{lastSignInTime}</span>
@@ -313,7 +315,7 @@ export function AccountScreen({
           >
             <div className="flex items-start gap-3.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
-                <Download size={16} />
+                <Download size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-white tracking-tight">
@@ -324,7 +326,7 @@ export function AccountScreen({
                 </p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+            <ChevronRight size={16} aria-hidden="true" className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
           </button>
 
           {/* Privacy Policy */}
@@ -336,7 +338,7 @@ export function AccountScreen({
             >
               <div className="flex items-start gap-3.5 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
-                  <ShieldCheck size={16} />
+                  <ShieldCheck size={16} aria-hidden="true" />
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-sm font-semibold text-white tracking-tight">
@@ -347,7 +349,7 @@ export function AccountScreen({
                   </p>
                 </div>
               </div>
-              <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+              <ChevronRight size={16} aria-hidden="true" className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
             </button>
           )}
 
@@ -360,7 +362,7 @@ export function AccountScreen({
             >
               <div className="flex items-start gap-3.5 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
-                  <FileText size={16} />
+                  <FileText size={16} aria-hidden="true" />
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-sm font-semibold text-white tracking-tight">
@@ -371,7 +373,7 @@ export function AccountScreen({
                   </p>
                 </div>
               </div>
-              <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+              <ChevronRight size={16} aria-hidden="true" className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
             </button>
           )}
         </div>
@@ -390,8 +392,8 @@ export function AccountScreen({
             className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors text-left group cursor-pointer"
           >
             <div className="flex items-start gap-3.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-300 shrink-0 mt-0.5">
-                <LogOut size={16} />
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-neutral-400 shrink-0 mt-0.5">
+                <LogOut size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-white tracking-tight">
@@ -402,7 +404,7 @@ export function AccountScreen({
                 </p>
               </div>
             </div>
-            <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+            <ChevronRight size={16} aria-hidden="true" className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
           </button>
         </div>
       </section>
@@ -420,7 +422,7 @@ export function AccountScreen({
           >
             <div className="flex items-start gap-3.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0 mt-0.5">
-                <RotateCcw size={16} />
+                <RotateCcw size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-red-400 tracking-tight">
@@ -433,7 +435,7 @@ export function AccountScreen({
             </div>
             <span className="shrink-0 text-xs font-semibold text-red-400/80 group-hover:text-red-400 transition-colors flex items-center gap-1">
               Reset
-              <ArrowRight size={12} className="transform group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight size={12} aria-hidden="true" className="transform group-hover:translate-x-0.5 transition-transform" />
             </span>
           </button>
 
@@ -445,7 +447,7 @@ export function AccountScreen({
           >
             <div className="flex items-start gap-3.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0 mt-0.5">
-                <Trash2 size={16} />
+                <Trash2 size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-red-400 tracking-tight">
@@ -458,7 +460,7 @@ export function AccountScreen({
             </div>
             <span className="shrink-0 text-xs font-semibold text-red-400/80 group-hover:text-red-400 transition-colors flex items-center gap-1">
               Delete
-              <ArrowRight size={12} className="transform group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight size={12} aria-hidden="true" className="transform group-hover:translate-x-0.5 transition-transform" />
             </span>
           </button>
         </div>

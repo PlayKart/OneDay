@@ -77,8 +77,10 @@ export function HabitIconPicker({
         <div className="flex items-center gap-3">
           <div
             className={`w-11 h-11 rounded-2xl ${currentColorObj.bg} border ${currentColorObj.border} flex items-center justify-center ${currentColorObj.text} shadow-lg ${currentColorObj.glow} transition-all duration-300`}
+            role="img"
+            aria-label="Selected habit icon preview"
           >
-            <ActiveIconComp size={22} strokeWidth={2} />
+            <ActiveIconComp size={22} strokeWidth={2} aria-hidden="true" />
           </div>
         </div>
       </div>
@@ -96,12 +98,14 @@ export function HabitIconPicker({
                 key={c.id}
                 type="button"
                 onClick={() => onSelectColor(c.id)}
+                aria-label={`Select ${c.name} accent color`}
+                aria-pressed={isSelected}
                 className={`w-7 h-7 rounded-full ${c.bg} border ${c.border} flex items-center justify-center transition-all ${
                   isSelected ? `ring-2 ${c.ring} scale-110 shadow-md` : "hover:scale-105 opacity-70 hover:opacity-100"
                 }`}
                 title={c.name}
               >
-                {isSelected && <Check size={14} className={c.text} strokeWidth={2.5} />}
+                {isSelected && <Check size={14} className={c.text} strokeWidth={2.5} aria-hidden="true" />}
               </button>
             );
           })}
@@ -121,6 +125,8 @@ export function HabitIconPicker({
                 key={cat}
                 type="button"
                 onClick={() => handleCategoryClick(cat)}
+                aria-label={`${cat} category`}
+                aria-pressed={isSelected}
                 className={`text-[10px] font-extrabold uppercase tracking-wider px-3 py-1.5 rounded-xl border transition-all whitespace-nowrap ${
                   isSelected
                     ? "bg-white text-black border-white shadow-sm"
@@ -148,6 +154,8 @@ export function HabitIconPicker({
                 key={item.id}
                 type="button"
                 onClick={() => handleIconClick(item)}
+                aria-label={`Select ${item.label} icon`}
+                aria-pressed={isSelected}
                 className={`p-2.5 rounded-xl flex flex-col items-center justify-center gap-1.5 border transition-all duration-200 group ${
                   isSelected
                     ? `${currentColorObj.bg} ${currentColorObj.border} ${currentColorObj.text} ring-2 ${currentColorObj.ring} scale-105 shadow-md`
@@ -155,7 +163,7 @@ export function HabitIconPicker({
                 }`}
                 title={item.label}
               >
-                <IconComp size={20} strokeWidth={isSelected ? 2.2 : 1.8} />
+                <IconComp size={20} strokeWidth={isSelected ? 2.2 : 1.8} aria-hidden="true" />
                 <span className="text-[9px] font-bold truncate max-w-full leading-tight opacity-90 group-hover:opacity-100">
                   {item.label}
                 </span>

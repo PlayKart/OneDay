@@ -27,12 +27,15 @@ import {
   Compass,
   Lock,
   BookOpen,
-  GraduationCap
+  GraduationCap,
+  Instagram,
+  Mail
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { PrivacyPage } from "../PrivacyPage";
 import { TermsPage } from "../TermsPage";
 import { MonolithLogo } from "../MonolithLogo";
+import { ONEDAY_CONTACT } from "../../constants";
 
 const FAQS = [
   {
@@ -254,11 +257,11 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
               >
                 <div className="p-1 rounded-xl bg-white/[0.04] border border-white/10 group-hover:border-violet-500/40 transition-colors">
-                  <MonolithLogo size={26} />
+                  <MonolithLogo size={26} aria-hidden="true" />
                 </div>
                 <span className="text-lg md:text-xl font-bold tracking-tight text-white flex items-center gap-1.5">
                   OneDay
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" aria-hidden="true" />
                 </span>
               </div>
               
@@ -276,7 +279,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                   className="bg-white text-black px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs md:text-sm font-semibold tracking-tight hover:bg-zinc-100 active:scale-95 transition-all cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center gap-1.5"
                 >
                   <span>Start Now</span>
-                  <ChevronRight size={14} className="text-black/60" />
+                  <ChevronRight size={14} aria-hidden="true" className="text-black/60" />
                 </button>
 
                 {/* Mobile Menu Toggle Button */}
@@ -286,7 +289,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                   aria-expanded={mobileMenuOpen}
                   className="md:hidden p-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition-colors cursor-pointer flex items-center justify-center"
                 >
-                  {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                  {mobileMenuOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
                 </button>
               </div>
             </nav>
@@ -1001,6 +1004,24 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
               </div>
 
               <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8 text-xs text-zinc-500 font-medium">
+                <a
+                  href={ONEDAY_CONTACT.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+                  aria-label="OneDay on Instagram"
+                >
+                  <Instagram size={14} />
+                  <span>{ONEDAY_CONTACT.instagramHandle}</span>
+                </a>
+                <a
+                  href={ONEDAY_CONTACT.emailMailto}
+                  className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+                  aria-label="Contact OneDay via Email"
+                >
+                  <Mail size={14} />
+                  <span>{ONEDAY_CONTACT.email}</span>
+                </a>
                 <button 
                   onClick={() => { setView("privacy"); window.scrollTo({ top: 0 }); }} 
                   className="hover:text-white transition-colors cursor-pointer"

@@ -120,8 +120,13 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
           <div>
             <h2 className="text-xl font-bold tracking-tighter">New Habit</h2>
           </div>
-          <button type="button" onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
-            <X size={20} />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close create habit modal"
+            className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+          >
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 
@@ -131,6 +136,7 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
              <input 
                type="text" 
                placeholder="What do you want to build?"
+               aria-label="Habit name"
                value={name}
                onChange={(e) => setName(e.target.value)}
                className="w-full bg-transparent border-b border-white/10 p-2 text-2xl font-bold text-white focus:outline-none focus:border-white/40 placeholder-slate-600 transition-colors"
@@ -151,7 +157,7 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
            {/* Repeat Schedule */}
            <div className="space-y-3">
              <div className="flex items-center gap-2 text-slate-400">
-               <Calendar size={16} />
+               <Calendar size={16} aria-hidden="true" />
                <span className="text-[10px] uppercase tracking-widest font-bold">Repeat</span>
              </div>
              
@@ -161,6 +167,7 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
                    type="button"
                    key={type}
                    onClick={() => setRepeatType(type)}
+                   aria-pressed={repeatType === type}
                    className={`p-3 rounded-xl border text-xs font-bold transition-all ${
                      repeatType === type
                        ? 'bg-white text-black border-white'
@@ -185,6 +192,8 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
                        type="button"
                        key={id}
                        onClick={() => handleToggleDay(id)}
+                       aria-label={`Toggle ${id}`}
+                       aria-pressed={isSelected}
                        className={`flex-1 aspect-square rounded-full flex items-center justify-center text-xs font-bold border transition-all ${
                          isSelected 
                            ? 'bg-white text-black border-white' 

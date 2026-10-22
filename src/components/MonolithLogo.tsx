@@ -4,9 +4,16 @@ import { motion } from "motion/react";
 interface MonolithLogoProps {
   size?: "sm" | "md" | "lg" | "xl" | number;
   className?: string;
+  "aria-label"?: string;
+  "aria-hidden"?: boolean | "true" | "false";
 }
 
-export function MonolithLogo({ size = "md", className = "" }: MonolithLogoProps) {
+export function MonolithLogo({ 
+  size = "md", 
+  className = "",
+  "aria-label": ariaLabel,
+  "aria-hidden": ariaHidden,
+}: MonolithLogoProps) {
   let boxSize = 44;
 
   if (size === "sm") {
@@ -21,11 +28,16 @@ export function MonolithLogo({ size = "md", className = "" }: MonolithLogoProps)
     boxSize = size;
   }
 
+  const isHidden = ariaHidden === true || ariaHidden === "true";
+
   return (
     <motion.div
       whileHover={{ scale: 1.04 }}
       whileTap={{ scale: 0.97 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      role={isHidden ? undefined : "img"}
+      aria-label={isHidden ? undefined : (ariaLabel || "OneDay monolith logo")}
+      aria-hidden={isHidden ? "true" : undefined}
       className={`relative flex items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.05] backdrop-blur-md shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] overflow-hidden shrink-0 select-none ${className}`}
       style={{
         width: boxSize,
@@ -40,15 +52,10 @@ export function MonolithLogo({ size = "md", className = "" }: MonolithLogoProps)
       <svg
         viewBox="0 0 100 100"
         fill="currentColor"
+        aria-hidden="true"
         className="text-white w-[55%] h-[55%] pointer-events-none"
       >
-        {/* Vector representation of the beveled vertical monolith pillar:
-            - Left edge is sharp at X=41
-            - Bottom edge is sharp at Y=80
-            - Right edge is sharp at X=59
-            - Top left edge is sharp at Y=20, X=41
-            - Top-right corner is elegantly beveled/chamfered from (53,20) to (59,26)
-        */}
+        {/* Vector representation of the beveled vertical monolith pillar */}
         <path d="M 41 20 L 53 20 L 59 26 L 59 80 L 41 80 Z" />
       </svg>
     </motion.div>

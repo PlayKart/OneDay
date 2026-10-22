@@ -20,6 +20,8 @@ import {
   Info
 } from "lucide-react";
 
+import { ONEDAY_CONTACT } from "../constants";
+
 interface TermsPageProps {
   onBack: () => void;
 }
@@ -85,7 +87,7 @@ function RefreshIcon(props: any) {
 }
 
 export function TermsPage({ onBack }: TermsPageProps) {
-  const supportEmail = import.meta.env.VITE_SUPPORT_EMAIL || "support@oneday.app";
+  const supportEmail = ONEDAY_CONTACT.email;
 
   const handleAnchorClick = (e: React.MouseEvent, id: string) => {
     e.preventDefault();

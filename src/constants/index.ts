@@ -29,3 +29,10 @@ export const DEFAULT_HABIT_COLORS = [
 export const APP_NAME = "OneDay";
 console.log('[CONFIG] Production Backend URL initialized:', BACKEND_URL);
 
+export const ONEDAY_CONTACT = {
+  instagramHandle: "@onedayapp.co",
+  instagramUrl: "https://www.instagram.com/onedayapp.co/",
+  email: "onedayappco@gmail.com",
+  emailMailto: "mailto:onedayappco@gmail.com",
+} as const;
+

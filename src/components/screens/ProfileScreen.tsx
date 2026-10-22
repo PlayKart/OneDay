@@ -129,10 +129,11 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
         <button
           type="button"
           onClick={onBack}
+          aria-label="Back to Settings"
           className="w-11 h-11 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0"
           title="Back to Settings"
         >
-          <ArrowLeft size={18} strokeWidth={2.5} className="text-white" />
+          <ArrowLeft size={18} strokeWidth={2.5} className="text-white" aria-hidden="true" />
         </button>
         <div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase">
@@ -149,7 +150,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
       ) : fetchError ? (
         <div className="bg-[#0C0C0C] border border-red-500/15 rounded-3xl p-8 text-center space-y-5" id="profile-screen-error">
           <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mx-auto">
-            <AlertTriangle size={24} />
+            <AlertTriangle size={24} aria-hidden="true" />
           </div>
           <div className="space-y-2">
             <h4 className="text-white font-extrabold text-base uppercase tracking-wider">Connection Failure</h4>
@@ -176,7 +177,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
             <div className="absolute inset-0 bg-purple-500/5 blur-3xl rounded-full -top-12 -left-12 w-48 h-48 pointer-events-none" />
             <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
               {userPhoto ? (
-                <img src={userPhoto} alt="" className="w-full h-full object-cover" />
+                <img src={userPhoto} alt={`${activeUser.name || "User"}'s profile picture`} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-2xl font-black text-white">{userInitial}</span>
               )}

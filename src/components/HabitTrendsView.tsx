@@ -562,7 +562,7 @@ export function HabitTrendsView() {
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-              <BarChart3 size={18} />
+              <BarChart3 size={18} aria-hidden="true" />
             </div>
             <h2 className="text-xl font-black text-white tracking-tight">30-Day Discipline Trends</h2>
             <span className={`text-[10px] font-mono font-black uppercase px-2.5 py-1 rounded-lg border ${maturityState.badgeBg} ${maturityState.badgeText}`}>
@@ -575,11 +575,14 @@ export function HabitTrendsView() {
         </div>
 
         {/* Timeframe Selector */}
-        <div className="flex items-center bg-black/40 border border-white/10 p-1 rounded-2xl">
+        <div role="tablist" aria-label="Discipline trends timeframe" className="flex items-center bg-black/40 border border-white/10 p-1 rounded-2xl">
           {([7, 14, 30] as Timeframe[]).map((tf) => (
             <button
               key={tf}
               type="button"
+              role="tab"
+              aria-selected={timeframe === tf}
+              aria-label={`${tf} days timeframe`}
               onClick={() => setTimeframe(tf)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer focus:outline-none ${
                 timeframe === tf
@@ -695,7 +698,7 @@ export function HabitTrendsView() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-6">
           <div>
             <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-              <Activity size={16} className="text-cyan-400" />
+              <Activity size={16} aria-hidden="true" className="text-cyan-400" />
               Completion Velocity ({timeframe} Days)
             </h3>
             <p className="text-[11px] text-slate-400">
@@ -737,6 +740,8 @@ export function HabitTrendsView() {
                     return (
                       <div
                         key={idx}
+                        role="img"
+                        aria-label={`${d.fullDayName}, ${d.displayDate}: No data available yet (before account or habit start)`}
                         onMouseEnter={() => setHoveredDayIdx(idx)}
                         onMouseLeave={() => setHoveredDayIdx(null)}
                         className="flex-1 flex flex-col items-center h-full justify-end relative group/day cursor-pointer min-w-0"
@@ -757,6 +762,8 @@ export function HabitTrendsView() {
                     return (
                       <div
                         key={idx}
+                        role="img"
+                        aria-label={`${d.fullDayName}, ${d.displayDate}: 0 habits scheduled`}
                         onMouseEnter={() => setHoveredDayIdx(idx)}
                         onMouseLeave={() => setHoveredDayIdx(null)}
                         className="flex-1 flex flex-col items-center h-full justify-end relative group/day cursor-pointer min-w-0"
@@ -787,6 +794,8 @@ export function HabitTrendsView() {
                   return (
                     <div
                       key={idx}
+                      role="img"
+                      aria-label={`${d.fullDayName}, ${d.displayDate}: ${d.completedCount} of ${d.totalScheduled} completed (${rate}%)`}
                       onMouseEnter={() => setHoveredDayIdx(idx)}
                       onMouseLeave={() => setHoveredDayIdx(null)}
                       className="flex-1 flex flex-col items-center h-full justify-end relative group/day cursor-pointer min-w-0"
@@ -833,7 +842,7 @@ export function HabitTrendsView() {
           <div>
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-                <Calendar size={16} className="text-purple-400" />
+                <Calendar size={16} aria-hidden="true" className="text-purple-400" />
                 Day-of-Week Pattern Reliability
               </h3>
               <span className="text-[10px] font-mono font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
@@ -869,6 +878,8 @@ export function HabitTrendsView() {
                 return (
                   <div
                     key={idx}
+                    role="img"
+                    aria-label={`${item.dayName}: ${hasScheduled ? `${rate}% average completion (${item.totalCompleted} of ${item.totalScheduled})` : "No data available"}`}
                     className="flex flex-col items-center group/dow transition-all duration-200"
                   >
                     {/* Percentage text */}
@@ -916,7 +927,7 @@ export function HabitTrendsView() {
 
           <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-3.5 mt-5 text-xs">
             <div className="flex items-start gap-2 text-slate-300">
-              <Sparkles size={14} className="text-amber-400 shrink-0 mt-0.5" />
+              <Sparkles size={14} aria-hidden="true" className="text-amber-400 shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold text-white">Discipline Insight:</span>{" "}
                 {bestDay ? (
@@ -936,7 +947,7 @@ export function HabitTrendsView() {
           <div>
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-                <Layers size={16} className="text-emerald-400" />
+                <Layers size={16} aria-hidden="true" className="text-emerald-400" />
                 Category Focus Reliability
               </h3>
               <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
@@ -951,7 +962,12 @@ export function HabitTrendsView() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
               {/* SVG Donut Chart (Check-In Share) */}
               <div className="flex flex-col items-center justify-center p-2 relative">
-                <svg className="w-36 h-36 transform -rotate-90" viewBox="0 0 100 100">
+                <svg
+                  role="img"
+                  aria-label={`Category check-in distribution: ${totalCategoryCheckIns > 0 ? categoryData.filter(c => c.count > 0).map(c => `${c.name}: ${c.percentage}%`).join(", ") : "No check-ins yet"}`}
+                  className="w-36 h-36 transform -rotate-90"
+                  viewBox="0 0 100 100"
+                >
                   <circle
                     cx="50"
                     cy="50"
@@ -1082,7 +1098,7 @@ export function HabitTrendsView() {
         <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl space-y-4">
           <div>
             <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-              <Target size={16} className="text-cyan-400" />
+              <Target size={16} aria-hidden="true" className="text-cyan-400" />
               Sports & Studies Discipline Overview
             </h3>
             <p className="text-[11px] text-slate-400">
@@ -1143,7 +1159,7 @@ export function HabitTrendsView() {
       {/* SECTION 6: 30-DAY DAILY CONSISTENCY HEATMAP */}
       <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl">
         <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2 mb-3">
-          <CheckCircle2 size={16} className="text-cyan-400" />
+          <CheckCircle2 size={16} aria-hidden="true" className="text-cyan-400" />
           30-Day Check-In Heatmap (29 Days Ago → Today)
         </h3>
 
@@ -1154,6 +1170,8 @@ export function HabitTrendsView() {
               return (
                 <div
                   key={idx}
+                  role="img"
+                  aria-label={`${d.fullDayName}, ${d.displayDate}: No data yet (before account or habit start)`}
                   title={`${d.fullDayName}, ${d.displayDate}: NO DATA YET (Before account/habit start)`}
                   className="h-10 rounded-xl border border-dashed border-white/10 bg-[#0c0d12] flex flex-col items-center justify-center p-1 transition-all duration-200 hover:scale-110 cursor-pointer"
                 >
@@ -1170,6 +1188,8 @@ export function HabitTrendsView() {
               return (
                 <div
                   key={idx}
+                  role="img"
+                  aria-label={`${d.fullDayName}, ${d.displayDate}: No habits scheduled`}
                   title={`${d.fullDayName}, ${d.displayDate}: No habits scheduled`}
                   className="h-10 rounded-xl border border-white/5 bg-white/[0.03] flex flex-col items-center justify-center p-1 transition-all duration-200 hover:scale-110 cursor-pointer"
                 >
@@ -1195,6 +1215,8 @@ export function HabitTrendsView() {
             return (
               <div
                 key={idx}
+                role="img"
+                aria-label={`${d.fullDayName}, ${d.displayDate}: ${rate}% (${d.completedCount} of ${d.totalScheduled} habits completed)`}
                 title={`${d.fullDayName}, ${d.displayDate}: ${rate}% (${d.completedCount}/${d.totalScheduled} habits completed)`}
                 className={`h-10 rounded-xl border flex flex-col items-center justify-center p-1 transition-all duration-200 hover:scale-110 cursor-pointer ${bgClass}`}
               >

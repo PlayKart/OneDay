@@ -104,7 +104,7 @@ export const CoachComposer: React.FC<CoachComposerProps> = ({
               className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-hide py-0.5"
             >
               <div className="flex items-center gap-1 text-[10px] text-slate-500 font-mono uppercase shrink-0 pl-0.5">
-                <Sparkles size={11} className="text-slate-400" />
+                <Sparkles size={11} aria-hidden="true" className="text-slate-400" />
                 <span>Next:</span>
               </div>
               {chips.map((chip, i) => (
@@ -130,6 +130,7 @@ export const CoachComposer: React.FC<CoachComposerProps> = ({
             rows={1}
             disabled={loading}
             placeholder="Message your OneDay Coach..."
+            aria-label="Message your OneDay Coach"
             className="flex-1 bg-transparent text-white text-xs sm:text-[13px] placeholder:text-slate-500 focus:outline-none resize-none py-1.5 px-2 max-h-36 leading-relaxed disabled:opacity-50 select-text"
           />
 
@@ -146,9 +147,9 @@ export const CoachComposer: React.FC<CoachComposerProps> = ({
             aria-label="Send message"
           >
             {loading ? (
-              <Loader2 size={15} className="animate-spin text-slate-400" />
+              <Loader2 size={15} aria-hidden="true" className="animate-spin text-slate-400" />
             ) : (
-              <ArrowUp size={16} strokeWidth={2.5} />
+              <ArrowUp size={16} strokeWidth={2.5} aria-hidden="true" />
             )}
           </motion.button>
         </div>
