@@ -75,6 +75,10 @@ export interface Habit {
   customDays?: string[];
   completedDates?: string[];
   isArchived?: boolean;
+  currentStreak?: number;
+  bestStreak?: number;
+  lastCompletedDate?: string | null;
+  isFrozen?: boolean;
 }
 
 export interface ChatSession {

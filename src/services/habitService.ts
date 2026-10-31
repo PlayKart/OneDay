@@ -70,6 +70,33 @@ export const habitService = {
 
     const rawColor = h.color || undefined;
 
+    const currentStreak = Number(
+      h.currentStreak !== undefined && h.currentStreak !== null
+        ? h.currentStreak
+        : (h.current_streak !== undefined && h.current_streak !== null
+            ? h.current_streak
+            : (h.streak !== undefined && h.streak !== null ? h.streak : 0))
+    ) || 0;
+
+    const bestStreak = Number(
+      h.bestStreak !== undefined && h.bestStreak !== null
+        ? h.bestStreak
+        : (h.best_streak !== undefined && h.best_streak !== null
+            ? h.best_streak
+            : (h.longestStreak !== undefined && h.longestStreak !== null
+                ? h.longestStreak
+                : (h.longest_streak !== undefined && h.longest_streak !== null
+                    ? h.longest_streak
+                    : currentStreak)))
+    ) || currentStreak;
+
+    const lastCompletedDate =
+      h.lastCompletedDate ||
+      h.last_completed_date ||
+      (completedDates.length > 0 ? [...completedDates].sort().reverse()[0] : null);
+
+    const isFrozen = Boolean(h.isFrozen ?? h.is_frozen ?? false);
+
     return {
       id,
       name: h.title || h.name || "Unnamed Habit",
@@ -83,6 +110,10 @@ export const habitService = {
       category: h.category || "Health & Fitness",
       color: rawColor,
       reminderTime: h.reminderTime || h.reminder_time || "",
+      currentStreak,
+      bestStreak,
+      lastCompletedDate,
+      isFrozen,
     };
   },
 

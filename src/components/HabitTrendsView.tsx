@@ -2,7 +2,9 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useStore } from "../store/useStore";
 import { Habit } from "../types";
 import { getTodayDateString, isHabitScheduledForDate } from "../lib/habitUtils";
-import { getHabitColorTheme, resolveHabitCategory as resolveGlobalHabitCategory } from "../lib/habitIcons";
+import { getHabitColorTheme, getHabitIconComponent, resolveHabitCategory as resolveGlobalHabitCategory } from "../lib/habitIcons";
+import { isUserFrozen } from "../utils/freezeUtils";
+import { toDisplayDifficulty, getXpForDifficulty } from "../utils";
 import {
   TrendingUp,
   Award,
@@ -21,6 +23,10 @@ import {
   Info,
   Clock,
   ShieldAlert,
+  Snowflake,
+  Check,
+  Minus,
+  Lock,
 } from "lucide-react";
 
 type Timeframe = 7 | 14 | 30;
@@ -64,6 +70,7 @@ interface MaturityState {
 
 export function HabitTrendsView() {
   const { habits, user } = useStore();
+  const userFrozen = isUserFrozen(user);
   const [timeframe, setTimeframe] = useState<Timeframe>(30);
   const [hoveredDayIdx, setHoveredDayIdx] = useState<number | null>(null);
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
@@ -912,7 +919,7 @@ export function HabitTrendsView() {
                         ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
                         : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                     }`}>
-                      {!hasScheduled ? "NO DATA" : rate >= 80 ? "HIGH" : rate >= 50 ? "MED" : rate > 0 ? "LOW" : "0%"}
+                      {!hasScheduled ? "REST DAY" : rate >= 80 ? "HIGH" : rate >= 50 ? "MED" : rate > 0 ? "LOW" : "0%"}
                     </span>
 
                     {/* Sample fraction count */}
@@ -1065,7 +1072,7 @@ export function HabitTrendsView() {
                                   ? "bg-cyan-500/15 text-cyan-400" 
                                   : "bg-amber-500/15 text-amber-400"
                           }`}>
-                            {cat.reliability !== null ? `${cat.reliability}%` : "NOT ENOUGH DATA"}
+                            {cat.reliability !== null ? `${cat.reliability}%` : cat.scheduled === 0 ? "NO HABITS" : "0%"}
                           </span>
                         </div>
                       </div>
@@ -1144,7 +1151,7 @@ export function HabitTrendsView() {
                       ? "text-amber-400"
                       : "text-rose-400"
                   }`}>
-                    {item.reliability !== null ? `${item.reliability}%` : "NOT ENOUGH DATA"}
+                    {item.reliability !== null ? `${item.reliability}%` : item.scheduledCount === 0 ? "NO SESSIONS" : "0%"}
                   </div>
                   <span className="text-[8px] font-mono text-slate-500 uppercase font-black tracking-widest mt-1 block">
                     Reliability
@@ -1155,6 +1162,265 @@ export function HabitTrendsView() {
           </div>
         </div>
       )}
+
+      {/* SECTION 5.5: HABIT-SPECIFIC STREAKS & 30-DAY VISUALIZATION */}
+      <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+              <Flame size={16} aria-hidden="true" className="text-amber-400" />
+              Habit Streaks & 30-Day History
+            </h3>
+            <p className="text-[11px] text-slate-400">
+              Authoritative per-habit streaks with 30-day schedule-aware completion tracking.
+            </p>
+          </div>
+          {userFrozen && (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 text-[10px] font-mono font-bold self-start sm:self-auto">
+              <Snowflake size={12} className="text-cyan-300" />
+              <span>STREAKS FROZEN & PROTECTED</span>
+            </div>
+          )}
+        </div>
+
+        {safeHabits.length === 0 ? (
+          <div className="p-8 text-center bg-black/20 border border-white/5 rounded-2xl">
+            <p className="text-xs font-mono text-slate-400">No habits found. Create a habit to begin tracking individual streaks.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {safeHabits.map((habit) => {
+              const isFrozenHabit = Boolean(habit.isFrozen || userFrozen);
+              const currentStreak = typeof habit.currentStreak === "number" ? habit.currentStreak : 0;
+              const bestStreak = typeof habit.bestStreak === "number" ? habit.bestStreak : currentStreak;
+              const IconComp = getHabitIconComponent(habit.icon, habit.name);
+              const habitColor = getHabitColorTheme(habit.color || habit.category, habit.name);
+              const resolvedCategory = resolveGlobalHabitCategory(habit) || habit.category || "General";
+
+              // 30 days matrix ending today
+              const habit30Days = dailyData.map((d, dayIdx) => {
+                const dayDate = new Date(d.dateStr + "T12:00:00");
+                const isToday = dayIdx === dailyData.length - 1;
+                const isCompleted =
+                  (Array.isArray(habit.completedDates) && habit.completedDates.includes(d.dateStr)) ||
+                  (isToday && habit.completedToday);
+
+                let isScheduled = false;
+                try {
+                  isScheduled = isHabitScheduledForDate(habit, dayDate);
+                } catch {
+                  isScheduled = false;
+                }
+
+                let status: "completed" | "freeze_protected" | "missed" | "rest_day" = "rest_day";
+                if (isCompleted) {
+                  status = "completed";
+                } else if (isScheduled) {
+                  if (isFrozenHabit && (isToday || d.dateStr >= analyticsStartDate)) {
+                    status = "freeze_protected";
+                  } else {
+                    status = "missed";
+                  }
+                } else {
+                  status = "rest_day";
+                }
+
+                return {
+                  ...d,
+                  status,
+                  isScheduled,
+                  isCompleted,
+                };
+              });
+
+              // Formatted last completed date
+              let lastCompletedDisplay = "Never";
+              if (habit.lastCompletedDate) {
+                const lDate = new Date(habit.lastCompletedDate + "T12:00:00");
+                if (!isNaN(lDate.getTime())) {
+                  const todayDateStr = getTodayDateString(new Date());
+                  const yesterday = new Date();
+                  yesterday.setDate(yesterday.getDate() - 1);
+                  const yesterdayDateStr = getTodayDateString(yesterday);
+
+                  if (habit.lastCompletedDate === todayDateStr) {
+                    lastCompletedDisplay = "Today";
+                  } else if (habit.lastCompletedDate === yesterdayDateStr) {
+                    lastCompletedDisplay = "Yesterday";
+                  } else {
+                    lastCompletedDisplay = lDate.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    });
+                  }
+                }
+              }
+
+              return (
+                <div
+                  key={habit.id}
+                  className="bg-black/30 border border-white/5 rounded-2xl p-4 space-y-3.5 hover:border-white/10 transition-colors"
+                >
+                  {/* Header: Habit Details & Streaks */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      {/* User-selected color applied ONLY to icon container */}
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                          isFrozenHabit
+                            ? "bg-cyan-950/30 border-cyan-500/30 text-cyan-300"
+                            : `${habitColor.bg} ${habitColor.border} ${habitColor.text}`
+                        }`}
+                      >
+                        <IconComp size={16} aria-hidden="true" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-xs sm:text-sm font-bold text-white truncate max-w-[200px] sm:max-w-xs">
+                            {habit.name}
+                          </h4>
+                          <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 bg-white/5 border border-white/5 px-1.5 py-0.5 rounded">
+                            {resolvedCategory}
+                          </span>
+                          {habit.difficulty && (
+                            <span className="text-[9px] font-mono text-zinc-400 bg-white/[0.03] border border-white/5 px-1.5 py-0.5 rounded">
+                              {toDisplayDifficulty(habit.difficulty)} (+{getXpForDifficulty(habit.difficulty)} XP)
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          Last completed: {lastCompletedDisplay}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Streak Indicators */}
+                    <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-center">
+                      {/* Current Streak */}
+                      <div
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border font-mono ${
+                          isFrozenHabit
+                            ? "bg-cyan-950/40 border-cyan-500/30 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.15)]"
+                            : "bg-white/[0.04] border-white/10 text-white"
+                        }`}
+                        aria-label={
+                          isFrozenHabit
+                            ? `Current streak: ${currentStreak} days (Protected by streak freeze)`
+                            : `Current streak: ${currentStreak} days`
+                        }
+                        title={
+                          isFrozenHabit
+                            ? `Protected by Streak Freeze: ${currentStreak} days`
+                            : `Current streak: ${currentStreak} days`
+                        }
+                      >
+                        <Flame
+                          size={14}
+                          className={`${
+                            isFrozenHabit
+                              ? "text-cyan-400 fill-cyan-400/20 drop-shadow-[0_0_6px_rgba(34,211,238,0.5)]"
+                              : "text-amber-400 fill-amber-400/20"
+                          } shrink-0`}
+                          aria-hidden="true"
+                        />
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-xs font-black">{currentStreak}</span>
+                          <span className="text-[9px] uppercase tracking-wider text-slate-400">
+                            {isFrozenHabit ? "Frozen" : "Streak"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Best Streak */}
+                      <div
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-white/10 bg-white/[0.02] text-zinc-300 font-mono"
+                        aria-label={`Personal best streak: ${bestStreak} days`}
+                        title={`Personal best streak: ${bestStreak} days`}
+                      >
+                        <Award size={14} className="text-amber-400 shrink-0" aria-hidden="true" />
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-xs font-black text-white">{bestStreak}</span>
+                          <span className="text-[9px] uppercase tracking-wider text-slate-400">Best</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 30-Day Completion Visualizer Grid */}
+                  <div className="pt-2">
+                    <div className="grid grid-cols-10 sm:grid-cols-15 md:grid-cols-30 gap-1">
+                      {habit30Days.map((dayItem, dIdx) => {
+                        let cellClasses = "";
+                        let iconElement: React.ReactNode = null;
+                        let statusLabel = "";
+
+                        if (dayItem.status === "completed") {
+                          cellClasses = "bg-white text-black font-extrabold border-white shadow-sm hover:scale-110";
+                          iconElement = <Check size={10} className="stroke-[3]" aria-hidden="true" />;
+                          statusLabel = "Completed";
+                        } else if (dayItem.status === "freeze_protected") {
+                          cellClasses =
+                            "bg-cyan-950/60 border border-cyan-500/50 text-cyan-300 hover:scale-110 shadow-[0_0_8px_rgba(6,182,212,0.2)]";
+                          iconElement = <Snowflake size={10} className="text-cyan-400" aria-hidden="true" />;
+                          statusLabel = "Streak Protected by Freeze";
+                        } else if (dayItem.status === "missed") {
+                          cellClasses = "bg-rose-950/20 border border-rose-500/30 text-rose-400 hover:scale-110";
+                          iconElement = <span className="text-[8px] font-black leading-none">✕</span>;
+                          statusLabel = "Missed Scheduled Day";
+                        } else {
+                          // Rest day
+                          cellClasses = "bg-white/[0.02] border border-white/5 text-zinc-600 hover:border-white/20";
+                          iconElement = <Minus size={10} aria-hidden="true" />;
+                          statusLabel = "Rest Day (Unscheduled)";
+                        }
+
+                        return (
+                          <div
+                            key={dIdx}
+                            role="img"
+                            aria-label={`${habit.name} on ${dayItem.fullDayName}, ${dayItem.displayDate}: ${statusLabel}`}
+                            title={`${dayItem.fullDayName}, ${dayItem.displayDate}: ${statusLabel}`}
+                            className={`h-7 rounded-lg flex items-center justify-center transition-all duration-150 cursor-pointer ${cellClasses}`}
+                          >
+                            {iconElement}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Date endpoints */}
+                    <div className="flex justify-between text-[9px] font-mono text-slate-500 mt-1.5 px-0.5">
+                      <span>{habit30Days[0]?.displayDate}</span>
+                      <span>{habit30Days[Math.floor(habit30Days.length / 2)]?.displayDate}</span>
+                      <span>{habit30Days[habit30Days.length - 1]?.displayDate} (Today)</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Legend for 30-Day Completion Visualizer */}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] text-slate-400 pt-3 border-t border-white/5 font-mono">
+          <span className="text-slate-500">Legend:</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded bg-white text-black flex items-center justify-center text-[8px] font-bold">✓</span> Completed
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded bg-rose-950/40 border border-rose-500/40 text-rose-400 flex items-center justify-center text-[8px] font-bold">✕</span> Missed
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded bg-white/[0.02] border border-white/5 text-zinc-600 flex items-center justify-center text-[8px] font-bold">-</span> Rest Day
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded bg-cyan-950/60 border border-cyan-500/50 text-cyan-300 flex items-center justify-center text-[8px] font-bold">❄</span> Freeze Protected
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* SECTION 6: 30-DAY DAILY CONSISTENCY HEATMAP */}
       <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl backdrop-blur-xl">

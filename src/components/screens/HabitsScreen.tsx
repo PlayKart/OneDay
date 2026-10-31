@@ -1,6 +1,6 @@
 import { useStore } from "../../store/useStore";
 import { HabitList } from "../HabitList";
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { Plus, ListFilter, BarChart3, Loader2, Lock, Shield, Snowflake } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useFreezeCountdown } from "../../utils/freezeUtils";
@@ -13,9 +13,10 @@ const CreateHabitModal = lazyWithRetry(() => import("../CreateHabitModal"), "Cre
 
 export function HabitsScreen() {
   const { user, habits, refreshFromBackend } = useStore();
-  const { isFrozen, formattedEndDate, timeRemaining } = useFreezeCountdown(user, () => {
-    refreshFromBackend();
-  });
+  const handleFreezeExpired = useCallback(() => {
+    refreshFromBackend().catch(() => {});
+  }, [refreshFromBackend]);
+  const { isFrozen, formattedEndDate, timeRemaining } = useFreezeCountdown(user, handleFreezeExpired);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<"list" | "trends">("list");
 

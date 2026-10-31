@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, CheckCircle2, FileText, ChevronDown, AlignLeft, Coffee } from 'lucide-react';
+import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, CheckCircle2, FileText, ChevronDown, AlignLeft, Coffee, Flame } from 'lucide-react';
 import { useStore, Habit } from '../store/useStore';
 import { toast } from 'react-hot-toast';
 import { isHabitScheduledForToday, getScheduledDaysMessage, getTodayHabitStats } from '../lib/habitUtils';
@@ -228,12 +228,14 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
             habit.notes.trim() !== "undefined"
           );
           const isExpanded = expandedHabitIds.has(habit.id);
+          const isFrozenHabit = Boolean(habit.isFrozen || userFrozen);
+          const habitStreak = typeof habit.currentStreak === 'number' ? habit.currentStreak : 0;
 
           return (
           <motion.div 
             layout
             key={habit.id}
-            className={`p-3.5 sm:p-4 rounded-2xl flex flex-col group transition-all duration-300 border ${
+            className={`p-3.5 sm:p-4 rounded-2xl flex flex-col group transition-all duration-300 border relative ${
               userFrozen
                 ? 'bg-[#080C14]/90 border-cyan-500/25 ring-1 ring-cyan-500/15 shadow-[0_4px_20px_rgba(6,182,212,0.05)] hover:border-cyan-500/40'
                 : habit.completedToday 
@@ -241,6 +243,28 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/[0.12] hover:-translate-y-0.5 shadow-[0_4px_16px_rgba(0,0,0,0.2)]'
             }`}
           >
+            {/* Top-Right Streak Indicator */}
+            <div 
+              className="absolute top-3 right-3 sm:top-3.5 sm:right-4 flex items-center gap-1 select-none z-10"
+              aria-label={isFrozenHabit ? `Streak protected by freeze: ${habitStreak} days` : `Current streak: ${habitStreak} days`}
+              title={isFrozenHabit ? `Streak protected by freeze: ${habitStreak} days` : `Current streak: ${habitStreak} days`}
+            >
+              <Flame 
+                size={13} 
+                className={`${
+                  isFrozenHabit 
+                    ? "text-cyan-400 fill-cyan-400/20 drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]" 
+                    : "text-amber-400 fill-amber-400/20 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]"
+                } shrink-0`} 
+                aria-hidden="true" 
+              />
+              <span className={`text-[11px] sm:text-xs font-mono font-bold leading-none ${
+                isFrozenHabit ? "text-cyan-300" : "text-zinc-200"
+              }`}>
+                {habitStreak}
+              </span>
+            </div>
+
             {/* Main Habit Header Row */}
             <div className="flex items-center justify-between w-full">
               <div 
@@ -260,7 +284,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   <IconComp size={18} aria-hidden="true" />
                 </div>
 
-                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1 pr-12 sm:pr-14">
                     <h4 className={`font-semibold transition-all text-xs sm:text-sm truncate ${
                       !userFrozen && habit.completedToday ? 'text-zinc-500 line-through' : 'text-zinc-100'
                     }`}>
@@ -321,7 +345,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                   </div>
               </div>
               
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 pt-2.5 sm:pt-2">
                 <motion.button 
                   onClick={async (e) => {
                     e.stopPropagation();

@@ -177,6 +177,8 @@ export function useFreezeCountdown(
   );
 
   const hasFiredExpiredRef = useRef(false);
+  const onExpiredRef = useRef(onExpired);
+  onExpiredRef.current = onExpired;
 
   useEffect(() => {
     // Reset expired fired flag if freezeUntil changes
@@ -192,14 +194,14 @@ export function useFreezeCountdown(
       if (remaining.isExpired && !hasFiredExpiredRef.current) {
         hasFiredExpiredRef.current = true;
         clearInterval(interval);
-        if (onExpired) {
-          onExpired();
+        if (onExpiredRef.current) {
+          onExpiredRef.current();
         }
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [freezeUntil, isFrozen, onExpired]);
+  }, [freezeUntil, isFrozen]);
 
   return {
     isFrozen,

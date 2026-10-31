@@ -7,29 +7,19 @@ import {
   User, 
   Loader2, 
   Check, 
-  Shield, 
-  Sparkles, 
+  Flame,
+  Snowflake,
   Brain, 
-  Clock, 
   BarChart3, 
-  MessageSquare, 
   ArrowRight,
-  TrendingUp,
-  Award,
-  Zap,
-  Target,
-  ChevronRight,
   ChevronDown,
   Menu,
   X,
-  Layers,
-  Activity,
-  Compass,
-  Lock,
-  BookOpen,
-  GraduationCap,
   Instagram,
-  Mail
+  Mail,
+  Zap,
+  Shield,
+  Sparkles
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { PrivacyPage } from "../PrivacyPage";
@@ -39,41 +29,35 @@ import { ONEDAY_CONTACT } from "../../constants";
 
 const FAQS = [
   {
-    question: "What makes OneDay special?",
+    question: "What makes OneDay different from standard habit trackers?",
     answer:
-      "OneDay brings habit tracking, streaks, progression titles, and an AI Coach together in one place. It helps you understand your progress, stay consistent, and build a system that supports your goals—not just track tasks.",
+      "OneDay unites habit tracking, streak protection, progression tiers, and an AI Coach into a single cohesive system. It is designed for calm, sustained consistency rather than overwhelming notifications.",
   },
   {
-    question: "How does habit tracking work?",
+    question: "How does the habit tracking system work?",
     answer:
-      "Create habits based on your goals, choose their schedules and difficulty levels, and check them off when completed. OneDay tracks your progress and helps you build consistency over time.",
+      "Create habits tailored to your exact routine, choose weekly cadences, and check them off effortlessly. OneDay preserves your data locally and securely in sync with the cloud backend.",
   },
   {
     question: "What is the AI Coach?",
     answer:
-      "The AI Coach helps you think through challenges, plan your next steps, and work toward your goals. It can use relevant information available in your OneDay profile and habit data to provide more personalized guidance.",
+      "The AI Coach analyzes your consistency patterns, missed days, and current goals to provide practical, non-judgmental guidance when discipline wavers.",
   },
   {
-    question: "What are 30-Day Habit Trends?",
+    question: "How do Streak Freezes protect my progress?",
     answer:
-      "30-Day Habit Trends help you review your habit activity over the past 30 days. You can explore your check-in heatmap and available analytics to understand patterns, recognize consistency, and identify areas where you may want to improve.",
+      "Streak Freezes shield your momentum during unavoidable disruptions like travel or illness. They protect your streak count without faking completion metrics.",
   },
   {
-    question: "What happens if I miss a day and lose my streak?",
+    question: "Can I use OneDay on mobile and desktop?",
     answer:
-      "OneDay’s Streak Freeze feature can protect your streak during a missed day when the protection rules apply. Freeze Credits are consumable: activating a freeze uses one credit, and you cannot activate another while a freeze is already active.",
-  },
-  {
-    question: "How do Freeze Credits work?",
-    answer:
-      "New users receive 1 Freeze Credit during their first month. After their first month, the allocation changes to 2 Freeze Credits per month, according to OneDay’s existing credit schedule. Each activation consumes one credit, and credits are subject to the existing Streak Freeze rules.",
+      "Yes. OneDay is engineered mobile-first with responsive layouts that adapt seamlessly to any device screen size.",
   },
 ];
 
 interface LandingScreenProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess?: () => void;
 }
-
 
 export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -84,10 +68,14 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Interactive demo states for hero product preview card
+  const [demoDone1, setDemoDone1] = useState(true);
+  const [demoDone2, setDemoDone2] = useState(false);
+  const [demoDone3, setDemoDone3] = useState(true);
+
   const toggleFaq = (index: number) => {
     setOpenFaqIndex((prev) => (prev === index ? null : index));
   };
-
 
   const openAuthModal = () => {
     setIsChecked(false);
@@ -100,37 +88,35 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
     window.scrollTo({ top: 0 });
   };
 
-  // Dynamic Page Title & Scroll-aware active section state
   useEffect(() => {
-    document.title = "OneDay — AI Habit Tracker";
+    document.title = "OneDay — Become Better";
 
     const handleScroll = () => {
-      const featuresEl = document.getElementById("features");
-      const aboutEl = document.getElementById("about");
-      const systemEl = document.getElementById("discipline-system");
+      const scrollPos = window.scrollY + 250;
+      const systemEl = document.getElementById("system");
+      const progressEl = document.getElementById("progress");
+      const coachingEl = document.getElementById("coaching");
+      const teamEl = document.getElementById("team");
       const faqEl = document.getElementById("faq");
-
-      if (!featuresEl || !aboutEl) return;
-
-      const scrollPos = window.scrollY + 250; // Offset for navbar & threshold
 
       if (faqEl && scrollPos >= faqEl.offsetTop) {
         document.title = "FAQ — OneDay";
+      } else if (teamEl && scrollPos >= teamEl.offsetTop) {
+        document.title = "Team — OneDay";
+      } else if (coachingEl && scrollPos >= coachingEl.offsetTop) {
+        document.title = "AI Coach — OneDay";
+      } else if (progressEl && scrollPos >= progressEl.offsetTop) {
+        document.title = "Progress & Analytics — OneDay";
       } else if (systemEl && scrollPos >= systemEl.offsetTop) {
-        document.title = "Discipline Protocol — OneDay";
-      } else if (scrollPos >= aboutEl.offsetTop) {
-        document.title = "About — OneDay";
-      } else if (scrollPos >= featuresEl.offsetTop) {
-        document.title = "Features — OneDay";
+        document.title = "System — OneDay";
       } else {
-        document.title = "OneDay — AI Habit Tracker";
+        document.title = "OneDay — Become Better";
       }
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
 
   const handleGoogleLogin = async () => {
     if (!termsAccepted) {
@@ -140,14 +126,11 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
     if (authLoading) return;
 
     setAuthLoading(true);
-    console.log("[AUTH] Google login started");
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
 
       const credential = await signInWithPopup(auth, provider);
-      console.log("[AUTH] Google popup completed");
-
       if (!credential || !credential.user) {
         throw new Error("No user credential returned from Firebase.");
       }
@@ -159,8 +142,8 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
       await useStore.getState().refreshFromBackend();
 
       setShowAuthModal(false);
-      onLoginSuccess();
-      toast.success("Welcome!");
+      onLoginSuccess?.();
+      toast.success("Welcome to OneDay");
     } catch (error: any) {
       console.error("[AUTH Error] Google login failed:", error);
       if (error.code === "auth/unauthorized-domain") {
@@ -185,7 +168,6 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
     if (authLoading) return;
 
     setAuthLoading(true);
-    console.log("[Auth] Initiating Guest Sign-In...");
     try {
       const credential = await signInAnonymously(auth);
       if (!credential || !credential.user) {
@@ -199,8 +181,8 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
       await useStore.getState().refreshFromBackend();
 
       setShowAuthModal(false);
-      onLoginSuccess();
-      toast.success("Welcome, Guest!");
+      onLoginSuccess?.();
+      toast.success("Welcome, Guest");
     } catch (error: any) {
       console.error("[Auth Error] Guest login failed:", error);
       toast.error(error.message || "Guest login failed.");
@@ -226,7 +208,6 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
     });
   };
 
-
   return (
     <AnimatePresence mode="wait">
       {view === "privacy" ? (
@@ -234,136 +215,77 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
       ) : view === "terms" ? (
         <TermsPage onBack={handleBack} />
       ) : (
-        <motion.div
-          key="landing"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="min-h-screen bg-[#030303] text-white selection:bg-violet-500/30 selection:text-white font-sans w-full overflow-x-hidden relative pb-12"
-        >
-          {/* AMBIENT PURPLE RADIAL BACKGROUND ORBS */}
-          <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-            <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-violet-600/10 rounded-full blur-[150px]" />
-            <div className="absolute top-[35%] right-[-10%] w-[600px] h-[400px] bg-purple-900/10 rounded-full blur-[160px]" />
-            <div className="absolute top-[70%] left-[-10%] w-[600px] h-[400px] bg-indigo-900/10 rounded-full blur-[160px]" />
+        <div className="min-h-screen bg-[#050505] text-[#f4f4f5] selection:bg-white selection:text-black font-sans w-full overflow-x-hidden relative">
+          
+          {/* Subtle Apple-style Ambient Vignette */}
+          <div className="fixed inset-0 pointer-events-none z-0">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-b from-white/[0.04] to-transparent rounded-full blur-[140px]" />
           </div>
 
-          {/* STICKY HEADER */}
-          <header className="sticky top-0 left-0 right-0 z-50 bg-[#030303]/80 backdrop-blur-2xl border-b border-white/[0.08] h-16 md:h-20 flex items-center px-5 md:px-12 transition-all">
-            <nav className="max-w-7xl mx-auto w-full flex justify-between items-center" aria-label="Main Navigation">
-              <div 
-                className="flex items-center gap-3 select-none cursor-pointer group" 
-                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              >
-                <div className="p-1 rounded-xl bg-white/[0.04] border border-white/10 group-hover:border-violet-500/40 transition-colors">
-                  <MonolithLogo size={26} aria-hidden="true" />
-                </div>
-                <span className="text-lg md:text-xl font-bold tracking-tight text-white flex items-center gap-1.5">
-                  OneDay
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" aria-hidden="true" />
-                </span>
-              </div>
+          {/* REFINED NAVIGATION */}
+          <header className="sticky top-0 left-0 right-0 z-50 bg-[#050505]/85 backdrop-blur-xl border-b border-white/[0.08] h-16 md:h-20 transition-all">
+            <div className="max-w-7xl mx-auto h-full px-6 md:px-12 flex items-center justify-between gap-6">
               
-              <div className="hidden md:flex items-center gap-8 text-xs md:text-sm font-medium text-zinc-400">
-                <button onClick={() => scrollToSection("features")} className="hover:text-white transition-colors cursor-pointer py-1">Features</button>
-                <button onClick={() => scrollToSection("coaching")} className="hover:text-white transition-colors cursor-pointer py-1">AI Coach</button>
-                <button onClick={() => scrollToSection("discipline-system")} className="hover:text-white transition-colors cursor-pointer py-1">Protocol</button>
-                <button onClick={() => scrollToSection("about")} className="hover:text-white transition-colors cursor-pointer py-1">Team</button>
-                <button onClick={() => scrollToSection("faq")} className="hover:text-white transition-colors cursor-pointer py-1">FAQ</button>
-              </div>
+              {/* Brand Wordmark */}
+              <button 
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className="flex items-center gap-2.5 cursor-pointer group shrink-0 select-none text-left"
+              >
+                <MonolithLogo size={28} aria-hidden="true" />
+                <span className="text-base md:text-lg font-semibold tracking-tight text-white">
+                  OneDay
+                </span>
+              </button>
 
+              {/* Navigation Links */}
+              <nav className="hidden md:flex items-center gap-7 text-xs md:text-sm font-medium text-zinc-400">
+                <button onClick={() => scrollToSection("system")} className="hover:text-white transition-colors cursor-pointer py-1">System</button>
+                <button onClick={() => scrollToSection("progress")} className="hover:text-white transition-colors cursor-pointer py-1">Analytics</button>
+                <button onClick={() => scrollToSection("coaching")} className="hover:text-white transition-colors cursor-pointer py-1">AI Coach</button>
+                <button onClick={() => scrollToSection("team")} className="hover:text-white transition-colors cursor-pointer py-1">Creators</button>
+                <button onClick={() => scrollToSection("faq")} className="hover:text-white transition-colors cursor-pointer py-1">FAQ</button>
+              </nav>
+
+              {/* Primary Action Button */}
               <div className="flex items-center gap-3">
                 <button 
                   onClick={openAuthModal}
-                  className="bg-white text-black px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs md:text-sm font-semibold tracking-tight hover:bg-zinc-100 active:scale-95 transition-all cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center gap-1.5"
+                  className="bg-white text-black px-4 py-2 md:px-5 md:py-2.5 rounded-full text-xs md:text-sm font-medium tracking-tight hover:bg-zinc-200 active:scale-98 transition-all cursor-pointer shadow-md shadow-white/5 whitespace-nowrap"
                 >
-                  <span>Start Now</span>
-                  <ChevronRight size={14} aria-hidden="true" className="text-black/60" />
+                  Start Your Journey
                 </button>
 
-                {/* Mobile Menu Toggle Button */}
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  aria-label="Toggle mobile menu"
-                  aria-expanded={mobileMenuOpen}
-                  className="md:hidden p-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition-colors cursor-pointer flex items-center justify-center"
+                  aria-label="Toggle navigation menu"
+                  className="md:hidden p-2 rounded-xl bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition-colors"
                 >
-                  {mobileMenuOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+                  {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
                 </button>
               </div>
-            </nav>
+            </div>
 
-            {/* Mobile Navigation Dropdown / Drawer */}
+            {/* Mobile Drawer */}
             <AnimatePresence>
               {mobileMenuOpen && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
-                  className="md:hidden absolute top-full left-0 right-0 bg-[#060608]/95 backdrop-blur-3xl border-b border-white/10 overflow-hidden shadow-2xl z-50"
+                  className="md:hidden absolute top-full left-0 right-0 bg-[#070709]/95 backdrop-blur-2xl border-b border-white/10 overflow-hidden shadow-2xl z-50"
                 >
-                  <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col space-y-4">
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        scrollToSection("features");
-                      }}
-                      className="text-left text-sm font-semibold text-zinc-300 hover:text-white py-2.5 border-b border-white/[0.04] transition-colors cursor-pointer flex items-center justify-between"
-                    >
-                      <span>Features</span>
-                      <ChevronRight size={14} className="text-zinc-600" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        scrollToSection("coaching");
-                      }}
-                      className="text-left text-sm font-semibold text-zinc-300 hover:text-white py-2.5 border-b border-white/[0.04] transition-colors cursor-pointer flex items-center justify-between"
-                    >
-                      <span>AI Coach</span>
-                      <ChevronRight size={14} className="text-zinc-600" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        scrollToSection("discipline-system");
-                      }}
-                      className="text-left text-sm font-semibold text-zinc-300 hover:text-white py-2.5 border-b border-white/[0.04] transition-colors cursor-pointer flex items-center justify-between"
-                    >
-                      <span>Protocol</span>
-                      <ChevronRight size={14} className="text-zinc-600" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        scrollToSection("about");
-                      }}
-                      className="text-left text-sm font-semibold text-zinc-300 hover:text-white py-2.5 border-b border-white/[0.04] transition-colors cursor-pointer flex items-center justify-between"
-                    >
-                      <span>Team</span>
-                      <ChevronRight size={14} className="text-zinc-600" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        scrollToSection("faq");
-                      }}
-                      className="text-left text-sm font-semibold text-zinc-300 hover:text-white py-2.5 border-b border-white/[0.04] transition-colors cursor-pointer flex items-center justify-between"
-                    >
-                      <span>FAQ</span>
-                      <ChevronRight size={14} className="text-zinc-600" />
-                    </button>
+                  <div className="px-6 py-6 flex flex-col space-y-4 text-sm font-medium text-zinc-300">
+                    <button onClick={() => scrollToSection("system")} className="text-left py-2 border-b border-white/5">System</button>
+                    <button onClick={() => scrollToSection("progress")} className="text-left py-2 border-b border-white/5">Analytics</button>
+                    <button onClick={() => scrollToSection("coaching")} className="text-left py-2 border-b border-white/5">AI Coach</button>
+                    <button onClick={() => scrollToSection("team")} className="text-left py-2 border-b border-white/5">Creators</button>
+                    <button onClick={() => scrollToSection("faq")} className="text-left py-2 border-b border-white/5">FAQ</button>
                     <div className="pt-2">
-                      <button
-                        onClick={() => {
-                          setMobileMenuOpen(false);
-                          openAuthModal();
-                        }}
-                        className="w-full bg-white text-black font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider text-center cursor-pointer shadow-lg hover:bg-zinc-100 active:scale-95 transition-all"
+                      <button 
+                        onClick={() => { setMobileMenuOpen(false); openAuthModal(); }}
+                        className="w-full bg-white text-black py-3 rounded-full text-xs font-semibold uppercase tracking-wider text-center"
                       >
-                        Start Now
+                        Start Your Journey
                       </button>
                     </div>
                   </div>
@@ -372,644 +294,518 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
             </AnimatePresence>
           </header>
 
+          <main className="relative z-10">
 
-          <main className="relative z-10 space-y-20 md:space-y-36 pt-4">
-            {/* HERO SECTION */}
-            <motion.section 
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="relative pt-12 md:pt-20 pb-12 px-5 max-w-5xl mx-auto flex flex-col justify-center text-center"
-            >
-              <div className="space-y-6 md:space-y-8">
-                {/* Eyebrow badge */}
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-indigo-500/10 border border-violet-500/20 px-4 py-1.5 rounded-full text-[11px] md:text-xs font-medium tracking-wide text-violet-300 mx-auto select-none shadow-[0_2px_10px_rgba(139,92,246,0.1)] hover:shadow-[0_4px_15px_rgba(139,92,246,0.2)] transition-shadow duration-500"
-                >
-                  <Sparkles size={13} className="text-violet-400 animate-pulse" />
-                  <span className="font-semibold tracking-wider uppercase">ONE DAY AT A TIME</span>
-                  <span className="w-1 h-1 rounded-full bg-violet-400/60" />
-                  <span className="text-zinc-400 font-normal">v2.0 Protocol</span>
-                </motion.div>
-
-                {/* Hero Headline */}
-                <motion.h1 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-                  className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-[1.08] text-white"
-                >
-                  Build better habits.<br />
-                  <span className="bg-gradient-to-r from-zinc-200 via-zinc-400 to-zinc-500 bg-clip-text text-transparent">
-                    Become harder to stop.
-                  </span>
-                </motion.h1>
-
-                {/* Subtitle */}
-                <motion.p 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
-                  className="text-sm md:text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed font-medium"
-                >
-                  OneDay combines habit tracking, intelligent coaching, streaks and progression into one personal system for building consistency.
-                </motion.p>
-
-                {/* Action CTA Buttons */}
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
-                  className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-4 max-w-xs sm:max-w-md mx-auto"
-                >
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={openAuthModal}
-                    className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-full text-sm font-bold tracking-tight transition-all shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)] cursor-pointer flex items-center justify-center gap-2 group"
-                  >
-                    <span>Start Your Journey</span>
-                    <ArrowRight size={16} className="group-hover:translate-x-1.5 transition-transform duration-300 ease-out" />
-                  </motion.button>
-                  <motion.button 
-                    whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.08)" }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => scrollToSection("product-system")}
-                    className="w-full sm:w-auto bg-white/[0.04] text-zinc-300 border border-white/10 px-8 py-4 rounded-full text-sm font-semibold tracking-tight transition-all cursor-pointer backdrop-blur-md"
-                  >
-                    Explore Features
-                  </motion.button>
-                </motion.div>
-              </div>
-            </motion.section>
-
-            {/* PRODUCT VALUE SYSTEM SECTION */}
-            <section id="product-system" className="px-5 max-w-5xl mx-auto scroll-mt-28">
-              <div className="text-center space-y-4 max-w-2xl mx-auto mb-12 md:mb-16">
-                <div className="inline-flex items-center gap-2 text-violet-400 text-xs font-mono font-semibold tracking-widest uppercase">
-                  <Layers size={14} />
-                  <span>CORE PRODUCT MODULES</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-white leading-tight">
-                  A Complete Productivity<br />& Mindset System
-                </h2>
-                <p className="text-xs md:text-sm text-zinc-400 leading-relaxed max-w-xl mx-auto">
-                  OneDay is more than a habit tracker. It is a personal system designed to help you build discipline, maintain consistency and make meaningful progress every day.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
-                {/* CARD 1 */}
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl md:rounded-3xl p-6 md:p-8 hover:border-violet-500/40 hover:bg-white/[0.04] transition-all duration-300 group relative overflow-hidden shadow-2xl">
-                  <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-violet-600/5 rounded-full blur-2xl group-hover:bg-violet-600/15 transition-all duration-500" />
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="w-9 h-9 rounded-xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] flex items-center justify-center text-xs font-mono font-bold text-violet-400">
-                      01
-                    </div>
-                    <Check size={18} className="text-zinc-500 group-hover:text-violet-400 transition-colors" />
-                  </div>
-                  <h3 className="text-base md:text-lg font-bold text-white tracking-tight mb-2">HABIT SYSTEM</h3>
-                  <p className="text-xs md:text-sm text-zinc-400 leading-relaxed">
-                    Build routines that fit your actual schedule. Establish visual, clean, and flexible daily tracking lists customized for your lifestyle.
-                  </p>
-                </div>
-
-                {/* CARD 2 */}
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl md:rounded-3xl p-6 md:p-8 hover:border-violet-500/40 hover:bg-white/[0.04] transition-all duration-300 group relative overflow-hidden shadow-2xl">
-                  <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-purple-600/5 rounded-full blur-2xl group-hover:bg-purple-600/15 transition-all duration-500" />
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="w-9 h-9 rounded-xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] flex items-center justify-center text-xs font-mono font-bold text-violet-400">
-                      02
-                    </div>
-                    <Brain size={18} className="text-zinc-500 group-hover:text-violet-400 transition-colors" />
-                  </div>
-                  <h3 className="text-base md:text-lg font-bold text-white tracking-tight mb-2">AI COACH</h3>
-                  <p className="text-xs md:text-sm text-zinc-400 leading-relaxed">
-                    Get personalized guidance based on your goals and progress. Converse with a dedicated mentor aligned with your discipline roadmap.
-                  </p>
-                </div>
-
-                {/* CARD 3 */}
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl md:rounded-3xl p-6 md:p-8 hover:border-violet-500/40 hover:bg-white/[0.04] transition-all duration-300 group relative overflow-hidden shadow-2xl">
-                  <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-indigo-600/5 rounded-full blur-2xl group-hover:bg-indigo-600/15 transition-all duration-500" />
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="w-9 h-9 rounded-xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] flex items-center justify-center text-xs font-mono font-bold text-violet-400">
-                      03
-                    </div>
-                    <TrendingUp size={18} className="text-zinc-500 group-hover:text-violet-400 transition-colors" />
-                  </div>
-                  <h3 className="text-base md:text-lg font-bold text-white tracking-tight mb-2">PROGRESSION</h3>
-                  <p className="text-xs md:text-sm text-zinc-400 leading-relaxed">
-                    Turn consistency into XP, levels and measurable growth. Gamify consistency elegantly without childish distractions.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {/* CONSISTENCY FRAMEWORK (VERTICAL TIMELINE) */}
-            <section id="discipline-system" className="px-5 max-w-4xl mx-auto scroll-mt-28">
-              <div className="text-center space-y-4 mb-14">
-                <div className="inline-flex items-center gap-2 text-violet-400 text-xs font-mono font-semibold tracking-widest uppercase">
-                  <Compass size={14} />
-                  <span>STEP-BY-STEP METHODOLOGY</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-white">The Consistency Framework</h2>
-                <p className="text-xs md:text-sm text-zinc-400 max-w-lg mx-auto leading-relaxed">
-                  A simplified, systematic lifecycle built to translate daily steps into permanent life habits.
-                </p>
-              </div>
-
-              <div className="relative border-l border-white/10 ml-4 md:ml-8 space-y-6 md:space-y-8 py-2">
-                {/* Glowing vertical connector highlight */}
-                <div className="absolute top-0 bottom-0 left-[-1px] w-[2px] bg-gradient-to-b from-violet-500 via-purple-500/40 to-transparent pointer-events-none" />
-
-                {[
-                  { num: "01", title: "Build the habit", desc: "Design routines that align precisely with your lifestyle, frequency, and personal ambitions." },
-                  { num: "02", title: "Show up consistently", desc: "Complete checklists daily. The core objective is repeating the routine over and over." },
-                  { num: "03", title: "Track your progress", desc: "Log achievements instantly inside our streamlined, distraction-free visual dashboard." },
-                  { num: "04", title: "Earn XP", desc: "Transform effort into quantifiable system experience. Unlock incremental ranks as milestones." },
-                  { num: "05", title: "Level up", desc: "Increase your core system tier. Establish a permanent record of personal focus and discipline." },
-                  { num: "06", title: "Keep going", desc: "Protect your streak with safe freezes, adapt to hurdles, and build lifelong automation." }
-                ].map((item, idx) => (
-                  <div key={idx} className="relative pl-8 md:pl-12 group">
-                    {/* Neumorphic Bullet Marker */}
-                    <div className="absolute -left-[13px] top-1.5 w-6 h-6 rounded-full bg-[#030303] border border-white/20 group-hover:border-violet-400 transition-all flex items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.8)]">
-                      <div className="w-2 h-2 rounded-full bg-zinc-500 group-hover:bg-violet-400 transition-all group-hover:scale-125" />
-                    </div>
-                    
-                    <div className="bg-white/[0.015] border border-white/[0.06] rounded-2xl p-4 md:p-5 group-hover:border-violet-500/30 group-hover:bg-white/[0.03] transition-all duration-300">
-                      <div className="flex items-start gap-3.5">
-                        <span className="text-[11px] font-mono font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2.5 py-0.5 rounded-lg shrink-0 mt-0.5">
-                          {item.num}
-                        </span>
-                        <div className="space-y-1">
-                          <h4 className="text-sm md:text-base font-bold text-zinc-100 group-hover:text-white transition-all tracking-tight">
-                            {item.title}
-                          </h4>
-                          <p className="text-xs md:text-sm text-zinc-400 leading-relaxed max-w-xl">
-                            {item.desc}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* EVERYTHING YOU NEED TO BUILD HABITS */}
-            <section id="features" className="px-5 max-w-5xl mx-auto scroll-mt-28">
-              <div className="text-center space-y-4 mb-12 md:mb-16">
-                <div className="inline-flex items-center gap-2 text-violet-400 text-xs font-mono font-semibold tracking-widest uppercase">
-                  <Zap size={14} />
-                  <span>HIGH-PERFORMANCE FEATURES</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-white">
-                  Everything you need to build better habits
-                </h2>
-                <p className="text-xs md:text-sm text-zinc-400 max-w-lg mx-auto leading-relaxed">
-                  A carefully designed visual landscape with zero bloat. Engineered to help you execute.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-                {/* Card 1 */}
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 hover:border-violet-500/30 hover:bg-white/[0.04] transition-all duration-300 flex flex-col justify-between space-y-5 group shadow-xl">
-                  <div className="w-11 h-11 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] flex items-center justify-center text-violet-400 group-hover:scale-105 group-hover:text-violet-300 transition-all">
-                    <Check size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm md:text-base font-bold text-white mb-1.5 tracking-tight">HABIT TRACKING</h3>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Track daily routines and consistency. Tailor schedules easily to standard, custom, or weekdays.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Card 2 */}
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 hover:border-violet-500/30 hover:bg-white/[0.04] transition-all duration-300 flex flex-col justify-between space-y-5 group shadow-xl">
-                  <div className="w-11 h-11 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] flex items-center justify-center text-violet-400 group-hover:scale-105 group-hover:text-violet-300 transition-all">
-                    <Zap size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm md:text-base font-bold text-white mb-1.5 tracking-tight">STREAK SYSTEM</h3>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Build momentum without obsessing over perfection. Adapt to hurdles with supportive freeze states.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Card 3 */}
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 hover:border-violet-500/30 hover:bg-white/[0.04] transition-all duration-300 flex flex-col justify-between space-y-5 group shadow-xl">
-                  <div className="w-11 h-11 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] flex items-center justify-center text-violet-400 group-hover:scale-105 group-hover:text-violet-300 transition-all">
-                    <Brain size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm md:text-base font-bold text-white mb-1.5 tracking-tight">AI COACH</h3>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Get contextual guidance and motivation. Receive smart summaries of your struggles and triumphs.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Card 4 */}
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 hover:border-violet-500/30 hover:bg-white/[0.04] transition-all duration-300 flex flex-col justify-between space-y-5 group shadow-xl">
-                  <div className="w-11 h-11 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] flex items-center justify-center text-violet-400 group-hover:scale-105 group-hover:text-violet-300 transition-all">
-                    <BarChart3 size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm md:text-base font-bold text-white mb-1.5 tracking-tight">DISCIPLINE INSIGHTS</h3>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Understand your consistency over time. Identify patterns and leverage metrics to make steady changes.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* BEAUTIFULLY ORGANIZED HABITS PREVIEW */}
-            <section className="px-5 max-w-4xl mx-auto">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-center bg-gradient-to-b from-white/[0.03] to-white/[0.01] backdrop-blur-2xl border border-white/[0.08] rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-2xl relative overflow-hidden">
-                <div className="absolute -left-10 -bottom-10 w-48 h-48 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
-                
-                <div className="md:col-span-2 space-y-5 text-center md:text-left relative z-10">
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white leading-tight">
-                    Your habits,<br />beautifully organized.
-                  </h3>
-                  <div className="space-y-2 text-xs md:text-sm text-zinc-400 leading-relaxed">
-                    <div className="flex items-center justify-center md:justify-start gap-2 text-zinc-300">
-                      <Check size={14} className="text-violet-400" />
-                      <span>Track what matters.</span>
-                    </div>
-                    <div className="flex items-center justify-center md:justify-start gap-2 text-zinc-300">
-                      <Check size={14} className="text-violet-400" />
-                      <span>See your progress.</span>
-                    </div>
-                    <div className="flex items-center justify-center md:justify-start gap-2 text-zinc-300">
-                      <Check size={14} className="text-violet-400" />
-                      <span>Stay consistent.</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="md:col-span-3 space-y-3 relative z-10">
-                  {[
-                    { name: "Morning Protocol", days: "Every Day", streak: "14 Days" },
-                    { name: "Deep Work", days: "Weekdays", streak: "8 Days" },
-                    { name: "Physical Training", days: "Custom Days", streak: "21 Days" }
-                  ].map((h, i) => (
-                    <div key={i} className="bg-black/60 border border-white/10 rounded-2xl p-4 flex items-center justify-between select-none hover:border-violet-500/30 hover:bg-black/80 transition-all duration-300">
-                      <div className="space-y-0.5">
-                        <div className="font-semibold text-xs md:text-sm text-zinc-100 flex items-center gap-2">
-                          <span>{h.name}</span>
-                          <span className="text-[10px] font-mono text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 rounded">
-                            {h.streak}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-zinc-500">{h.days}</div>
-                      </div>
-                      <div className="w-8 h-8 rounded-full border border-violet-500/40 bg-violet-500/10 flex items-center justify-center shadow-[0_0_10px_rgba(139,92,246,0.2)]">
-                        <Check size={14} className="text-violet-300" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* AI COACH CONVERSATION PREVIEW */}
-            <section id="coaching" className="px-5 max-w-4xl mx-auto scroll-mt-28">
-              <div className="text-center space-y-3 mb-10">
-                <div className="inline-flex items-center gap-2 text-violet-400 text-xs font-mono font-semibold tracking-widest uppercase">
-                  <MessageSquare size={14} />
-                  <span>INTELLIGENT MENTORSHIP</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-white">Your AI coach. Built around you.</h2>
-                <p className="text-xs md:text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
-                  OneDay understands your goals, habits and progress to give you practical guidance when you need it.
-                </p>
-              </div>
-
-              {/* Chat Interface Preview */}
-              <div className="bg-white/[0.02] backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 md:p-8 max-w-lg mx-auto space-y-5 shadow-2xl relative overflow-hidden">
-                <div className="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-violet-400 animate-pulse" />
-                    <span className="text-[11px] font-mono tracking-wider text-violet-300 uppercase font-bold">AI COACH SESSION</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-zinc-500">ONLINE</span>
-                </div>
-
-                <div className="space-y-4 text-xs md:text-sm">
-                  {/* AI Bubble */}
-                  <div className="flex gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center font-bold text-[10px] text-violet-300 shrink-0 select-none">
-                      AI
-                    </div>
-                    <div className="bg-zinc-900/80 border border-white/10 rounded-2xl rounded-tl-none p-3.5 max-w-[85%] text-zinc-300 leading-relaxed shadow-md">
-                      "What are we conquering today?"
-                    </div>
-                  </div>
-
-                  {/* User Bubble */}
-                  <div className="flex justify-end gap-2.5">
-                    <div className="bg-white text-black font-medium rounded-2xl rounded-tr-none p-3.5 max-w-[85%] text-xs shadow-md">
-                      "Build discipline."
-                    </div>
-                    <div className="w-7 h-7 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center font-bold text-[10px] text-white shrink-0 select-none">
-                      U
-                    </div>
-                  </div>
-
-                  {/* AI response */}
-                  <div className="flex gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center font-bold text-[10px] text-violet-300 shrink-0 select-none">
-                      AI
-                    </div>
-                    <div className="bg-zinc-900/80 border border-white/10 rounded-2xl rounded-tl-none p-3.5 max-w-[85%] text-zinc-300 leading-relaxed shadow-md">
-                      "Then don't aim for perfect. Aim for showing up."
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* OUR STORY SECTION */}
-            <section id="story" className="px-5 max-w-3xl mx-auto text-center space-y-8 scroll-mt-28">
-              <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 text-violet-400 text-xs font-mono font-semibold tracking-widest uppercase">
-                  <BookOpen size={14} />
-                  <span>PHILOSOPHY</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-white leading-tight">
-                  Our story<br />begins with a simple belief.
-                </h2>
-                <p className="text-sm md:text-lg text-zinc-400 leading-relaxed">
-                  Change happens one day at a time.
-                </p>
-              </div>
-
-              <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-3xl p-6 md:p-12 text-zinc-300 text-xs md:text-sm leading-relaxed text-left space-y-4 max-w-xl mx-auto shadow-2xl relative">
-                <div className="absolute top-4 right-6 text-zinc-800 text-5xl font-serif select-none">“</div>
-                <p>We wanted a system that didn't overwhelm people with clutter or childish gamification.</p>
-                <p className="font-semibold text-white">Something focused.</p>
-                <p className="font-semibold text-white">Something disciplined.</p>
-                <p>Something that helped you come back stronger after missing a day.</p>
-                <p>That's why we built OneDay.</p>
-                <p className="font-mono text-[10px] text-violet-400 tracking-widest uppercase font-bold pt-2">ONE DAY AT A TIME.</p>
-              </div>
-            </section>
-
-            {/* DESIGNED BY STUDENTS SECTION & TEAM CARDS */}
-            <section id="about" className="px-5 max-w-6xl mx-auto space-y-16 scroll-mt-28 relative">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[300px] bg-violet-600/5 rounded-full blur-[100px] pointer-events-none" />
+            {/* HERO SECTION WITH INTEGRATED PRODUCT PREVIEW */}
+            <section className="pt-16 sm:pt-24 pb-20 md:pb-32 px-6 md:px-12 max-w-6xl mx-auto flex flex-col items-center text-center">
               
-              <div className="text-center space-y-5 max-w-2xl mx-auto relative z-10">
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  transition={{ duration: 0.6 }}
-                  className="inline-flex items-center gap-2 text-violet-400 text-xs font-mono font-semibold tracking-widest uppercase bg-violet-500/10 border border-violet-500/20 px-3 py-1 rounded-full"
-                >
-                  <GraduationCap size={14} />
-                  <span>Student Creators</span>
-                </motion.div>
-                <motion.h2 
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  transition={{ duration: 0.6, delay: 0.1 }}
-                  className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white"
-                >
-                  Built with care.
-                </motion.h2>
-                <motion.p 
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  transition={{ duration: 0.6, delay: 0.2 }}
-                  className="text-sm md:text-base text-zinc-400 leading-relaxed font-medium"
-                >
-                  We are students of Kendriya Vidyalaya Gachibowli (KVGB). OneDay is built by students who wanted a cleaner, more focused way to build discipline, consistency and better habits.
-                </motion.p>
-              </div>
+              {/* Category Subtitle */}
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="inline-flex items-center gap-2 text-zinc-400 text-xs font-mono tracking-widest uppercase bg-white/[0.03] border border-white/10 px-3.5 py-1.5 rounded-full mb-8 shadow-sm"
+              >
+                <Sparkles size={13} className="text-zinc-300" />
+                <span>Personal Habit & Discipline System</span>
+              </motion.div>
 
-              {/* 3 Premium Team Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                {/* Team Member 1 */}
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-50px" }}
-                  whileHover={{ y: -6, boxShadow: "0 20px 40px -10px rgba(139, 92, 246, 0.15)" }}
-                  transition={{ duration: 0.5 }}
-                  className="bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] hover:border-violet-500/30 rounded-3xl p-8 flex flex-col items-center text-center space-y-6 group"
-                >
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/10 shadow-[inset_0_2px_4px_rgba(255,255,255,0.1),0_10px_20px_rgba(0,0,0,0.4)] flex items-center justify-center font-bold text-white text-3xl select-none group-hover:border-violet-500/50 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all duration-300">
-                    K
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-base md:text-lg text-white tracking-tight">Kante Harsha Vardhan</h3>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400">Founder — Core Idea & Product Vision</p>
-                  </div>
-                  <p className="text-[13px] text-zinc-400 leading-relaxed font-medium">
-                    Focused on the core idea, product vision and overall direction of OneDay. Responsible for shaping the product philosophy, experience and long-term vision behind OneDay.
-                  </p>
-                </motion.div>
+              {/* Art-Directed Hero Typography Composition */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                className="relative mb-8 md:mb-10 w-full max-w-4xl mx-auto flex flex-col items-center"
+              >
+                {/* Fine Brand Structural Accent Line */}
+                <div className="w-12 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent mb-5 sm:mb-7 pointer-events-none" />
 
-                {/* Team Member 2 */}
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-50px" }}
-                  whileHover={{ y: -6, boxShadow: "0 20px 40px -10px rgba(139, 92, 246, 0.15)" }}
-                  transition={{ duration: 0.5, delay: 0.1 }}
-                  className="bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] hover:border-violet-500/30 rounded-3xl p-8 flex flex-col items-center text-center space-y-6 group"
-                >
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/10 shadow-[inset_0_2px_4px_rgba(255,255,255,0.1),0_10px_20px_rgba(0,0,0,0.4)] flex items-center justify-center font-bold text-white text-3xl select-none group-hover:border-violet-500/50 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all duration-300">
-                    V
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-base md:text-lg text-white tracking-tight">Vemuri Venkata Vikhyath</h3>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400">Feature Strategy & Systems Planning</p>
-                  </div>
-                  <p className="text-[13px] text-zinc-400 leading-relaxed font-medium">
-                    Focused on planning features, shaping product updates and translating ideas into practical systems. Works closely with the backend and product architecture to plan how new capabilities should evolve.
-                  </p>
-                </motion.div>
+                {/* Unified Typographic Brand Lockup */}
+                <div className="relative inline-flex flex-col items-center text-center select-none">
+                  
+                  {/* Line 1: Main Visual Anchor — "OneDay." */}
+                  <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-[7.25rem] font-black tracking-tighter text-white leading-[0.92] font-display drop-shadow-[0_2px_24px_rgba(255,255,255,0.08)]">
+                    OneDay<span className="text-zinc-500 font-light">.</span>
+                  </h1>
 
-                {/* Team Member 3 */}
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-50px" }}
-                  whileHover={{ y: -6, boxShadow: "0 20px 40px -10px rgba(139, 92, 246, 0.15)" }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                  className="bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] hover:border-violet-500/30 rounded-3xl p-8 flex flex-col items-center text-center space-y-6 group"
+                  {/* Subtle Editorial Accent Divider */}
+                  <div className="my-2.5 sm:my-3.5 flex items-center justify-center gap-3 w-full max-w-[200px] opacity-40">
+                    <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-white/40" />
+                    <div className="w-1 h-1 rounded-full bg-white/70" />
+                    <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-white/40" />
+                  </div>
+
+                  {/* Line 2: Deliberate Typographic Contrast — "Become Better." */}
+                  <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-tight text-zinc-300/90 leading-[1.1] font-sans">
+                    Become Better<span className="text-zinc-500 font-light">.</span>
+                  </h2>
+
+                </div>
+
+                {/* Fine Brand Structural Accent Line */}
+                <div className="w-12 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent mt-5 sm:mt-7 pointer-events-none" />
+              </motion.div>
+
+              {/* Concise Supporting Sentence */}
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-base sm:text-lg md:text-xl text-zinc-400 max-w-xl mx-auto font-normal leading-relaxed mb-10"
+              >
+                A calm, precise operating system for building consistent daily routines, protecting your momentum, and achieving your potential.
+              </motion.p>
+
+              {/* Primary CTA */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 w-full sm:w-auto"
+              >
+                <button 
+                  onClick={openAuthModal}
+                  className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-full text-sm font-semibold tracking-tight hover:bg-zinc-200 active:scale-98 transition-all cursor-pointer shadow-xl shadow-white/5 flex items-center justify-center gap-2"
                 >
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/10 shadow-[inset_0_2px_4px_rgba(255,255,255,0.1),0_10px_20px_rgba(0,0,0,0.4)] flex items-center justify-center font-bold text-white text-3xl select-none group-hover:border-violet-500/50 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all duration-300">
-                    R
+                  <span>Start Your Journey</span>
+                  <ArrowRight size={16} />
+                </button>
+                <button 
+                  onClick={() => scrollToSection("system")}
+                  className="w-full sm:w-auto text-zinc-400 hover:text-white px-6 py-4 text-sm font-medium transition-colors cursor-pointer"
+                >
+                  Explore System
+                </button>
+              </motion.div>
+
+              {/* Integrated Product Visual Preview (App UI Mockup Card) */}
+              <motion.div 
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="w-full max-w-4xl bg-[#09090c] border border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/[0.02] rounded-full blur-3xl pointer-events-none" />
+
+                <div className="flex items-center justify-between pb-5 border-b border-white/[0.06] mb-6">
+                  <div className="flex items-center gap-3">
+                    <MonolithLogo size={24} />
+                    <div>
+                      <div className="text-xs font-semibold text-white">Daily Execution Dashboard</div>
+                      <div className="text-[10px] text-zinc-500 font-mono">System Status: Active · Level 7</div>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-base md:text-lg text-white tracking-tight">Ravuru Trinay Karthik Ram</h3>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400">Design & User Experience</p>
+                  <div className="text-xs font-mono text-zinc-400 bg-white/[0.04] px-3 py-1 rounded-lg border border-white/10">
+                    92% Consistency
                   </div>
-                  <p className="text-[13px] text-zinc-400 leading-relaxed font-medium">
-                    Focused on designing the pages and creating a minimal, premium and intuitive user experience. Responsible for visual consistency, layout, interaction design and the overall feel of OneDay.
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                  
+                  {/* Left: Interactive Habit List Preview */}
+                  <div className="md:col-span-7 space-y-3">
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-500 mb-2">Today's Habits</div>
+                    
+                    {/* Habit 1 */}
+                    <div className="bg-[#121216] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-xs sm:text-sm font-semibold text-white">Morning Protocol</div>
+                        <div className="text-[11px] text-zinc-500">Every Day · 06:30 AM</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1 text-orange-400 font-mono text-xs font-bold">
+                          <Flame size={14} className="fill-orange-400/20 text-orange-400" />
+                          <span>14</span>
+                        </div>
+                        <button 
+                          onClick={() => setDemoDone1(!demoDone1)}
+                          className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                            demoDone1 ? "bg-white text-black border-white" : "border-white/20 text-transparent"
+                          }`}
+                        >
+                          <Check size={14} className={demoDone1 ? "opacity-100" : "opacity-0"} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Habit 2 (Freeze Protected) */}
+                    <div className="bg-[#121216] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-xs sm:text-sm font-semibold text-white">Football Training</div>
+                        <div className="text-[11px] text-sky-400">Freeze Protected</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1 text-sky-400 font-mono text-xs font-bold bg-sky-950/40 px-2 py-0.5 rounded border border-sky-500/20">
+                          <Flame size={14} className="text-sky-400 fill-sky-400/20" />
+                          <Snowflake size={11} className="text-sky-300" />
+                          <span>8</span>
+                        </div>
+                        <button 
+                          onClick={() => setDemoDone2(!demoDone2)}
+                          className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                            demoDone2 ? "bg-white text-black border-white" : "border-white/20 text-transparent"
+                          }`}
+                        >
+                          <Check size={14} className={demoDone2 ? "opacity-100" : "opacity-0"} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Habit 3 */}
+                    <div className="bg-[#121216] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-xs sm:text-sm font-semibold text-white">Deep Focus Architecture</div>
+                        <div className="text-[11px] text-zinc-500">Weekdays · 90 min</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1 text-orange-400 font-mono text-xs font-bold">
+                          <Flame size={14} className="fill-orange-400/20 text-orange-400" />
+                          <span>21</span>
+                        </div>
+                        <button 
+                          onClick={() => setDemoDone3(!demoDone3)}
+                          className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                            demoDone3 ? "bg-white text-black border-white" : "border-white/20 text-transparent"
+                          }`}
+                        >
+                          <Check size={14} className={demoDone3 ? "opacity-100" : "opacity-0"} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Progression & AI Coach Preview Snippet */}
+                  <div className="md:col-span-5 space-y-4">
+                    <div className="bg-[#121216] border border-white/[0.06] rounded-2xl p-4 space-y-3">
+                      <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider">Discipline Title</div>
+                      <div>
+                        <div className="text-base font-bold text-white">Iron Architect</div>
+                        <div className="text-xs text-zinc-400 mt-0.5">Level 7 · 1,420 / 2,000 XP</div>
+                      </div>
+                      <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                        <div className="bg-white h-full rounded-full w-[71%]" />
+                      </div>
+                    </div>
+
+                    <div className="bg-[#121216] border border-white/[0.06] rounded-2xl p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider">AI Coach</span>
+                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      </div>
+                      <p className="text-xs text-zinc-300 leading-relaxed font-normal">
+                        "Consistency is compounding. Protect your streak with deliberate pacing."
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+              </motion.div>
+
+            </section>
+
+
+            {/* SECTION 1 — HABIT TRACKING & CONSISTENCY */}
+            <section id="system" className="py-24 md:py-36 px-6 md:px-12 max-w-6xl mx-auto border-t border-white/[0.06] scroll-mt-20">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+                
+                <div className="lg:col-span-5 space-y-5">
+                  <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest block">
+                    01 / Habit Architecture
+                  </span>
+                  <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
+                    Schedules built for real life, not rigid perfection.
+                  </h2>
+                  <p className="text-zinc-400 text-sm sm:text-base leading-relaxed">
+                    Configure routines to match your exact life cadence—daily, weekdays, or custom days. Rest days are preserved as intentional recovery, ensuring your metrics remain honest and useful.
                   </p>
-                </motion.div>
+                </div>
+
+                <div className="lg:col-span-7 bg-[#09090c] border border-white/[0.08] rounded-3xl p-8 sm:p-10 space-y-6">
+                  <div className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Weekly Rhythm Configuration</div>
+                  <div className="grid grid-cols-7 gap-2.5 text-center text-xs font-mono">
+                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => (
+                      <div key={d} className={`p-4 rounded-2xl border ${i < 5 ? "bg-white text-black border-white font-semibold" : "bg-white/[0.02] text-zinc-500 border-white/[0.06]"}`}>
+                        <div>{d}</div>
+                        <div className="text-[10px] mt-1 opacity-70">{i < 5 ? "Active" : "Rest"}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-xs text-zinc-400 pt-2 border-t border-white/[0.06]">
+                    Smart Rest Guard: Weekend rest days automatically protect your streak score from false penalties.
+                  </div>
+                </div>
+
               </div>
             </section>
 
-            {/* FREQUENTLY ASKED QUESTIONS SECTION */}
-            <section id="faq" className="px-5 max-w-4xl mx-auto py-16 md:py-24 scroll-mt-28 relative">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[350px] bg-violet-600/5 rounded-full blur-[120px] pointer-events-none" />
 
-              <div className="text-center space-y-4 max-w-2xl mx-auto relative z-10 mb-10 md:mb-14">
-                <motion.h2 
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-80px" }}
-                  transition={{ duration: 0.6 }}
-                  className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white"
-                >
-                  Frequently Asked Questions
-                </motion.h2>
-                <motion.p 
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-80px" }}
-                  transition={{ duration: 0.6, delay: 0.1 }}
-                  className="text-sm md:text-base text-zinc-400 leading-relaxed font-medium"
-                >
-                  Everything you need to know about OneDay.
-                </motion.p>
+            {/* SECTION 2 — PROGRESS & ANALYTICS */}
+            <section id="progress" className="py-24 md:py-36 px-6 md:px-12 max-w-6xl mx-auto border-t border-white/[0.06] scroll-mt-20">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+                
+                <div className="lg:col-span-7 order-2 lg:order-1 bg-[#09090c] border border-white/[0.08] rounded-3xl p-8 sm:p-10 space-y-6">
+                  <div className="flex items-center justify-between text-xs font-mono text-zinc-500 uppercase tracking-wider">
+                    <span>30-Day Completion Matrix</span>
+                    <span className="text-white">94% Accuracy</span>
+                  </div>
+
+                  <div className="grid grid-cols-10 gap-2">
+                    {Array.from({ length: 30 }).map((_, i) => {
+                      const isFreeze = i === 14;
+                      const isRest = i === 5 || i === 12 || i === 19 || i === 26;
+                      const isDone = !isRest && !isFreeze && i < 28;
+
+                      return (
+                        <div
+                          key={i}
+                          className={`aspect-square rounded-md flex items-center justify-center text-[10px] font-mono ${
+                            isFreeze
+                              ? "bg-sky-500/20 border border-sky-400/40 text-sky-300"
+                              : isDone
+                              ? "bg-white text-black font-semibold"
+                              : isRest
+                              ? "bg-white/[0.04] text-zinc-600 border border-white/[0.04]"
+                              : "bg-zinc-900 border border-white/5 text-zinc-600"
+                          }`}
+                          title={`Day ${i + 1}`}
+                        >
+                          {isFreeze ? "❄" : ""}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center gap-6 text-xs text-zinc-400 pt-3 border-t border-white/[0.06]">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-white" />
+                      <span>Completed</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-sky-400/40" />
+                      <span>Freeze Protected</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-white/[0.05]" />
+                      <span>Rest Day</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-5 order-1 lg:order-2 space-y-5">
+                  <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest block">
+                    02 / Analytics & Freezes
+                  </span>
+                  <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
+                    Never lose your momentum to a single bad day.
+                  </h2>
+                  <p className="text-zinc-400 text-sm sm:text-base leading-relaxed">
+                    Streak freezes shield your habit data during unavoidable disruptions. Your statistics remain completely honest while preventing the psychological reset that causes people to give up.
+                  </p>
+                </div>
+
+              </div>
+            </section>
+
+
+            {/* SECTION 3 — AI COACHING */}
+            <section id="coaching" className="py-24 md:py-36 px-6 md:px-12 max-w-6xl mx-auto border-t border-white/[0.06] scroll-mt-20">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+                
+                <div className="lg:col-span-5 space-y-5">
+                  <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest block">
+                    03 / Intelligent Mentorship
+                  </span>
+                  <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
+                    An AI Coach that understands your exact habits.
+                  </h2>
+                  <p className="text-zinc-400 text-sm sm:text-base leading-relaxed">
+                    Connected directly to your completion history and streak trends, the OneDay AI Coach provides targeted, pragmatic guidance when discipline encounters friction.
+                  </p>
+                </div>
+
+                <div className="lg:col-span-7 bg-[#09090c] border border-white/[0.08] rounded-3xl p-8 sm:p-10 space-y-5">
+                  <div className="flex items-center justify-between text-xs font-mono text-zinc-500 uppercase tracking-wider">
+                    <span>Active Coaching Session</span>
+                    <span className="text-emerald-400">Online</span>
+                  </div>
+
+                  <div className="space-y-4 text-xs sm:text-sm">
+                    <div className="bg-[#121216] border border-white/5 rounded-2xl p-4 text-zinc-300 max-w-[85%]">
+                      "You've logged 14 consecutive morning sessions, but delayed today's deep work block. What's causing resistance?"
+                    </div>
+                    <div className="bg-white text-black font-medium rounded-2xl p-4 ml-auto max-w-[80%] shadow-md">
+                      "Low energy today. Considering skipping."
+                    </div>
+                    <div className="bg-[#121216] border border-white/5 rounded-2xl p-4 text-zinc-300 max-w-[85%]">
+                      "Don't negotiate the full 90 minutes. Drop the threshold to 20 minutes of focus. Preserve the habit of showing up."
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </section>
+
+
+            {/* SECTION 4 — CREATORS (Kendriya Vidyalaya Gachibowli) */}
+            <section id="team" className="py-24 md:py-36 px-6 md:px-12 max-w-6xl mx-auto border-t border-white/[0.06] scroll-mt-20">
+              <div className="max-w-3xl mb-16 space-y-4">
+                <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest block">
+                  The Creators
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
+                  Built by students who demanded better tools.
+                </h2>
+                <p className="text-zinc-400 text-sm sm:text-base leading-relaxed">
+                  We are students of Kendriya Vidyalaya Gachibowli (KVGB). We built OneDay because existing habit apps were filled with clutter and gimmicks. We wanted a calm, precise system for self-improvement.
+                </p>
               </div>
 
-              <div className="space-y-3.5 relative z-10 max-w-3xl mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <div className="bg-[#09090c] border border-white/[0.08] rounded-3xl p-8 flex flex-col justify-between space-y-6">
+                  <div className="space-y-4">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-bold text-white text-lg">
+                      K
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-white">Kante Harsha Vardhan</h3>
+                      <div className="text-xs font-mono text-zinc-500 mt-0.5">Founder · Product Vision</div>
+                    </div>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      Focused on product philosophy, direction, and the core discipline methodology behind OneDay.
+                    </p>
+                  </div>
+                  <div className="text-[10px] font-mono text-zinc-600 pt-2 border-t border-white/[0.05]">KVGB Creator</div>
+                </div>
+
+                <div className="bg-[#09090c] border border-white/[0.08] rounded-3xl p-8 flex flex-col justify-between space-y-6">
+                  <div className="space-y-4">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-bold text-white text-lg">
+                      V
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-white">Vemuri Venkata Vikhyath</h3>
+                      <div className="text-xs font-mono text-zinc-500 mt-0.5">Systems & Feature Strategy</div>
+                    </div>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      Architected streak logic, freeze mechanisms, and backend persistence structures.
+                    </p>
+                  </div>
+                  <div className="text-[10px] font-mono text-zinc-600 pt-2 border-t border-white/[0.05]">KVGB Creator</div>
+                </div>
+
+                <div className="bg-[#09090c] border border-white/[0.08] rounded-3xl p-8 flex flex-col justify-between space-y-6">
+                  <div className="space-y-4">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-bold text-white text-lg">
+                      R
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-white">Ravuru Trinay Karthik Ram</h3>
+                      <div className="text-xs font-mono text-zinc-500 mt-0.5">Design & User Experience</div>
+                    </div>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      Crafted the monochrome visual identity, minimalist typography, and interface precision.
+                    </p>
+                  </div>
+                  <div className="text-[10px] font-mono text-zinc-600 pt-2 border-t border-white/[0.05]">KVGB Creator</div>
+                </div>
+
+              </div>
+            </section>
+
+
+            {/* FREQUENTLY ASKED QUESTIONS */}
+            <section id="faq" className="py-24 md:py-36 px-6 md:px-12 max-w-4xl mx-auto border-t border-white/[0.06] scroll-mt-20">
+              <div className="mb-12 space-y-3">
+                <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest block">
+                  Support & Clarity
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+                  Frequently Asked Questions
+                </h2>
+              </div>
+
+              <div className="divide-y divide-white/[0.06]">
                 {FAQS.map((faq, idx) => {
                   const isOpen = openFaqIndex === idx;
                   return (
-                    <motion.div
-                      key={faq.question}
-                      initial={{ opacity: 0, y: 15 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: "-40px" }}
-                      transition={{ duration: 0.4, delay: idx * 0.05 }}
-                      className="bg-white/[0.02] hover:bg-white/[0.035] backdrop-blur-2xl border border-white/[0.06] hover:border-white/[0.12] rounded-2xl md:rounded-3xl transition-all duration-300 overflow-hidden group"
-                    >
+                    <div key={faq.question} className="py-6">
                       <button
                         type="button"
                         onClick={() => toggleFaq(idx)}
                         aria-expanded={isOpen}
-                        aria-controls={`faq-answer-${idx}`}
-                        id={`faq-question-${idx}`}
-                        className="w-full text-left p-5 md:p-6 flex items-center justify-between gap-4 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 rounded-2xl md:rounded-3xl select-none"
+                        className="w-full text-left flex items-center justify-between gap-6 cursor-pointer focus:outline-none select-none"
                       >
-                        <span className="text-sm md:text-base font-semibold text-white tracking-tight group-hover:text-violet-200 transition-colors">
+                        <span className="text-base font-medium text-white tracking-tight">
                           {faq.question}
                         </span>
-                        <div
-                          className={`w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center text-zinc-400 group-hover:text-white transition-all duration-300 flex-shrink-0 ${
-                            isOpen ? "rotate-180 bg-white/10 text-white border-white/20" : ""
-                          }`}
-                          aria-hidden="true"
-                        >
-                          <ChevronDown size={15} />
+                        <div className={`shrink-0 text-zinc-400 transition-transform duration-200 ${isOpen ? "rotate-180 text-white" : ""}`}>
+                          <ChevronDown size={18} />
                         </div>
                       </button>
 
                       <AnimatePresence initial={false}>
                         {isOpen && (
                           <motion.div
-                            id={`faq-answer-${idx}`}
-                            role="region"
-                            aria-labelledby={`faq-question-${idx}`}
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.28, ease: [0.04, 0.62, 0.23, 0.98] }}
+                            transition={{ duration: 0.2 }}
                             className="overflow-hidden"
                           >
-                            <div className="px-5 pb-5 md:px-6 md:pb-6 pt-0 text-xs md:text-sm text-zinc-400 leading-relaxed font-normal border-t border-white/[0.04] mt-1 pt-3.5">
+                            <p className="pt-3 text-sm text-zinc-400 leading-relaxed">
                               {faq.answer}
-                            </div>
+                            </p>
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>
             </section>
 
-            {/* FINAL CTA SECTION */}
 
-            <section className="px-5 max-w-5xl mx-auto py-16 md:py-24 relative">
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true, margin: "-100px" }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="relative overflow-hidden bg-gradient-to-b from-white/[0.04] to-black border border-white/[0.08] rounded-[2.5rem] md:rounded-[3.5rem] p-10 md:p-20 text-center space-y-10 shadow-[0_30px_100px_-20px_rgba(139,92,246,0.2)]"
-              >
-                {/* Subtle Animated Background Glows */}
-                <motion.div 
-                  animate={{ 
-                    opacity: [0.3, 0.5, 0.3],
-                    scale: [1, 1.05, 1]
-                  }}
-                  transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute -top-1/2 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-violet-600/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen" 
-                />
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none mix-blend-overlay"></div>
-                
-                <div className="space-y-4 relative z-10">
-                  <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white/90 to-white/60 drop-shadow-sm">
-                    Start with one day.
-                  </h2>
-                  <p className="text-sm md:text-lg text-zinc-400 leading-relaxed max-w-xl mx-auto font-medium">
-                    You don't need to change everything today.<br className="hidden md:block"/> You just need to start.
-                  </p>
-                </div>
-                
-                <div className="relative z-10 flex justify-center">
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+            {/* FINAL CTA SECTION */}
+            <section className="py-24 md:py-36 px-6 md:px-12 max-w-5xl mx-auto border-t border-white/[0.06] text-center">
+              <div className="space-y-6 max-w-2xl mx-auto">
+                <h2 className="text-4xl sm:text-6xl font-bold tracking-tight text-white">
+                  Start with one day.
+                </h2>
+                <p className="text-zinc-400 text-base sm:text-lg leading-relaxed">
+                  You do not need to solve your entire life today. You only need to show up once.
+                </p>
+                <div className="pt-4">
+                  <button 
                     onClick={openAuthModal}
-                    className="group bg-white text-black px-10 py-5 rounded-full text-base font-bold tracking-tight shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)] cursor-pointer inline-flex items-center gap-3 transition-all duration-300"
+                    className="bg-white text-black px-9 py-4 rounded-full text-sm font-semibold tracking-tight hover:bg-zinc-200 active:scale-98 transition-all cursor-pointer shadow-xl shadow-white/5 inline-flex items-center gap-2.5"
                   >
                     <span>Start Your Journey</span>
-                    <ArrowRight size={18} className="group-hover:translate-x-1.5 transition-transform duration-300 ease-out" />
-                  </motion.button>
+                    <ArrowRight size={16} />
+                  </button>
                 </div>
-              </motion.div>
+              </div>
             </section>
+
           </main>
 
           {/* FOOTER */}
-          <footer className="py-12 border-t border-white/10 bg-black/90 relative z-10 mt-16">
-            <div className="max-w-5xl mx-auto px-5 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-              <div className="space-y-1.5">
-                <div className="text-sm font-bold text-white tracking-tight flex items-center justify-center md:justify-start gap-2">
-                  <MonolithLogo size={20} />
-                  <span>OneDay</span>
-                </div>
-                <p className="text-xs text-zinc-500">Build better habits. One day at a time.</p>
+          <footer className="py-12 border-t border-white/[0.08] bg-black text-xs text-zinc-500">
+            <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-6">
+              
+              <div className="flex items-center gap-2.5">
+                <MonolithLogo size={22} aria-hidden="true" />
+                <span className="font-semibold text-white tracking-tight">OneDay</span>
+                <span>·</span>
+                <span>Become Better</span>
               </div>
 
-              <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8 text-xs text-zinc-500 font-medium">
+              <div className="flex flex-wrap items-center justify-center gap-6 text-zinc-400">
                 <a
                   href={ONEDAY_CONTACT.instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
-                  aria-label="OneDay on Instagram"
                 >
                   <Instagram size={14} />
                   <span>{ONEDAY_CONTACT.instagramHandle}</span>
@@ -1017,7 +813,6 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 <a
                   href={ONEDAY_CONTACT.emailMailto}
                   className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
-                  aria-label="Contact OneDay via Email"
                 >
                   <Mail size={14} />
                   <span>{ONEDAY_CONTACT.email}</span>
@@ -1034,7 +829,10 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 >
                   Terms & Conditions
                 </button>
-                <span className="text-zinc-600 text-[10px] md:text-xs">© 2026 OneDay. All rights reserved.</span>
+              </div>
+
+              <div className="text-zinc-600 font-mono text-[11px]">
+                © 2026 OneDay. All rights reserved.
               </div>
             </div>
           </footer>
@@ -1056,20 +854,20 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                     }
                   }}
                 />
+                
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                  initial={{ opacity: 0, scale: 0.96, y: 12 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                  className="relative bg-[#09090d] border border-white/10 rounded-3xl p-7 md:p-9 max-w-md w-full shadow-2xl space-y-6 z-10"
+                  exit={{ opacity: 0, scale: 0.96, y: 12 }}
+                  transition={{ duration: 0.2 }}
+                  className="relative bg-[#0c0c0e] border border-white/10 rounded-3xl p-7 md:p-9 max-w-md w-full shadow-2xl space-y-6 z-10"
                 >
                   <div className="flex flex-col items-center gap-3 text-center pb-2 select-none">
-                    <div className="p-2 rounded-2xl bg-white/[0.04] border border-white/10">
-                      <MonolithLogo size={42} />
-                    </div>
+                    <MonolithLogo size={44} />
                     <div className="space-y-1">
-                      <h3 className="text-lg font-bold tracking-[0.2em] text-white">ONE DAY</h3>
-                      <p className="text-violet-400 text-[10px] font-mono font-bold uppercase tracking-widest">
-                        {!termsAccepted ? "Step 1: Consent" : "Step 2: Authenticate"}
+                      <h3 className="text-lg font-bold tracking-tight text-white">OneDay</h3>
+                      <p className="text-zinc-500 text-[11px] font-mono uppercase tracking-widest">
+                        {!termsAccepted ? "Step 1: Agreement" : "Step 2: Sign In"}
                       </p>
                     </div>
                   </div>
@@ -1077,24 +875,24 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                   {!termsAccepted ? (
                     <div className="space-y-4">
                       <div className="text-xs text-zinc-300 space-y-2 leading-relaxed">
-                        <p className="font-semibold text-white">Terms & Conditions Consent</p>
+                        <p className="font-semibold text-white">Terms & Policies Consent</p>
                         <p className="text-zinc-400">
-                          Before continuing to account authentication on the OneDay platform, you must explicitly read and agree to our Terms and Policies.
+                          Before proceeding to create or access your OneDay system, please review and agree to our Terms & Conditions and Privacy Policy.
                         </p>
                       </div>
 
-                      {/* CHECKBOX AND AGREEMENT */}
                       <div className="flex items-start gap-3 text-left bg-zinc-950/80 border border-white/10 rounded-xl p-3.5">
                         <input 
                           type="checkbox" 
                           id="agree-policies"
                           checked={isChecked}
                           onChange={(e) => setIsChecked(e.target.checked)}
-                          className="mt-1 w-4 h-4 rounded border-zinc-700 bg-black text-violet-600 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-violet-600"
+                          className="mt-1 w-4 h-4 rounded border-zinc-700 bg-black text-white focus:ring-0 cursor-pointer accent-white"
                         />
                         <label htmlFor="agree-policies" className="text-[11px] text-zinc-400 leading-normal cursor-pointer select-none">
                           I have read and agree to the{" "}
                           <button 
+                            type="button"
                             onClick={() => { setView("terms"); setShowAuthModal(false); window.scrollTo({ top: 0 }); }} 
                             className="text-white hover:underline font-semibold cursor-pointer inline-block"
                           >
@@ -1102,6 +900,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                           </button>{" "}
                           and{" "}
                           <button 
+                            type="button"
                             onClick={() => { setView("privacy"); setShowAuthModal(false); window.scrollTo({ top: 0 }); }} 
                             className="text-white hover:underline font-semibold cursor-pointer inline-block"
                           >
@@ -1117,7 +916,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                           }
                         }}
                         disabled={!isChecked}
-                        className="w-full bg-white text-black font-semibold py-3.5 rounded-xl hover:bg-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-xs uppercase tracking-wider cursor-pointer shadow-lg"
+                        className="w-full bg-white text-black font-semibold py-3.5 rounded-full hover:bg-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-xs uppercase tracking-wider cursor-pointer shadow-lg"
                       >
                         Accept & Continue
                       </button>
@@ -1128,7 +927,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                         <button 
                           onClick={handleGoogleLogin}
                           disabled={authLoading}
-                          className="w-full bg-white text-black font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2.5 hover:bg-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-xs tracking-tight cursor-pointer shadow-lg"
+                          className="w-full bg-white text-black font-semibold py-3.5 rounded-full flex items-center justify-center gap-2.5 hover:bg-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-xs tracking-tight cursor-pointer shadow-lg"
                         >
                           {authLoading ? (
                             <Loader2 size={16} className="animate-spin text-black" />
@@ -1142,10 +941,11 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                           )}
                           {authLoading ? "Authenticating..." : "Continue with Google"}
                         </button>
+
                         <button 
                           onClick={handleGuestLogin}
                           disabled={authLoading}
-                          className="w-full bg-zinc-900 border border-white/10 text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2.5 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-xs tracking-tight cursor-pointer"
+                          className="w-full bg-zinc-900 border border-white/10 text-white font-semibold py-3.5 rounded-full flex items-center justify-center gap-2.5 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-xs tracking-tight cursor-pointer"
                         >
                           {authLoading ? (
                             <Loader2 size={16} className="animate-spin text-white" />
@@ -1158,10 +958,9 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
 
                       {!authLoading && (
                         <button
-                          onClick={() => {
-                            setTermsAccepted(false);
-                          }}
-                          className="w-full text-center text-[11px] text-zinc-500 hover:text-white transition-colors cursor-pointer block"
+                          type="button"
+                          onClick={() => setTermsAccepted(false)}
+                          className="w-full text-center text-[11px] text-zinc-500 hover:text-white transition-colors cursor-pointer block pt-1"
                         >
                           ← Back to Terms
                         </button>
@@ -1172,7 +971,8 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
               </div>
             )}
           </AnimatePresence>
-        </motion.div>
+
+        </div>
       )}
     </AnimatePresence>
   );
