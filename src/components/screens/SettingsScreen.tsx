@@ -27,6 +27,7 @@ import { AccountScreen } from "./AccountScreen";
 import { getEquippedTitle } from "../../utils/titleUtils";
 import { StreakProtectionSection } from "../settings/StreakProtectionSection";
 import { ONEDAY_CONTACT } from "../../constants";
+import { Button } from "../ui";
 
 export type SettingsSubView =
   | "main"
@@ -646,10 +647,10 @@ export function SettingsScreen() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
               transition={{ type: "spring", damping: 26, stiffness: 320 }}
-              className="relative bg-[#0D0D0D] border border-white/10 rounded-t-[2rem] sm:rounded-2xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-5 z-10 text-center pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:pb-7"
+              className="relative bg-[#111111] border border-[#292929] rounded-t-3xl sm:rounded-2xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-5 z-10 text-center pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:pb-7"
             >
-              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-1 block sm:hidden" />
-              <div className="w-12 h-12 bg-white/[0.05] border border-white/10 rounded-2xl flex items-center justify-center mx-auto text-neutral-200">
+              <div className="w-10 h-1 bg-[#2a2a2a] rounded-full mx-auto mb-1 block sm:hidden" />
+              <div className="w-12 h-12 bg-[#191919] border border-[#292929] rounded-2xl flex items-center justify-center mx-auto text-neutral-200">
                 <LogOut size={20} />
               </div>
               <div className="space-y-1.5">
@@ -661,20 +662,22 @@ export function SettingsScreen() {
                 </p>
               </div>
               <div className="flex flex-col gap-2 pt-2">
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="md"
+                  fullWidth
                   onClick={handleSignOutConfirm}
-                  className="w-full bg-white text-black font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider hover:bg-neutral-200 transition-all cursor-pointer h-11 flex items-center justify-center"
                 >
                   Sign Out
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="outline"
+                  size="md"
+                  fullWidth
                   onClick={() => setConfirmSignOut(false)}
-                  className="w-full bg-white/[0.05] text-neutral-400 border border-white/[0.08] font-bold py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-white/10 hover:text-white transition-all cursor-pointer h-11 flex items-center justify-center"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </motion.div>
           </div>

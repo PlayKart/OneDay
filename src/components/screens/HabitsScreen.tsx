@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useFreezeCountdown } from "../../utils/freezeUtils";
 
 import { lazyWithRetry } from "../../utils/lazyWithRetry";
+import { SegmentedControl, Button } from "../ui";
 
 const HabitTrendsView = lazyWithRetry(() => import("../HabitTrendsView"), "HabitTrendsView");
 
@@ -116,46 +117,28 @@ export function HabitsScreen() {
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           {/* SubTab Toggle: List vs Trends */}
-          <div role="tablist" aria-label="Habits view options" className="flex items-center bg-white/[0.04] border border-white/10 p-1 rounded-2xl">
-            <button
-              role="tab"
-              aria-selected={activeSubTab === "list"}
-              aria-label="List view"
-              onClick={() => setActiveSubTab("list")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeSubTab === "list"
-                  ? "bg-white text-black shadow-md"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <ListFilter size={14} aria-hidden="true" />
-              <span>List</span>
-            </button>
-            <button
-              role="tab"
-              aria-selected={activeSubTab === "trends"}
-              aria-label="30-Day Trends view"
-              onClick={() => setActiveSubTab("trends")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeSubTab === "trends"
-                  ? "bg-white text-black shadow-md"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <BarChart3 size={14} aria-hidden="true" />
-              <span>30-Day Trends</span>
-            </button>
-          </div>
+          <SegmentedControl
+            ariaLabel="Habits view options"
+            size="sm"
+            options={[
+              { id: "list", label: "List", icon: <ListFilter size={14} aria-hidden="true" /> },
+              { id: "trends", label: "30-Day Trends", icon: <BarChart3 size={14} aria-hidden="true" /> },
+            ]}
+            value={activeSubTab}
+            onChange={(val) => setActiveSubTab(val as "list" | "trends")}
+          />
 
           {/* New Habit Button */}
-          <button
+          <Button
+            variant="primary"
+            size="sm"
+            leftIcon={<Plus size={15} aria-hidden="true" />}
             onClick={() => setIsModalOpen(true)}
             aria-label="Create New Habit"
-            className="flex items-center gap-2 bg-white text-black font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition-all text-xs uppercase tracking-widest shrink-0 cursor-pointer shadow-sm"
           >
-            <Plus size={16} aria-hidden="true" />
             <span className="hidden sm:inline">New Habit</span>
-          </button>
+            <span className="sm:hidden">New</span>
+          </Button>
         </div>
       </header>
 

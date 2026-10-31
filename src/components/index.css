@@ -9,11 +9,40 @@
 :root {
   --background: #050505;
   --foreground: #ffffff;
+  --surface-base: #111111;
+  --surface-elevated: #191919;
+  --surface-overlay: #1e1e1e;
+  --border-subtle: #1c1c1c;
+  --border-default: #292929;
+  --border-strong: #3f3f46;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
 }
 
 body {
   @apply bg-[#050505] text-white antialiased font-sans overflow-x-hidden;
   min-height: 100vh;
+}
+
+/* Master Design System Surfaces & Controls */
+.surface-card {
+  background-color: #111111;
+  border: 1px solid #292929;
+}
+
+.surface-elevated {
+  background-color: #191919;
+  border: 1px solid #292929;
+}
+
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-black;
 }
 
 .glass {

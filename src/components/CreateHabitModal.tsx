@@ -7,6 +7,7 @@ import { toCanonicalDifficulty } from "../utils";
 import { HabitIconPicker } from "./HabitIconPicker";
 import { toast } from "react-hot-toast";
 import { HABIT_ICONS, SPORTS_OPTIONS, STUDIES_OPTIONS } from "../lib/habitIcons";
+import { Button, IconButton } from "./ui";
 
 
 interface CreateHabitModalProps {
@@ -111,23 +112,25 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: "100%", opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl flex flex-col max-h-[85dvh]"
+        className="relative w-full max-w-lg bg-[#111111] border border-[#292929] rounded-t-3xl sm:rounded-2xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl flex flex-col max-h-[85dvh]"
       >
         {/* Native sheet drag handle */}
         <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4 block sm:hidden shrink-0" />
 
         <div className="flex justify-between items-center mb-4 shrink-0">
           <div>
-            <h2 className="text-xl font-bold tracking-tighter">New Habit</h2>
+            <h2 className="text-xl font-bold tracking-tight text-white">New Habit</h2>
           </div>
-          <button
+          <IconButton
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onClose}
             aria-label="Close create habit modal"
-            className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            className="text-neutral-400 hover:text-white"
           >
-            <X size={20} aria-hidden="true" />
-          </button>
+            <X size={18} aria-hidden="true" />
+          </IconButton>
         </div>
 
         <div className="overflow-y-auto space-y-6 pb-8 scrollbar-hide flex-1">
@@ -262,25 +265,19 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
            </div>
         </div>
 
-        <div className="mt-4 shrink-0 pt-4 border-t border-white/10 pb-8 sm:pb-0">
-          <button 
+        <div className="mt-4 shrink-0 pt-4 border-t border-[#292929] pb-8 sm:pb-0">
+          <Button 
             type="submit"
+            variant="primary"
+            size="lg"
+            fullWidth
             onClick={handleSave}
             disabled={isSubmitting}
-            className="w-full bg-white text-black font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            isLoading={isSubmitting}
+            leftIcon={<Check size={18} />}
           >
-             {isSubmitting ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                  <span>Saving...</span>
-                </div>
-             ) : (
-                <>
-                  <Check size={20} />
-                  <span>Save System</span>
-                </>
-             )}
-          </button>
+            Save System
+          </Button>
         </div>
       </motion.form>
     </div>

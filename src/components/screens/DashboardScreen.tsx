@@ -3,7 +3,7 @@ import { useStore } from "../../store/useStore";
 import { User } from "../../types";
 import { MotivationalQuote } from "../MotivationalQuote";
 import { HabitList } from "../HabitList";
-import { Target, Zap, Activity, Trophy, Plus, Shield, CheckCircle2, Lock, Snowflake, Coffee } from "lucide-react";
+import { Target, Zap, Activity, Trophy, Plus, Shield, CheckCircle2, Lock, Snowflake, Coffee, Flame } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
 import { isHabitScheduledForToday, getTodayHabitStats } from "../../lib/habitUtils";
@@ -109,17 +109,9 @@ export function DashboardScreen() {
   return (
     <div className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-10 pb-28 sm:pb-32 space-y-6 overflow-x-hidden min-h-0 relative">
       
-      {/* Subtle Radial Glows for Depth - Shifting to cool icy highlights when frozen */}
-      {isFrozen ? (
-        <>
-          <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] bg-cyan-600/10 rounded-full blur-[140px] pointer-events-none" />
-          <div className="absolute bottom-[-10%] right-[-5%] w-[35%] h-[35%] bg-blue-600/8 rounded-full blur-[120px] pointer-events-none" />
-        </>
-      ) : (
-        <>
-          <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
-          <div className="absolute bottom-[-10%] right-[-5%] w-[30%] h-[30%] bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none" />
-        </>
+      {/* Subtle icy highlight only when frozen */}
+      {isFrozen && (
+        <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-cyan-600/[0.05] rounded-full blur-[140px] pointer-events-none" />
       )}
 
       {/* PREMIUM FROZEN STATE CARD */}
@@ -127,9 +119,9 @@ export function DashboardScreen() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 bg-[#070A10] border border-cyan-500/35 rounded-2xl sm:rounded-3xl p-6 sm:p-7 shadow-[0_4px_35px_rgba(6,182,212,0.12)] ring-1 ring-cyan-500/20 backdrop-blur-xl overflow-hidden text-left space-y-5"
+          className="relative z-10 bg-[#0a0e14] border border-cyan-500/30 rounded-2xl p-6 sm:p-7 shadow-[0_4px_35px_rgba(6,182,212,0.12)] ring-1 ring-cyan-500/20 backdrop-blur-xl overflow-hidden text-left space-y-5"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/[0.08] via-transparent to-cyan-500/[0.03] pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/[0.06] via-transparent to-cyan-500/[0.02] pointer-events-none" />
           
           {/* Card Top: ❄ STREAK PROTECTION + Lock Indicator */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-cyan-500/20 relative z-10">
@@ -196,27 +188,27 @@ export function DashboardScreen() {
       )}
 
       {/* HEADER ROW */}
-      <header className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-2">
+      <header className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-2">
         <div>
           <motion.h1 
             key={greeting}
-            initial={{ opacity: 0, y: 4 }}
+            initial={{ opacity: 0, y: 3 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="text-3xl md:text-4xl font-extrabold tracking-tighter text-white"
+            transition={{ duration: 0.25 }}
+            className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white"
           >
             {greeting}
           </motion.h1>
-          <div className="flex items-center gap-2 mt-2">
-            <p className="text-slate-500 text-[11px] tracking-widest uppercase font-bold">
+          <div className="flex flex-wrap items-center gap-2.5 mt-2">
+            <p className="text-zinc-400 text-xs font-mono uppercase tracking-wider font-medium">
               {today}
             </p>
             {equippedTitle && (
               <>
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-700" />
-                <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-amber-400/90 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
-                  <Shield size={10} aria-hidden="true" />
-                  {equippedTitle}
+                <span className="w-1 h-1 rounded-full bg-zinc-700" />
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-medium uppercase tracking-wider text-zinc-300 bg-white/[0.04] border border-white/[0.08] px-2.5 py-0.5 rounded-full">
+                  <Shield size={10} aria-hidden="true" className="text-zinc-400" />
+                  <span>{equippedTitle}</span>
                 </span>
               </>
             )}
@@ -234,8 +226,8 @@ export function DashboardScreen() {
         
         {/* Card 1: Today's Progress */}
         <motion.div 
-          whileHover={{ y: -3, borderColor: "rgba(255,255,255,0.18)" }}
-          className="bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] p-5 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col justify-between select-none relative overflow-hidden transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)] min-h-[160px]"
+          whileHover={{ y: -2, borderColor: "#383838" }}
+          className="bg-[#111111] border border-[#222222] p-5 sm:p-6 rounded-2xl flex flex-col justify-between select-none relative overflow-hidden transition-all duration-200 shadow-sm min-h-[160px]"
         >
           {/* Top Row: Icon + Pill */}
           <div className="flex justify-between items-center mb-4 relative z-10">
@@ -250,7 +242,7 @@ export function DashboardScreen() {
           {/* Bottom Content: Number + Subtitle + Thin Progress Bar */}
           <div className="relative z-10 space-y-2.5">
             <div>
-              <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-sans">
+              <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-sans tabular-nums">
                 {completionPercentage}%
               </div>
               <div className="text-[11px] font-mono uppercase text-zinc-400 tracking-wider mt-1">
@@ -259,7 +251,7 @@ export function DashboardScreen() {
             </div>
             <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
               <div 
-                className="h-full bg-zinc-200 rounded-full transition-all duration-500"
+                className="h-full bg-white rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(100, Math.max(0, completionPercentage))}%` }}
               />
             </div>
@@ -268,16 +260,16 @@ export function DashboardScreen() {
 
         {/* Card 2: Streak */}
         <motion.div 
-          whileHover={{ y: -3, borderColor: "rgba(255,255,255,0.18)" }}
-          className="bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] p-5 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col justify-between select-none relative overflow-hidden transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)] min-h-[160px]"
+          whileHover={{ y: -2, borderColor: "#383838" }}
+          className="bg-[#111111] border border-[#222222] p-5 sm:p-6 rounded-2xl flex flex-col justify-between select-none relative overflow-hidden transition-all duration-200 shadow-sm min-h-[160px]"
         >
           {/* Top Row: Icon + Pill */}
           <div className="flex justify-between items-center mb-4 relative z-10">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-300">
               {isFrozen ? (
-                <Target size={18} aria-hidden="true" className="text-cyan-300 stroke-[2]" />
+                <Snowflake size={18} aria-hidden="true" className="text-cyan-300 stroke-[2]" />
               ) : (
-                <Zap size={18} aria-hidden="true" className="text-zinc-300 stroke-[2]" />
+                <Flame size={18} aria-hidden="true" className="text-zinc-300 stroke-[2]" />
               )}
             </div>
             <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-zinc-400 bg-white/[0.04] border border-white/[0.06] px-2.5 py-1 rounded-md">
@@ -293,7 +285,7 @@ export function DashboardScreen() {
                   Loading...
                 </div>
               ) : (
-                <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-sans">
+                <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-sans tabular-nums">
                   {activeStreak} <span className="text-base sm:text-lg text-zinc-400 font-bold uppercase tracking-wider font-mono">{activeStreak === 1 ? 'Day' : 'Days'}</span>
                 </div>
               )}
@@ -303,7 +295,7 @@ export function DashboardScreen() {
             </div>
             <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
               <div 
-                className="h-full bg-zinc-200 rounded-full transition-all duration-500"
+                className={`h-full rounded-full transition-all duration-500 ${isFrozen ? "bg-cyan-400" : "bg-white"}`}
                 style={{ width: `${Math.min(100, Math.max(activeStreak > 0 ? 8 : 0, (activeStreak / 30) * 100))}%` }}
               />
             </div>
@@ -332,10 +324,10 @@ export function DashboardScreen() {
               setActiveTab("settings");
             }
           }}
-          whileHover={{ y: -3, borderColor: "rgba(255,255,255,0.18)" }}
-          animate={xpPop ? { scale: [1, 1.015, 1], borderColor: ["rgba(255,255,255,0.08)", "rgba(255,255,255,0.3)", "rgba(255,255,255,0.08)"] } : {}}
-          transition={{ duration: 0.4 }}
-          className="bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] p-5 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col justify-between select-none relative overflow-hidden transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)] min-h-[160px] cursor-pointer"
+          whileHover={{ y: -2, borderColor: "#383838" }}
+          animate={xpPop ? { scale: [1, 1.015, 1], borderColor: ["#222222", "rgba(255,255,255,0.3)", "#222222"] } : {}}
+          transition={{ duration: 0.3 }}
+          className="bg-[#111111] border border-[#222222] p-5 sm:p-6 rounded-2xl flex flex-col justify-between select-none relative overflow-hidden transition-all duration-200 shadow-sm min-h-[160px] cursor-pointer"
         >
           {/* Top Row: Icon + Pill */}
           <div className="flex justify-between items-center mb-4 relative z-10">
@@ -363,7 +355,7 @@ export function DashboardScreen() {
           <div className="relative z-10 space-y-2.5">
             <div className="flex items-end justify-between gap-2">
               <div>
-                <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-sans">
+                <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-sans tabular-nums">
                   Lvl {currentLevel}
                 </div>
                 <div className="text-[11px] font-mono uppercase text-zinc-400 tracking-wider mt-1">
@@ -392,14 +384,14 @@ export function DashboardScreen() {
                     strokeLinecap="round"
                   />
                 </svg>
-                <span className="absolute text-[9px] font-mono font-bold text-zinc-300">
+                <span className="absolute text-[9px] font-mono font-bold text-zinc-300 tabular-nums">
                   {Math.round(progressPercentage)}%
                 </span>
               </div>
             </div>
             <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
               <div 
-                className="h-full bg-zinc-200 rounded-full transition-all duration-500"
+                className="h-full bg-white rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(100, Math.max(0, progressPercentage))}%` }}
               />
             </div>
@@ -411,12 +403,12 @@ export function DashboardScreen() {
       {/* TODAY'S MISSION (PRIMARY FOCUS) */}
       <div className="w-full relative z-10">
         <motion.div 
-          whileHover={{ borderColor: "rgba(255,255,255,0.15)" }}
-          className="w-full bg-[#0c0c11]/85 backdrop-blur-xl border border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-7 transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)]"
+          whileHover={{ borderColor: "#2e2e2e" }}
+          className="w-full bg-[#111111] border border-[#222222] rounded-2xl p-5 sm:p-7 transition-all duration-200 shadow-sm"
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
             <div>
-              <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-zinc-200">
+              <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-zinc-300">
                 TODAY'S MISSION
               </h2>
               {isFrozen && (
@@ -430,7 +422,7 @@ export function DashboardScreen() {
               <span className={`text-[10px] font-mono uppercase font-medium tracking-wider px-2.5 py-1 rounded-md border self-start sm:self-auto ${
                 isFrozen
                   ? "text-cyan-300 bg-cyan-950/40 border-cyan-500/30"
-                  : "text-zinc-300 bg-white/[0.04] border-white/[0.06]"
+                  : "text-zinc-300 bg-white/[0.04] border-white/[0.08]"
               }`}>
                 {completedToday}/{totalHabits} {isFrozen ? "Completed (Paused)" : "Done"}
               </span>

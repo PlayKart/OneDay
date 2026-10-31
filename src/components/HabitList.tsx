@@ -138,14 +138,13 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
     console.log("Array.isArray:", Array.isArray(habits));
   }
   const displayHabits = previewMode 
-    ? safeHabits.filter(h => h && !h.completedToday && isHabitScheduledForToday(h)).slice(0, 5) 
+    ? safeHabits
+        .filter(h => h && isHabitScheduledForToday(h))
+        .sort((a, b) => {
+          if (Boolean(a.completedToday) === Boolean(b.completedToday)) return 0;
+          return a.completedToday ? 1 : -1;
+        })
     : safeHabits;
-
-  if (!Array.isArray(displayHabits)) {
-    console.log("displayHabits:", displayHabits);
-    console.log("typeof displayHabits:", typeof displayHabits);
-    console.log("Array.isArray:", Array.isArray(displayHabits));
-  }
 
   const guardedDisplayHabits = Array.isArray(displayHabits) ? displayHabits : [];
 
@@ -157,6 +156,15 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
   return (
     <>
     <div className="space-y-4">
+      {previewMode && totalScheduledToday > 0 && completedScheduledToday === totalScheduledToday && (
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-zinc-300">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 size={15} className="text-zinc-200" />
+            <span className="font-sans font-medium text-white">All today's missions completed. Momentum secured.</span>
+          </div>
+          <span className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">100% COMPLETE</span>
+        </div>
+      )}
       {!previewMode && (
         <div
           className={`p-4 rounded-2xl border transition-all ${
@@ -622,7 +630,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
             transition={{ type: "spring", damping: 30, stiffness: 350 }}
-            className="bg-[#0c0c0e] p-5 sm:p-6 rounded-2xl sm:rounded-2xl border border-white/15 w-full max-w-sm sm:max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.9)] relative z-10 flex flex-col max-h-[calc(80dvh-5.75rem)] sm:max-h-[85dvh]"
+            className="bg-[#111111] p-5 sm:p-6 rounded-2xl border border-[#292929] w-full max-w-sm sm:max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.9)] relative z-10 flex flex-col max-h-[calc(80dvh-5.75rem)] sm:max-h-[85dvh]"
           >
             {/* Native sheet drag handle */}
             <div className="w-10 h-1 bg-white/25 rounded-full mx-auto mb-4 block sm:hidden shrink-0" />
@@ -703,7 +711,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
             transition={{ type: "spring", damping: 30, stiffness: 350 }}
-            className="bg-[#0c0c0e] p-5 sm:p-6 rounded-2xl border border-white/15 w-full max-w-sm sm:max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.95)] relative z-10 flex flex-col max-h-[85dvh]"
+            className="bg-[#111111] p-5 sm:p-6 rounded-2xl border border-[#292929] w-full max-w-sm sm:max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.95)] relative z-10 flex flex-col max-h-[85dvh]"
           >
             {/* Native sheet drag handle */}
             <div className="w-10 h-1 bg-white/25 rounded-full mx-auto mb-4 block sm:hidden shrink-0" />

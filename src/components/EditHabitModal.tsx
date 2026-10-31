@@ -8,6 +8,7 @@ import { HabitIconPicker } from "./HabitIconPicker";
 import { HABIT_COLORS } from "../lib/habitIcons";
 import { habitService } from "../services/habitService";
 import { toast } from "react-hot-toast";
+import { Button, IconButton } from "./ui";
 
 interface EditHabitModalProps {
   habit: Habit;
@@ -226,34 +227,36 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: "100%", opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl flex flex-col max-h-[85dvh]"
+        className="relative w-full max-w-lg bg-[#111111] border border-[#292929] rounded-t-3xl sm:rounded-2xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl flex flex-col max-h-[85dvh]"
       >
         {/* Native sheet drag handle */}
         <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4 block sm:hidden shrink-0" />
 
         <div className="flex justify-between items-center mb-4 shrink-0">
           <div>
-            <h2 className="text-xl font-bold tracking-tighter">Edit Habit</h2>
+            <h2 className="text-xl font-bold tracking-tight text-white">Edit Habit</h2>
           </div>
-          <div className="flex gap-2">
-            <button
+          <div className="flex gap-2 items-center">
+            <IconButton
               type="button"
+              variant="danger"
+              size="sm"
               onClick={() => setShowDeleteConfirm(true)}
               disabled={isDeleting}
-              className="p-2 bg-red-500/10 rounded-full hover:bg-red-500/20 text-red-500 transition-colors disabled:opacity-50"
-              title="Delete Habit"
               aria-label={`Delete ${name || "habit"}`}
             >
-              <Trash size={20} aria-hidden="true" />
-            </button>
-            <button
+              <Trash size={18} aria-hidden="true" />
+            </IconButton>
+            <IconButton
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={handleClose}
-              className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
               aria-label="Close edit habit modal"
+              className="text-neutral-400 hover:text-white"
             >
-              <X size={20} aria-hidden="true" />
-            </button>
+              <X size={18} aria-hidden="true" />
+            </IconButton>
           </div>
         </div>
 
@@ -389,55 +392,54 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
            </div>
         </div>
 
-        <div className="mt-4 shrink-0 pt-4 border-t border-white/10 pb-8 sm:pb-0">
-          <button 
+        <div className="mt-4 shrink-0 pt-4 border-t border-[#292929] pb-8 sm:pb-0">
+          <Button 
             type="submit"
+            variant="primary"
+            size="lg"
+            fullWidth
             onClick={handleSave}
             disabled={isSubmitting || isDeleting}
-            className="w-full bg-white text-black font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            isLoading={isSubmitting}
+            leftIcon={<Check size={18} />}
           >
-             {isSubmitting ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                  <span>Updating...</span>
-                </div>
-             ) : (
-                <>
-                  <Check size={20} />
-                  <span>Update System</span>
-                </>
-             )}
-          </button>
+            Update System
+          </Button>
         </div>
       </motion.form>
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
-            <h3 className="text-lg font-bold text-white">Delete Habit?</h3>
-            <p className="text-sm text-slate-400">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#111111] border border-[#292929] rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-left">
+            <h3 className="text-lg font-bold text-white tracking-tight">Delete Habit?</h3>
+            <p className="text-xs text-neutral-400 leading-relaxed">
               Are you sure you want to delete <strong className="text-white font-medium">{habit.name}</strong>?
             </p>
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="md"
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl text-sm transition-all border border-white/10"
+                className="flex-1"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="danger"
+                size="md"
                 onClick={() => {
                   setShowDeleteConfirm(false);
                   handleDelete();
                 }}
                 disabled={isDeleting}
-                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+                isLoading={isDeleting}
+                className="flex-1"
               >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </button>
+                Delete
+              </Button>
             </div>
           </div>
         </div>

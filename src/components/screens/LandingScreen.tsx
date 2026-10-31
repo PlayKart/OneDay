@@ -55,6 +55,16 @@ const FAQS = [
   },
 ];
 
+const DAYS_OF_WEEK = [
+  { id: "Mon", label: "Mon", short: "M", full: "Monday" },
+  { id: "Tue", label: "Tue", short: "T", full: "Tuesday" },
+  { id: "Wed", label: "Wed", short: "W", full: "Wednesday" },
+  { id: "Thu", label: "Thu", short: "T", full: "Thursday" },
+  { id: "Fri", label: "Fri", short: "F", full: "Friday" },
+  { id: "Sat", label: "Sat", short: "S", full: "Saturday" },
+  { id: "Sun", label: "Sun", short: "S", full: "Sunday" }
+];
+
 interface LandingScreenProps {
   onLoginSuccess?: () => void;
 }
@@ -72,6 +82,45 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
   const [demoDone1, setDemoDone1] = useState(true);
   const [demoDone2, setDemoDone2] = useState(false);
   const [demoDone3, setDemoDone3] = useState(true);
+
+  // Interactive Weekly Rhythm state for Cadence Simulator
+  const [selectedDays, setSelectedDays] = useState<string[]>(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+  const [schedulePreset, setSchedulePreset] = useState<"weekdays" | "every_day" | "weekends" | "custom">("weekdays");
+
+  const handlePresetClick = (preset: "weekdays" | "every_day" | "weekends") => {
+    setSchedulePreset(preset);
+    if (preset === "weekdays") {
+      setSelectedDays(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+    } else if (preset === "every_day") {
+      setSelectedDays(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+    } else if (preset === "weekends") {
+      setSelectedDays(["Sat", "Sun"]);
+    }
+  };
+
+  const handleToggleDay = (dayId: string) => {
+    const isSelected = selectedDays.includes(dayId);
+    let nextDays: string[];
+    if (isSelected) {
+      if (selectedDays.length === 1) {
+        toast("A routine requires at least one active day.", { icon: "ℹ️" });
+        return;
+      }
+      nextDays = selectedDays.filter((d) => d !== dayId);
+    } else {
+      nextDays = [...selectedDays, dayId];
+    }
+    setSelectedDays(nextDays);
+
+    const isWkdays = nextDays.length === 5 && ["Mon", "Tue", "Wed", "Thu", "Fri"].every((d) => nextDays.includes(d));
+    const isEveryDay = nextDays.length === 7;
+    const isWkends = nextDays.length === 2 && ["Sat", "Sun"].every((d) => nextDays.includes(d));
+
+    if (isWkdays) setSchedulePreset("weekdays");
+    else if (isEveryDay) setSchedulePreset("every_day");
+    else if (isWkends) setSchedulePreset("weekends");
+    else setSchedulePreset("custom");
+  };
 
   const toggleFaq = (index: number) => {
     setOpenFaqIndex((prev) => (prev === index ? null : index));
@@ -224,21 +273,21 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
 
           {/* REFINED NAVIGATION */}
           <header className="sticky top-0 left-0 right-0 z-50 bg-[#050505]/85 backdrop-blur-xl border-b border-white/[0.08] h-16 md:h-20 transition-all">
-            <div className="max-w-7xl mx-auto h-full px-6 md:px-12 flex items-center justify-between gap-6">
+            <div className="max-w-6xl mx-auto h-full px-5 sm:px-6 md:px-8 flex items-center justify-between gap-6">
               
               {/* Brand Wordmark */}
               <button 
                 onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="flex items-center gap-2.5 cursor-pointer group shrink-0 select-none text-left"
+                className="flex items-center gap-2.5 cursor-pointer group shrink-0 select-none text-left focus:outline-none"
               >
-                <MonolithLogo size={28} aria-hidden="true" />
-                <span className="text-base md:text-lg font-semibold tracking-tight text-white">
+                <MonolithLogo size={26} aria-hidden="true" />
+                <span className="text-base sm:text-lg font-bold tracking-tight text-white">
                   OneDay
                 </span>
               </button>
 
               {/* Navigation Links */}
-              <nav className="hidden md:flex items-center gap-7 text-xs md:text-sm font-medium text-zinc-400">
+              <nav className="hidden md:flex items-center gap-7 text-xs sm:text-sm font-medium text-neutral-400">
                 <button onClick={() => scrollToSection("system")} className="hover:text-white transition-colors cursor-pointer py-1">System</button>
                 <button onClick={() => scrollToSection("progress")} className="hover:text-white transition-colors cursor-pointer py-1">Analytics</button>
                 <button onClick={() => scrollToSection("coaching")} className="hover:text-white transition-colors cursor-pointer py-1">AI Coach</button>
@@ -250,7 +299,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
               <div className="flex items-center gap-3">
                 <button 
                   onClick={openAuthModal}
-                  className="bg-white text-black px-4 py-2 md:px-5 md:py-2.5 rounded-full text-xs md:text-sm font-medium tracking-tight hover:bg-zinc-200 active:scale-98 transition-all cursor-pointer shadow-md shadow-white/5 whitespace-nowrap"
+                  className="bg-white text-black px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold tracking-tight hover:bg-neutral-200 active:scale-[0.98] transition-all cursor-pointer shadow-md shadow-white/5 whitespace-nowrap min-h-[40px] flex items-center justify-center"
                 >
                   Start Your Journey
                 </button>
@@ -258,7 +307,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                   aria-label="Toggle navigation menu"
-                  className="md:hidden p-2 rounded-xl bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition-colors"
+                  className="md:hidden p-2 rounded-xl bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                 >
                   {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
                 </button>
@@ -297,130 +346,117 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
           <main className="relative z-10">
 
             {/* HERO SECTION WITH INTEGRATED PRODUCT PREVIEW */}
-            <section className="pt-16 sm:pt-24 pb-20 md:pb-32 px-6 md:px-12 max-w-6xl mx-auto flex flex-col items-center text-center">
+            <section className="pt-14 sm:pt-20 md:pt-24 pb-14 sm:pb-20 md:pb-28 px-5 sm:px-6 md:px-8 max-w-6xl mx-auto flex flex-col items-center text-center">
               
-              {/* Category Subtitle */}
+              {/* Category Eyebrow */}
               <motion.div 
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="inline-flex items-center gap-2 text-zinc-400 text-xs font-mono tracking-widest uppercase bg-white/[0.03] border border-white/10 px-3.5 py-1.5 rounded-full mb-8 shadow-sm"
+                className="inline-flex items-center gap-2 text-neutral-400 text-[11px] sm:text-xs font-mono uppercase tracking-[0.2em] bg-white/[0.04] border border-white/[0.08] px-4 py-1.5 rounded-full mb-6 sm:mb-8 backdrop-blur-sm select-none"
               >
-                <Sparkles size={13} className="text-zinc-300" />
+                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" aria-hidden="true" />
                 <span>Personal Habit & Discipline System</span>
               </motion.div>
 
-              {/* Art-Directed Hero Typography Composition */}
+              {/* Main Hero Typography: OneDay. / Become Better. (Exact copy strictly preserved) */}
               <motion.div 
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                className="relative mb-8 md:mb-10 w-full max-w-4xl mx-auto flex flex-col items-center"
+                transition={{ duration: 0.7, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+                className="space-y-1.5 sm:space-y-2 mb-6 sm:mb-8 max-w-4xl mx-auto select-none"
               >
-                {/* Fine Brand Structural Accent Line */}
-                <div className="w-12 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent mb-5 sm:mb-7 pointer-events-none" />
-
-                {/* Unified Typographic Brand Lockup */}
-                <div className="relative inline-flex flex-col items-center text-center select-none">
-                  
-                  {/* Line 1: Main Visual Anchor — "OneDay." */}
-                  <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-[7.25rem] font-black tracking-tighter text-white leading-[0.92] font-display drop-shadow-[0_2px_24px_rgba(255,255,255,0.08)]">
-                    OneDay<span className="text-zinc-500 font-light">.</span>
-                  </h1>
-
-                  {/* Subtle Editorial Accent Divider */}
-                  <div className="my-2.5 sm:my-3.5 flex items-center justify-center gap-3 w-full max-w-[200px] opacity-40">
-                    <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-white/40" />
-                    <div className="w-1 h-1 rounded-full bg-white/70" />
-                    <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-white/40" />
-                  </div>
-
-                  {/* Line 2: Deliberate Typographic Contrast — "Become Better." */}
-                  <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-tight text-zinc-300/90 leading-[1.1] font-sans">
-                    Become Better<span className="text-zinc-500 font-light">.</span>
-                  </h2>
-
-                </div>
-
-                {/* Fine Brand Structural Accent Line */}
-                <div className="w-12 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent mt-5 sm:mt-7 pointer-events-none" />
+                <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-[7.25rem] font-bold tracking-tight text-white leading-[0.96]">
+                  OneDay.
+                </h1>
+                <h2 className="text-3xl sm:text-5xl md:text-6xl lg:text-[4.25rem] font-light sm:font-normal tracking-tight text-neutral-400 leading-[1.08] mt-1 sm:mt-2">
+                  Become Better.
+                </h2>
               </motion.div>
 
-              {/* Concise Supporting Sentence */}
+              {/* Concise Supporting Sentence (Exact copy strictly preserved) */}
               <motion.p 
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-base sm:text-lg md:text-xl text-zinc-400 max-w-xl mx-auto font-normal leading-relaxed mb-10"
+                transition={{ duration: 0.6, delay: 0.16 }}
+                className="text-base sm:text-lg md:text-xl text-neutral-400 max-w-xl mx-auto font-normal leading-relaxed mb-8 sm:mb-10 text-balance"
               >
                 A calm, precise operating system for building consistent daily routines, protecting your momentum, and achieving your potential.
               </motion.p>
 
-              {/* Primary CTA */}
+              {/* CTAs (Exact copy strictly preserved) */}
               <motion.div 
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 w-full sm:w-auto"
+                transition={{ duration: 0.6, delay: 0.24 }}
+                className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 mb-14 sm:mb-20 w-full sm:w-auto"
               >
                 <button 
                   onClick={openAuthModal}
-                  className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-full text-sm font-semibold tracking-tight hover:bg-zinc-200 active:scale-98 transition-all cursor-pointer shadow-xl shadow-white/5 flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto bg-white text-black px-8 py-3.5 sm:px-9 sm:py-4 rounded-full text-sm font-semibold tracking-tight hover:bg-neutral-200 active:scale-[0.98] transition-all cursor-pointer shadow-[0_4px_24px_rgba(255,255,255,0.12)] flex items-center justify-center gap-2 group min-h-[48px]"
                 >
                   <span>Start Your Journey</span>
-                  <ArrowRight size={16} />
+                  <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
                 </button>
                 <button 
                   onClick={() => scrollToSection("system")}
-                  className="w-full sm:w-auto text-zinc-400 hover:text-white px-6 py-4 text-sm font-medium transition-colors cursor-pointer"
+                  className="w-full sm:w-auto text-neutral-400 hover:text-white px-6 py-3.5 sm:py-4 text-sm font-medium transition-colors cursor-pointer flex items-center justify-center rounded-full hover:bg-white/[0.04] min-h-[48px]"
                 >
                   Explore System
                 </button>
               </motion.div>
 
-              {/* Integrated Product Visual Preview (App UI Mockup Card) */}
+              {/* Integrated Product Visual Preview (Authentic App UI) */}
               <motion.div 
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 28 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                className="w-full max-w-4xl bg-[#09090c] border border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl text-left relative overflow-hidden"
+                transition={{ duration: 0.8, delay: 0.32 }}
+                className="w-full max-w-4xl bg-[#0e0e12] border border-[#242429] rounded-2xl sm:rounded-3xl p-5 sm:p-7 md:p-8 shadow-[0_24px_80px_rgba(0,0,0,0.85)] text-left relative overflow-hidden"
               >
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/[0.02] rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute top-0 right-0 w-72 h-72 bg-white/[0.02] rounded-full blur-3xl pointer-events-none" />
 
-                <div className="flex items-center justify-between pb-5 border-b border-white/[0.06] mb-6">
-                  <div className="flex items-center gap-3">
-                    <MonolithLogo size={24} />
+                {/* Dashboard Frame Header */}
+                <div className="flex items-center justify-between pb-4 sm:pb-5 border-b border-white/[0.06] mb-5 sm:mb-6">
+                  <div className="flex items-center gap-2.5 sm:gap-3">
+                    <div className="p-1 rounded-lg bg-white/[0.04] border border-white/10">
+                      <MonolithLogo size={22} aria-hidden="true" />
+                    </div>
                     <div>
-                      <div className="text-xs font-semibold text-white">Daily Execution Dashboard</div>
-                      <div className="text-[10px] text-zinc-500 font-mono">System Status: Active · Level 7</div>
+                      <div className="text-xs sm:text-sm font-semibold text-white tracking-tight">Daily Execution Dashboard</div>
+                      <div className="text-[10px] text-neutral-500 font-mono">Live Operating Environment · Level 7</div>
                     </div>
                   </div>
-                  <div className="text-xs font-mono text-zinc-400 bg-white/[0.04] px-3 py-1 rounded-lg border border-white/10">
+                  <div className="text-[11px] sm:text-xs font-mono font-medium text-neutral-300 bg-white/[0.04] px-2.5 sm:px-3 py-1 rounded-lg border border-white/10 shrink-0 tabular-nums">
                     92% Consistency
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 items-start">
                   
                   {/* Left: Interactive Habit List Preview */}
-                  <div className="md:col-span-7 space-y-3">
-                    <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-500 mb-2">Today's Habits</div>
+                  <div className="md:col-span-7 space-y-2.5 sm:space-y-3">
+                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-neutral-500 mb-1">
+                      <span>Today's Habits</span>
+                      <span>3 Active Protocols</span>
+                    </div>
                     
                     {/* Habit 1 */}
-                    <div className="bg-[#121216] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between gap-4">
-                      <div>
-                        <div className="text-xs sm:text-sm font-semibold text-white">Morning Protocol</div>
-                        <div className="text-[11px] text-zinc-500">Every Day · 06:30 AM</div>
+                    <div className="bg-[#141418] border border-white/[0.06] rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 sm:gap-4 transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs sm:text-sm font-semibold text-white truncate">Morning Protocol</div>
+                        <div className="text-[11px] text-neutral-500 truncate">Every Day · 06:30 AM</div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 text-orange-400 font-mono text-xs font-bold">
+                      <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                        <div className="flex items-center gap-1 text-orange-400 font-mono text-xs font-bold" title="Current streak: 14 days">
                           <Flame size={14} className="fill-orange-400/20 text-orange-400" />
                           <span>14</span>
                         </div>
                         <button 
+                          type="button"
                           onClick={() => setDemoDone1(!demoDone1)}
+                          aria-label="Toggle Morning Protocol completed"
                           className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
-                            demoDone1 ? "bg-white text-black border-white" : "border-white/20 text-transparent"
+                            demoDone1 ? "bg-white text-black border-white shadow-sm" : "border-white/20 text-transparent hover:border-white/40"
                           }`}
                         >
                           <Check size={14} className={demoDone1 ? "opacity-100" : "opacity-0"} />
@@ -429,21 +465,25 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                     </div>
 
                     {/* Habit 2 (Freeze Protected) */}
-                    <div className="bg-[#121216] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between gap-4">
-                      <div>
-                        <div className="text-xs sm:text-sm font-semibold text-white">Football Training</div>
-                        <div className="text-[11px] text-sky-400">Freeze Protected</div>
+                    <div className="bg-[#141418] border border-white/[0.06] rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 sm:gap-4 transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs sm:text-sm font-semibold text-white truncate">Football Training</div>
+                        <div className="text-[11px] text-cyan-400 font-medium truncate flex items-center gap-1">
+                          <span>Custom Schedule · Freeze Protected</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 text-sky-400 font-mono text-xs font-bold bg-sky-950/40 px-2 py-0.5 rounded border border-sky-500/20">
-                          <Flame size={14} className="text-sky-400 fill-sky-400/20" />
-                          <Snowflake size={11} className="text-sky-300" />
+                      <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                        <div className="flex items-center gap-1 text-cyan-400 font-mono text-xs font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-500/20" title="Streak protected by freeze: 8 days">
+                          <Flame size={14} className="text-cyan-400 fill-cyan-400/20" />
+                          <Snowflake size={11} className="text-cyan-300" />
                           <span>8</span>
                         </div>
                         <button 
+                          type="button"
                           onClick={() => setDemoDone2(!demoDone2)}
+                          aria-label="Toggle Football Training completed"
                           className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
-                            demoDone2 ? "bg-white text-black border-white" : "border-white/20 text-transparent"
+                            demoDone2 ? "bg-white text-black border-white shadow-sm" : "border-white/20 text-transparent hover:border-white/40"
                           }`}
                         >
                           <Check size={14} className={demoDone2 ? "opacity-100" : "opacity-0"} />
@@ -452,20 +492,22 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                     </div>
 
                     {/* Habit 3 */}
-                    <div className="bg-[#121216] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between gap-4">
-                      <div>
-                        <div className="text-xs sm:text-sm font-semibold text-white">Deep Focus Architecture</div>
-                        <div className="text-[11px] text-zinc-500">Weekdays · 90 min</div>
+                    <div className="bg-[#141418] border border-white/[0.06] rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 sm:gap-4 transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs sm:text-sm font-semibold text-white truncate">Deep Focus Architecture</div>
+                        <div className="text-[11px] text-neutral-500 truncate">Weekdays · 90 min</div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 text-orange-400 font-mono text-xs font-bold">
+                      <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                        <div className="flex items-center gap-1 text-orange-400 font-mono text-xs font-bold" title="Current streak: 21 days">
                           <Flame size={14} className="fill-orange-400/20 text-orange-400" />
                           <span>21</span>
                         </div>
                         <button 
+                          type="button"
                           onClick={() => setDemoDone3(!demoDone3)}
+                          aria-label="Toggle Deep Focus Architecture completed"
                           className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
-                            demoDone3 ? "bg-white text-black border-white" : "border-white/20 text-transparent"
+                            demoDone3 ? "bg-white text-black border-white shadow-sm" : "border-white/20 text-transparent hover:border-white/40"
                           }`}
                         >
                           <Check size={14} className={demoDone3 ? "opacity-100" : "opacity-0"} />
@@ -474,30 +516,42 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                     </div>
                   </div>
 
-                  {/* Right: Progression & AI Coach Preview Snippet */}
-                  <div className="md:col-span-5 space-y-4">
-                    <div className="bg-[#121216] border border-white/[0.06] rounded-2xl p-4 space-y-3">
-                      <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider">Discipline Title</div>
+                  {/* Right: Progression & AI Coach Preview */}
+                  <div className="md:col-span-5 space-y-3 sm:space-y-4">
+                    <div className="bg-[#141418] border border-white/[0.06] rounded-xl sm:rounded-2xl p-3.5 sm:p-4 space-y-2.5">
+                      <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
+                        <span>Progression Title</span>
+                        <span className="text-neutral-400">Tier 4</span>
+                      </div>
                       <div>
-                        <div className="text-base font-bold text-white">Iron Architect</div>
-                        <div className="text-xs text-zinc-400 mt-0.5">Level 7 · 1,420 / 2,000 XP</div>
+                        <div className="text-sm sm:text-base font-bold text-white tracking-tight">Iron Architect</div>
+                        <div className="text-[11px] text-neutral-400 font-mono mt-0.5 tabular-nums">Level 7 · 1,420 / 2,000 XP</div>
                       </div>
                       <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
                         <div className="bg-white h-full rounded-full w-[71%]" />
                       </div>
                     </div>
 
-                    <div className="bg-[#121216] border border-white/[0.06] rounded-2xl p-4 space-y-2">
+                    <div className="bg-[#141418] border border-white/[0.06] rounded-xl sm:rounded-2xl p-3.5 sm:p-4 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider">AI Coach</span>
-                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <span className="text-[10px] sm:text-[11px] font-mono text-neutral-500 uppercase tracking-wider">AI Coach</span>
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          Online
+                        </span>
                       </div>
-                      <p className="text-xs text-zinc-300 leading-relaxed font-normal">
+                      <p className="text-xs text-neutral-300 leading-relaxed font-normal">
                         "Consistency is compounding. Protect your streak with deliberate pacing."
                       </p>
                     </div>
                   </div>
 
+                </div>
+
+                {/* Card Footer Ticker */}
+                <div className="pt-3.5 sm:pt-4 mt-4 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-neutral-500">
+                  <span className="truncate">Tactile Check-In Enabled</span>
+                  <span className="font-mono text-neutral-400 text-[10px] sm:text-[11px] shrink-0">Real-Time State Authority</span>
                 </div>
               </motion.div>
 
@@ -505,10 +559,10 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
 
 
             {/* SECTION 1 — HABIT TRACKING & CONSISTENCY */}
-            <section id="system" className="py-24 md:py-36 px-6 md:px-12 max-w-6xl mx-auto border-t border-white/[0.06] scroll-mt-20">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+            <section id="system" className="py-24 md:py-36 px-5 sm:px-6 md:px-12 max-w-6xl mx-auto border-t border-white/[0.06] scroll-mt-20">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
                 
-                <div className="lg:col-span-5 space-y-5">
+                <div className="lg:col-span-5 space-y-4 sm:space-y-5 text-left">
                   <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest block">
                     01 / Habit Architecture
                   </span>
@@ -520,19 +574,109 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                   </p>
                 </div>
 
-                <div className="lg:col-span-7 bg-[#09090c] border border-white/[0.08] rounded-3xl p-8 sm:p-10 space-y-6">
-                  <div className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Weekly Rhythm Configuration</div>
-                  <div className="grid grid-cols-7 gap-2.5 text-center text-xs font-mono">
-                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => (
-                      <div key={d} className={`p-4 rounded-2xl border ${i < 5 ? "bg-white text-black border-white font-semibold" : "bg-white/[0.02] text-zinc-500 border-white/[0.06]"}`}>
-                        <div>{d}</div>
-                        <div className="text-[10px] mt-1 opacity-70">{i < 5 ? "Active" : "Rest"}</div>
+                <div className="lg:col-span-7 bg-[#0e0e12] border border-[#242429] rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6 text-left">
+                  {/* Top row with Title and Schedule Preset selector */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-mono text-neutral-300 uppercase tracking-wider font-semibold">Weekly Rhythm Configuration</div>
+                      <div className="text-[11px] text-neutral-500 mt-0.5">Interactive Cadence Simulator</div>
+                    </div>
+
+                    {/* Schedule Presets */}
+                    <div className="flex items-center gap-1 bg-[#141418] p-1 rounded-xl border border-[#242429] self-start sm:self-auto">
+                      {[
+                        { id: "weekdays", label: "Weekdays" },
+                        { id: "every_day", label: "Every Day" },
+                        { id: "weekends", label: "Weekends" },
+                      ].map((preset) => {
+                        const isActive = schedulePreset === preset.id;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handlePresetClick(preset.id as any)}
+                            className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-all cursor-pointer ${
+                              isActive
+                                ? "bg-white text-black font-semibold shadow-sm"
+                                : "text-neutral-400 hover:text-white"
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 7-Day Responsive Grid Selector: Fixed layout defect with equal widths, controlled height, and zero label overlap */}
+                  <div className="grid grid-cols-7 w-full gap-1 sm:gap-2 text-center select-none" role="group" aria-label="Weekly rhythm day selector">
+                    {DAYS_OF_WEEK.map((day) => {
+                      const isSelected = selectedDays.includes(day.id);
+                      return (
+                        <button
+                          key={day.id}
+                          type="button"
+                          onClick={() => handleToggleDay(day.id)}
+                          aria-pressed={isSelected}
+                          aria-label={`${day.full}: ${isSelected ? "Scheduled Active Day" : "Rest Day"}`}
+                          className={`group flex flex-col items-center justify-center w-full min-w-0 h-14 sm:h-16 py-1.5 sm:py-2 px-0.5 rounded-xl sm:rounded-2xl border transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-white ${
+                            isSelected
+                              ? "bg-white text-black border-white shadow-sm"
+                              : "bg-[#141418] text-neutral-400 hover:text-white border-[#242429] hover:border-neutral-700 hover:bg-[#18181d]"
+                          }`}
+                        >
+                          <span className="text-[11px] min-[360px]:text-xs sm:text-sm font-bold tracking-tight truncate block w-full text-center leading-none">
+                            <span className="inline min-[360px]:hidden">{day.short}</span>
+                            <span className="hidden min-[360px]:inline">{day.label}</span>
+                          </span>
+                          <div className="flex items-center justify-center gap-1 mt-1 sm:mt-1.5 shrink-0">
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full transition-colors shrink-0 ${
+                                isSelected ? "bg-black" : "bg-neutral-600"
+                              }`}
+                            />
+                            <span
+                              className={`text-[9px] sm:text-[10px] font-mono uppercase tracking-wider hidden lg:inline leading-none ${
+                                isSelected ? "text-black/70 font-semibold" : "text-neutral-500"
+                              }`}
+                            >
+                              {isSelected ? "Active" : "Rest"}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Dynamic Summary & Smart Rest Guard context */}
+                  <div className="pt-3 sm:pt-4 border-t border-white/[0.06] space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-white shrink-0" />
+                        <span className="text-white font-medium">
+                          {selectedDays.length} Scheduled {selectedDays.length === 1 ? "Day" : "Days"}
+                        </span>
+                        <span className="text-neutral-500">·</span>
+                        <span className="w-2 h-2 rounded-full bg-neutral-600 shrink-0" />
+                        <span className="text-neutral-400">
+                          {7 - selectedDays.length} Protected Rest {7 - selectedDays.length === 1 ? "Day" : "Days"}
+                        </span>
                       </div>
-                    ))}
+                      <span className="text-[11px] font-mono text-neutral-400">
+                        {schedulePreset === "weekdays"
+                          ? "Protocol: Mon–Fri"
+                          : schedulePreset === "every_day"
+                          ? "Protocol: Daily"
+                          : schedulePreset === "weekends"
+                          ? "Protocol: Sat–Sun"
+                          : "Protocol: Custom Cadence"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-neutral-400 leading-relaxed">
+                      Smart Rest Guard: Non-scheduled days are treated as intentional recovery. They never count as missed completions or break your active habit streak.
+                    </p>
                   </div>
-                  <div className="text-xs text-zinc-400 pt-2 border-t border-white/[0.06]">
-                    Smart Rest Guard: Weekend rest days automatically protect your streak score from false penalties.
-                  </div>
+
                 </div>
 
               </div>
@@ -560,12 +704,12 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                           key={i}
                           className={`aspect-square rounded-md flex items-center justify-center text-[10px] font-mono ${
                             isFreeze
-                              ? "bg-sky-500/20 border border-sky-400/40 text-sky-300"
+                              ? "bg-cyan-500/20 border border-cyan-400/40 text-cyan-300"
                               : isDone
                               ? "bg-white text-black font-semibold"
                               : isRest
-                              ? "bg-white/[0.04] text-zinc-600 border border-white/[0.04]"
-                              : "bg-zinc-900 border border-white/5 text-zinc-600"
+                              ? "bg-white/[0.04] text-neutral-600 border border-white/[0.04]"
+                              : "bg-[#141418] border border-[#242429] text-neutral-600"
                           }`}
                           title={`Day ${i + 1}`}
                         >
@@ -575,13 +719,13 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                     })}
                   </div>
 
-                  <div className="flex items-center gap-6 text-xs text-zinc-400 pt-3 border-t border-white/[0.06]">
+                  <div className="flex items-center gap-6 text-xs text-neutral-400 pt-3 border-t border-white/[0.06]">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-sm bg-white" />
                       <span>Completed</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-sm bg-sky-400/40" />
+                      <span className="w-2.5 h-2.5 rounded-sm bg-cyan-400/40" />
                       <span>Freeze Protected</span>
                     </div>
                     <div className="flex items-center gap-2">
