@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 import { VALID_GENDERS, normalizeGenderValue, countWords, getOnboardingStatus, resolveOnboardingStatus } from '../utils';
 import { IMPROVEMENT_FOCUS_OPTIONS, normalizeImprovementFocusKey } from '../constants/improvementFocus';
 import { OnboardingTransition, TransitionVariant, TransitionStatus } from './OnboardingTransition';
+import { MonolithLogo } from './MonolithLogo';
 
 const HOBBIES_LIST = [
   "Reading", "Coding", "Fitness", "Writing", "Meditation", 
@@ -627,9 +628,10 @@ export function OnboardingModal({ isOpen, onComplete, initialData, isEditing = f
               </span>
             </div>
             {!isEditing && (
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                OneDay Onboarding
-              </span>
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 bg-white/5 px-2.5 py-1 rounded-xl border border-white/5">
+                <MonolithLogo size={16} aria-hidden="true" />
+                <span>OneDay</span>
+              </div>
             )}
           </div>
         )}

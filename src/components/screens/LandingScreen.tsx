@@ -418,9 +418,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 {/* Dashboard Frame Header */}
                 <div className="flex items-center justify-between pb-4 sm:pb-5 border-b border-white/[0.06] mb-5 sm:mb-6">
                   <div className="flex items-center gap-2.5 sm:gap-3">
-                    <div className="p-1 rounded-lg bg-white/[0.04] border border-white/10">
-                      <MonolithLogo size={22} aria-hidden="true" />
-                    </div>
+                    <MonolithLogo size={28} aria-hidden="true" />
                     <div>
                       <div className="text-xs sm:text-sm font-semibold text-white tracking-tight">Daily Execution Dashboard</div>
                       <div className="text-[10px] text-neutral-500 font-mono">Live Operating Environment · Level 7</div>

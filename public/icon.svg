@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
-  <!-- Rounded glass container background -->
-  <rect x="5" y="5" width="90" height="90" rx="24" fill="#0c0c0c" stroke="rgba(255,255,255,0.15)" stroke-width="2.5" />
-  <!-- Beveled vertical monolith pillar -->
-  <path d="M 41 24 L 53 24 L 59 30 L 59 76 L 41 76 Z" fill="#ffffff" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" fill="none">
+  <!-- Outer clean white rounded-square boundary -->
+  <rect x="10" y="10" width="980" height="980" rx="234" fill="#ffffff" stroke="#ffffff" stroke-width="6" />
+  <!-- Inner black rounded-square core -->
+  <rect x="36" y="36" width="928" height="928" rx="208" fill="#000000" />
+  <!-- Exact official OneDay monolith "I" symbol with distinctive angled top-right cut -->
+  <path d="M 433.5 217.3 L 542.7 217.3 L 576.4 256.0 L 576.4 795.6 L 433.5 795.6 Z" fill="#ffffff" />
 </svg>

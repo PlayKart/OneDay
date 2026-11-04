@@ -213,14 +213,14 @@ export function LevelUpAnimation({
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: [0.8, 1.9], opacity: [0.8, 0] }}
               transition={{ duration: 1.3, delay: 0.45, ease: "easeOut" }}
-              className="absolute w-20 h-20 rounded-full border border-amber-400/50 pointer-events-none"
+              className="absolute w-20 h-20 rounded-2xl border border-amber-400/50 pointer-events-none"
             />
             {/* Expanding energy ring 2 (subtle secondary echo) */}
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: [0.8, 2.4], opacity: [0.5, 0] }}
               transition={{ duration: 1.5, delay: 0.65, ease: "easeOut" }}
-              className="absolute w-20 h-20 rounded-full border border-white/30 pointer-events-none"
+              className="absolute w-20 h-20 rounded-2xl border border-white/30 pointer-events-none"
             />
 
             {/* Central Monolith Logo with scale and glow */}

@@ -116,8 +116,9 @@ export function AppIntroFlow({ userId, userName, onComplete }: AppIntroFlowProps
                 transition={{ delay: 0.1, duration: 0.6 }}
                 className="mb-8 relative"
               >
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-500/20 via-yellow-500/10 to-transparent border border-amber-500/30 flex items-center justify-center shadow-2xl shadow-amber-500/10">
-                  <MonolithLogo size={52} />
+                <div className="relative flex items-center justify-center">
+                  <MonolithLogo size={72} />
+                  <div className="absolute inset-0 rounded-2xl bg-amber-500/20 blur-xl -z-10" />
                 </div>
                 <div className="absolute -bottom-2 -right-2 bg-[#FBBC05] text-black text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full shadow-lg">
                   Calibrated

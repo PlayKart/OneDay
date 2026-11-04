@@ -1,63 +1,109 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
 
-interface MonolithLogoProps {
-  size?: "sm" | "md" | "lg" | "xl" | number;
+export interface MonolithLogoProps {
+  size?: "xs" | "sm" | "md" | "lg" | "xl" | number;
   className?: string;
   "aria-label"?: string;
   "aria-hidden"?: boolean | "true" | "false";
+  interactive?: boolean;
 }
 
+/**
+ * Official OneDay Square Brand Logo
+ * 
+ * Features:
+ * - Rounded-square outer black shape
+ * - Crisp white outer boundary
+ * - Official white monolith "I" symbol in the center with distinctive angled top-right cut
+ * - 1:1 aspect ratio strictly preserved
+ * - Production-ready high-resolution rendering with instant vector fallback
+ */
 export function MonolithLogo({ 
   size = "md", 
   className = "",
   "aria-label": ariaLabel,
   "aria-hidden": ariaHidden,
+  interactive = false,
 }: MonolithLogoProps) {
-  let boxSize = 44;
+  const [imgError, setImgError] = useState(false);
 
-  if (size === "sm") {
-    boxSize = 32;
+  let pixelSize = 44;
+  if (size === "xs") {
+    pixelSize = 22;
+  } else if (size === "sm") {
+    pixelSize = 32;
   } else if (size === "md") {
-    boxSize = 44;
+    pixelSize = 44;
   } else if (size === "lg") {
-    boxSize = 64;
+    pixelSize = 64;
   } else if (size === "xl") {
-    boxSize = 80;
+    pixelSize = 96;
   } else if (typeof size === "number") {
-    boxSize = size;
+    pixelSize = size;
   }
 
   const isHidden = ariaHidden === true || ariaHidden === "true";
+  const label = ariaLabel || "OneDay";
 
-  return (
-    <motion.div
-      whileHover={{ scale: 1.04 }}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+  const content = (
+    <div
       role={isHidden ? undefined : "img"}
-      aria-label={isHidden ? undefined : (ariaLabel || "OneDay monolith logo")}
+      aria-label={isHidden ? undefined : label}
       aria-hidden={isHidden ? "true" : undefined}
-      className={`relative flex items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.05] backdrop-blur-md shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] overflow-hidden shrink-0 select-none ${className}`}
+      className={`relative inline-flex items-center justify-center shrink-0 select-none aspect-square overflow-hidden rounded-[22%] ${className}`}
       style={{
-        width: boxSize,
-        height: boxSize,
+        width: pixelSize,
+        height: pixelSize,
       }}
     >
-      {/* Soft white reflection overlays mimicking premium glass depth */}
-      <div className="absolute inset-x-0 top-0 h-[40%] bg-gradient-to-b from-white/[0.08] to-transparent pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.01] to-white/[0.06] pointer-events-none" />
-      
-      {/* Monolith Pillar SVG */}
-      <svg
-        viewBox="0 0 100 100"
-        fill="currentColor"
-        aria-hidden="true"
-        className="text-white w-[55%] h-[55%] pointer-events-none"
-      >
-        {/* Vector representation of the beveled vertical monolith pillar */}
-        <path d="M 41 20 L 53 20 L 59 26 L 59 80 L 41 80 Z" />
-      </svg>
-    </motion.div>
+      {!imgError ? (
+        <img
+          src="/assets/oneday-logo.png"
+          alt={isHidden ? "" : label}
+          width={pixelSize}
+          height={pixelSize}
+          onError={() => setImgError(true)}
+          className="w-full h-full object-contain pointer-events-none select-none block"
+          loading="eager"
+          decoding="async"
+        />
+      ) : (
+        /* Exact vector fallback preserving official monolith symbol and geometry */
+        <svg
+          viewBox="0 0 1000 1000"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-full h-full pointer-events-none select-none block"
+          aria-hidden="true"
+        >
+          {/* Outer clean white boundary */}
+          <rect x="10" y="10" width="980" height="980" rx="234" fill="#ffffff" stroke="#ffffff" stroke-width="6" />
+          {/* Black squircle core */}
+          <rect x="36" y="36" width="928" height="928" rx="208" fill="#000000" />
+          {/* Official white monolith "I" symbol */}
+          <path d="M 433.5 217.3 L 542.7 217.3 L 576.4 256.0 L 576.4 795.6 L 433.5 795.6 Z" fill="#ffffff" />
+        </svg>
+      )}
+    </div>
   );
+
+  if (interactive) {
+    return (
+      <motion.div
+        whileHover={{ scale: 1.04 }}
+        whileTap={{ scale: 0.97 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        className="inline-flex shrink-0"
+      >
+        {content}
+      </motion.div>
+    );
+  }
+
+  return content;
 }
+
+// Export alias for semantic consistency
+export const OneDayLogo = MonolithLogo;
+export default MonolithLogo;

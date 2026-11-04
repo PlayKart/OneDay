@@ -189,8 +189,9 @@ export function TitleUnlockModal() {
             transition={{ type: "spring", damping: 20, stiffness: 350, delay: 0.25 }}
             className="relative mb-5"
           >
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-b from-amber-500/20 to-amber-500/5 border border-amber-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.25)]">
-              <MonolithLogo size={42} />
+            <div className="relative flex items-center justify-center">
+              <MonolithLogo size={56} />
+              <div className="absolute inset-0 rounded-2xl bg-amber-500/20 blur-xl -z-10" />
             </div>
             <motion.div
               initial={{ scale: 0 }}

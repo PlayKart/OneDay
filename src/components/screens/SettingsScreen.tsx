@@ -28,6 +28,7 @@ import { getEquippedTitle } from "../../utils/titleUtils";
 import { StreakProtectionSection } from "../settings/StreakProtectionSection";
 import { ONEDAY_CONTACT } from "../../constants";
 import { Button } from "../ui";
+import { MonolithLogo } from "../MonolithLogo";
 
 export type SettingsSubView =
   | "main"
@@ -622,8 +623,9 @@ export function SettingsScreen() {
       </section>
 
       {/* FOOTER */}
-      <footer className="pt-6 pb-2 text-center space-y-1">
-        <p className="text-xs font-bold tracking-widest text-neutral-500 uppercase">
+      <footer className="pt-6 pb-2 text-center flex flex-col items-center space-y-1.5">
+        <MonolithLogo size={24} aria-hidden="true" className="opacity-70 mb-1" />
+        <p className="text-xs font-bold tracking-widest text-neutral-400 uppercase">
           OneDay
         </p>
         <p className="text-xs text-neutral-600 font-medium">
