@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
-  X, Share2, Download, Sparkles, Check, ArrowLeft, Flame, 
-  RefreshCw, Layers, Edit3, AlertCircle 
+  X, Share2, Download, Sparkles, ArrowLeft, Flame, 
+  Edit3 
 } from "lucide-react";
 import { useStore } from "../store/useStore";
 import { Habit } from "../types";
-import { MonolithLogo } from "./MonolithLogo";
 import { ShareCard, ShareTemplateId } from "./ShareCard";
-import { generateHabitActionWording } from "../utils/habitWording";
+import { extractActivityPhrase } from "../utils/habitWording";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
 
@@ -27,8 +26,7 @@ export function ShareStreakModal({
   
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
   const [template, setTemplate] = useState<ShareTemplateId>("minimal");
-  const [customWording, setCustomWording] = useState("");
-  const [isEditingWording, setIsEditingWording] = useState(false);
+  const [editableActivityPhrase, setEditableActivityPhrase] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.35);
 
@@ -50,32 +48,30 @@ export function ShareStreakModal({
           const streak = found.currentStreak ?? (found as any).streak ?? 0;
           if (streak > 0) {
             setSelectedHabit(found);
-            setCustomWording(generateHabitActionWording(found.name, streak));
+            setEditableActivityPhrase(extractActivityPhrase(found.name));
           } else {
             toast.error("This habit does not have an active streak yet.");
             setSelectedHabit(null);
           }
         }
       } else if (eligibleHabits.length > 0 && !selectedHabit) {
-        // Default to first eligible habit if none preselected
         const first = eligibleHabits[0];
         const streak = first.currentStreak ?? (first as any).streak ?? 0;
         setSelectedHabit(first);
-        setCustomWording(generateHabitActionWording(first.name, streak));
+        setEditableActivityPhrase(extractActivityPhrase(first.name));
       }
     } else {
       setSelectedHabit(null);
-      setIsEditingWording(false);
     }
   }, [isOpen, preselectedHabitId, habits]);
 
-  // Recalculate preview scale on resize to fit container
+  // Recalculate preview scale on resize
   useEffect(() => {
     const updateScale = () => {
       if (previewContainerRef.current) {
         const width = previewContainerRef.current.clientWidth;
         if (width > 0) {
-          const scale = Math.min((width - 40) / 1080, 0.45);
+          const scale = Math.min((width - 40) / 1080, 0.42);
           setPreviewScale(Math.max(scale, 0.2));
         }
       }
@@ -90,16 +86,22 @@ export function ShareStreakModal({
   const handleSelectHabit = (habit: Habit) => {
     const streak = habit.currentStreak ?? (habit as any).streak ?? 0;
     setSelectedHabit(habit);
-    setCustomWording(generateHabitActionWording(habit.name, streak));
+    setEditableActivityPhrase(extractActivityPhrase(habit.name));
   };
 
   const handleDownloadImage = async () => {
     if (!cardRef.current || !selectedHabit) return;
+    
+    const trimmedPhrase = editableActivityPhrase.trim();
+    if (!trimmedPhrase) {
+      toast.error("Activity description cannot be empty.");
+      return;
+    }
+
     setIsExporting(true);
     const toastId = toast.loading("Generating high-resolution card (1080x1920)...");
 
     try {
-      // Temporarily scale container to full size for pristine export
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 1,
@@ -123,6 +125,13 @@ export function ShareStreakModal({
 
   const handleNativeShare = async () => {
     if (!cardRef.current || !selectedHabit) return;
+
+    const trimmedPhrase = editableActivityPhrase.trim();
+    if (!trimmedPhrase) {
+      toast.error("Activity description cannot be empty.");
+      return;
+    }
+
     setIsExporting(true);
     const toastId = toast.loading("Preparing share package...");
 
@@ -140,9 +149,12 @@ export function ShareStreakModal({
         type: "image/png",
       });
 
+      const authoritativeStreak = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
+      const finalSentence = `Day ${authoritativeStreak} of ${trimmedPhrase}.`;
+
       const shareData = {
         title: "OneDay Streak",
-        text: `"${customWording}" — Building consistency, one day at a time. #ShareYourStreak`,
+        text: `"${finalSentence}" — Building consistency, one day at a time. #ShareYourStreak`,
         files: [file],
       };
 
@@ -152,12 +164,11 @@ export function ShareStreakModal({
       } else if (navigator.share) {
         await navigator.share({
           title: "OneDay Streak",
-          text: `"${customWording}" — Building consistency, one day at a time. #ShareYourStreak`,
+          text: `"${finalSentence}" — Building consistency, one day at a time. #ShareYourStreak`,
           url: window.location.origin,
         });
         toast.success("Shared successfully!", { id: toastId });
       } else {
-        // Fallback to download
         handleDownloadImage();
         toast.dismiss(toastId);
       }
@@ -173,8 +184,11 @@ export function ShareStreakModal({
     }
   };
 
-  const currentStreak = selectedHabit ? (selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 0) : 0;
-  const displayName = user?.name || "Champion";
+  const authoritativeStreak = selectedHabit ? (selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1) : 1;
+  const rawDisplayName = user?.name || "";
+  const displayName = rawDisplayName && rawDisplayName.trim() !== "" && rawDisplayName.toLowerCase() !== "user" 
+    ? rawDisplayName 
+    : "MY PROGRESS";
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xl overflow-y-auto">
@@ -322,10 +336,9 @@ export function ShareStreakModal({
                     <ShareCard
                       cardRef={cardRef}
                       template={template}
-                      habitName={selectedHabit.name}
-                      streak={currentStreak}
+                      authoritativeStreak={authoritativeStreak}
                       userName={displayName}
-                      activityWording={customWording || generateHabitActionWording(selectedHabit.name, currentStreak)}
+                      activityPhrase={editableActivityPhrase}
                     />
                   </div>
                 </div>
@@ -335,44 +348,40 @@ export function ShareStreakModal({
               <div className="lg:col-span-5 space-y-6">
                 <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 space-y-5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-widest text-neutral-400">Activity Wording</span>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingWording(!isEditingWording)}
-                      className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Edit3 size={13} />
-                      <span>{isEditingWording ? "Done" : "Customize"}</span>
-                    </button>
+                    <span className="text-xs font-black uppercase tracking-widest text-neutral-400 flex items-center gap-1.5">
+                      <Edit3 size={13} className="text-amber-400" />
+                      <span>Activity Wording Editor</span>
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                      Streak Locked ({authoritativeStreak} Days)
+                    </span>
                   </div>
 
-                  {isEditingWording ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={customWording}
-                        onChange={(e) => setCustomWording(e.target.value)}
-                        rows={3}
-                        className="w-full bg-white/5 border border-white/20 rounded-2xl p-4 text-white text-sm font-semibold outline-none focus:border-white/40 transition-all resize-none"
-                        placeholder="Enter custom activity sentence..."
-                      />
-                      <p className="text-[11px] text-neutral-500">
-                        Editing this sentence does not modify your database habit record.
-                      </p>
+                  {/* Dedicated structured sentence builder */}
+                  <div className="space-y-3">
+                    <div className="text-xs font-mono font-bold text-neutral-400 tracking-wider">
+                      Day {authoritativeStreak} of...
                     </div>
-                  ) : (
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-sm font-semibold text-neutral-200 leading-relaxed italic">
-                      "{customWording}"
-                    </div>
-                  )}
+                    <input
+                      type="text"
+                      value={editableActivityPhrase}
+                      onChange={(e) => setEditableActivityPhrase(e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-2xl px-4 py-3.5 text-white text-sm font-semibold outline-none focus:border-white/40 transition-all"
+                      placeholder="e.g. studying Mathematics"
+                    />
+                    <p className="text-[11px] text-neutral-500 leading-relaxed">
+                      The numerical streak is authoritatively secured from your backend record and cannot be altered or contradicted.
+                    </p>
+                  </div>
 
-                  <div className="pt-2 border-t border-white/10 space-y-3 text-xs text-neutral-400">
+                  <div className="pt-3 border-t border-white/10 space-y-2 text-xs text-neutral-400">
                     <div className="flex justify-between items-center">
-                      <span>Target Habit:</span>
+                      <span>Habit Source:</span>
                       <span className="font-bold text-white">{selectedHabit.name}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Authoritative Streak:</span>
-                      <span className="font-bold text-amber-400">{currentStreak} Days</span>
+                      <span className="font-bold text-amber-400">{authoritativeStreak} Days</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Official Hashtag:</span>

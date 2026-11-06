@@ -1,11 +1,11 @@
 /**
  * Natural Habit-to-Action Wording Utility
- * Transforms stored habit names into natural-language activity sentences.
+ * Transforms stored habit names into clean activity phrases (separated from the streak number).
  */
 
-export function generateHabitActionWording(habitName: string, streak: number = 10): string {
-  if (!habitName || typeof habitName !== "string") {
-    return `Day ${streak} of showing up.`;
+export function extractActivityPhrase(habitName: string): string {
+  if (!habitName || typeof habitName !== "string" || !habitName.trim()) {
+    return "consistency protocol";
   }
 
   const cleanName = habitName.trim();
@@ -14,59 +14,59 @@ export function generateHabitActionWording(habitName: string, streak: number = 1
   // Pattern matching for known high-frequency habit phrasing
   if (lower.startsWith("study ")) {
     const subject = cleanName.slice(6).trim();
-    return `Day ${streak} of studying ${subject}.`;
+    return `studying ${subject}`;
   }
   if (lower === "study mathematics" || lower === "math") {
-    return `Day ${streak} of studying Mathematics.`;
+    return "studying Mathematics";
   }
   if (lower.includes("workout") || lower === "morning workout" || lower === "evening workout") {
-    return `Day ${streak} of working out.`;
+    return "working out";
   }
   if (lower.includes("football training") || lower.includes("soccer training")) {
     const sport = lower.includes("soccer") ? "soccer" : "football";
-    return `Day ${streak} of training for ${sport}.`;
+    return `training for ${sport}`;
   }
   if (lower.includes("training") && !lower.includes("for")) {
     const activity = cleanName.replace(/training/i, "").trim();
-    return activity ? `Day ${streak} of training for ${activity}.` : `Day ${streak} of training.`;
+    return activity ? `training for ${activity}` : "training";
   }
   if (lower.startsWith("read ")) {
     const target = cleanName.slice(5).trim();
-    return `Day ${streak} of reading ${target}.`;
+    return `reading ${target}`;
   }
   if (lower === "read books" || lower === "reading") {
-    return `Day ${streak} of reading.`;
+    return "reading";
   }
   if (lower === "running" || lower.startsWith("run ")) {
-    return `Day ${streak} of running.`;
+    return "running";
   }
   if (lower.includes("drink water") || lower.includes("hydration")) {
-    return `Day ${streak} of staying hydrated.`;
+    return "staying hydrated";
   }
   if (lower.includes("learn coding") || lower.includes("coding") || lower.includes("programming")) {
     const lang = lower.replace(/learn|coding|programming/gi, "").trim();
-    return lang ? `Day ${streak} of learning to code in ${lang}.` : `Day ${streak} of learning to code.`;
+    return lang ? `learning to code in ${lang}` : "learning to code";
   }
   if (lower.startsWith("meditat")) {
-    return `Day ${streak} of meditating.`;
+    return "meditating";
   }
   if (lower.startsWith("writ")) {
-    return `Day ${streak} of writing.`;
+    return "writing";
   }
   if (lower.startsWith("yoga")) {
-    return `Day ${streak} of practicing yoga.`;
+    return "practicing yoga";
   }
   if (lower.startsWith("gym")) {
-    return `Day ${streak} of hitting the gym.`;
+    return "hitting the gym";
   }
   if (lower.startsWith("walk")) {
-    return `Day ${streak} of walking.`;
+    return "walking";
   }
   if (lower.startsWith("stretch")) {
-    return `Day ${streak} of stretching.`;
+    return "stretching";
   }
 
-  // Generic gerund transform for simple verbs (e.g. "Code" -> "coding", "Code Python" -> "coding Python")
+  // Generic gerund transform for simple verbs
   const words = cleanName.split(/\s+/);
   const firstWord = words[0].toLowerCase();
   const rest = words.slice(1).join(" ");
@@ -99,9 +99,14 @@ export function generateHabitActionWording(habitName: string, streak: number = 1
 
   if (verbMap[firstWord]) {
     const gerund = verbMap[firstWord];
-    return rest ? `Day ${streak} of ${gerund} ${rest}.` : `Day ${streak} of ${gerund}.`;
+    return rest ? `${gerund} ${rest}` : gerund;
   }
 
-  // Safe fallback for ambiguous or multi-word habit names
-  return `Day ${streak} of showing up for ${cleanName}.`;
+  // Safe fallback using actual habit name without generic "Habit" filler
+  return cleanName;
+}
+
+export function generateHabitActionWording(habitName: string, streak: number = 10): string {
+  const phrase = extractActivityPhrase(habitName);
+  return `Day ${streak} of ${phrase}.`;
 }
