@@ -25,7 +25,7 @@ export function ShareStreakModal({
   const { habits, user } = useStore();
   
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
-  const [template, setTemplate] = useState<ShareTemplateId>("minimal");
+  const [template, setTemplate] = useState<ShareTemplateId>("signature");
   const [format, setFormat] = useState<ShareFormatId>("post"); // 4:5 default primary format
   const [editableActivityPhrase, setEditableActivityPhrase] = useState("");
   const [isExporting, setIsExporting] = useState(false);
@@ -66,23 +66,29 @@ export function ShareStreakModal({
     }
   }, [isOpen, preselectedHabitId, habits]);
 
-  // Recalculate preview scale on resize
+  // Recalculate preview scale on resize & container dimensions
   useEffect(() => {
     const updateScale = () => {
       if (previewContainerRef.current) {
         const width = previewContainerRef.current.clientWidth;
-        if (width > 0) {
+        const height = previewContainerRef.current.clientHeight;
+        if (width > 0 && height > 0) {
           const targetW = 1080;
           const targetH = format === "story" ? 1920 : 1350;
-          const scaleX = (width - 40) / targetW;
-          const scale = Math.min(scaleX, 0.45);
-          setPreviewScale(Math.max(scale, 0.2));
+          const scaleX = (width - 32) / targetW;
+          const scaleY = (height - 32) / targetH;
+          const scale = Math.min(scaleX, scaleY);
+          setPreviewScale(Math.max(scale, 0.15));
         }
       }
     };
     updateScale();
+    const timeout = setTimeout(updateScale, 50);
     window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener("resize", updateScale);
+    };
   }, [isOpen, selectedHabit, format]);
 
   if (!isOpen) return null;
@@ -341,18 +347,22 @@ export function ShareStreakModal({
 
                   {/* Template Switcher */}
                   <div className="flex items-center gap-1 w-full sm:w-auto justify-end">
-                    {(["minimal", "milestone", "editorial"] as ShareTemplateId[]).map((t) => (
+                    {([
+                      { id: "signature", label: "Signature" },
+                      { id: "monochrome", label: "Monochrome" },
+                      { id: "editorial", label: "Editorial" },
+                    ] as const).map(({ id, label }) => (
                       <button
-                        key={t}
+                        key={id}
                         type="button"
-                        onClick={() => setTemplate(t)}
+                        onClick={() => setTemplate(id)}
                         className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                          template === t
+                          template === id
                             ? "bg-white text-black shadow-md"
                             : "text-neutral-400 hover:text-white hover:bg-white/5"
                         }`}
                       >
-                        {t}
+                        {label}
                       </button>
                     ))}
                   </div>
@@ -361,7 +371,7 @@ export function ShareStreakModal({
                 {/* Scaled Preview Canvas Wrapper */}
                 <div 
                   ref={previewContainerRef}
-                  className={`relative w-full ${format === "story" ? "aspect-[9/16]" : "aspect-[4/5]"} bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300`}
+                  className={`relative w-full ${format === "story" ? "h-[540px] sm:h-[620px]" : "h-[460px] sm:h-[540px]"} bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300`}
                 >
                   <div 
                     style={{
@@ -370,7 +380,7 @@ export function ShareStreakModal({
                       width: 1080,
                       height: format === "story" ? 1920 : 1350,
                     }}
-                    className="absolute shadow-2xl pointer-events-none"
+                    className="shadow-2xl pointer-events-none shrink-0"
                   >
                     <ShareCard
                       cardRef={cardRef}
@@ -378,6 +388,7 @@ export function ShareStreakModal({
                       format={format}
                       authoritativeStreak={authoritativeStreak}
                       userName={displayName}
+                      habitName={selectedHabit.name}
                       activityPhrase={editableActivityPhrase}
                     />
                   </div>

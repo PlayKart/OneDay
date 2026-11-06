@@ -111,6 +111,22 @@ export function extractActivityPhrase(habitName: string): string {
   return cleanName;
 }
 
+export function extractActivityHeadline(habitName: string, activityPhrase?: string): string {
+  if (activityPhrase && activityPhrase.trim()) {
+    const p = activityPhrase.trim();
+    return p.toUpperCase();
+  }
+  if (!habitName || typeof habitName !== "string" || !habitName.trim()) {
+    return "DAILY DISCIPLINE";
+  }
+  const cleanName = habitName.trim();
+  const lower = cleanName.toLowerCase();
+  if (lower === "habit" || lower === "my habit" || lower === "new habit" || lower === "untitled") {
+    return "BUILDING CONSISTENCY";
+  }
+  return cleanName.toUpperCase();
+}
+
 export function generateHabitActionWording(habitName: string, streak: number = 10): string {
   const phrase = extractActivityPhrase(habitName);
   return `Day ${streak} of ${phrase}.`;
