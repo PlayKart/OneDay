@@ -27,6 +27,7 @@ const AchievementUnlockModal = lazy(() => import('./components/AchievementUnlock
 const AchievementDetailModal = lazy(() => import('./components/AchievementDetailModal').then(m => ({ default: m.AchievementDetailModal })));
 const OnboardingModal = lazy(() => import('./components/OnboardingModal').then(m => ({ default: m.OnboardingModal })));
 const AppIntroFlow = lazy(() => import('./components/AppIntroFlow').then(m => ({ default: m.AppIntroFlow })));
+const ShareStreakModal = lazy(() => import('./components/ShareStreakModal').then(m => ({ default: m.ShareStreakModal })));
 
 export type AppState =
   | "INITIALIZING"
@@ -121,7 +122,10 @@ export default function App() {
     profileSynced, 
     refreshFromBackend, 
     activeTab, 
-    incrementProfileVersion 
+    incrementProfileVersion,
+    isShareStreakOpen,
+    shareStreakHabitId,
+    closeShareStreakModal
   } = useStore();
 
   const appState = getAppState({
@@ -475,6 +479,7 @@ export default function App() {
         <LevelUpModal />
         <AchievementUnlockModal />
         <AchievementDetailModal />
+        <ShareStreakModal isOpen={isShareStreakOpen} onClose={closeShareStreakModal} preselectedHabitId={shareStreakHabitId} />
       </div>
     </div>
   );

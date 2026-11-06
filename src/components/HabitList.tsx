@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, CheckCircle2, FileText, ChevronDown, AlignLeft, Coffee, Flame } from 'lucide-react';
+import { Plus, Check, Loader2, MoreVertical, Pencil, Trash2, RotateCcw, Lock, CheckCircle2, FileText, ChevronDown, AlignLeft, Coffee, Flame, Share2 } from 'lucide-react';
 import { useStore, Habit } from '../store/useStore';
 import { toast } from 'react-hot-toast';
 import { isHabitScheduledForToday, getScheduledDaysMessage, getTodayHabitStats } from '../lib/habitUtils';
@@ -13,7 +13,7 @@ import { isUserFrozen, formatFreezeDate, formatFreezeDateShort } from '../utils/
 import { HabitListSkeleton } from './SkeletonLoaders';
 
 export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?: boolean; onCreateClick?: () => void }) => {
-  const { user, habits, completeHabit, undoHabit, deleteHabit, refreshFromBackend, loading, pendingHabitIds, profileSynced } = useStore();
+  const { user, habits, completeHabit, undoHabit, deleteHabit, refreshFromBackend, loading, pendingHabitIds, profileSynced, openShareStreakModal } = useStore();
   const userFrozen = isUserFrozen(user);
   
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -491,6 +491,26 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                         role="menu"
                         aria-label="Habit options"
                       >
+                        <button
+                          type="button"
+                          role="menuitem"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdownId(null);
+                            const streak = habit.currentStreak ?? (habit as any).streak ?? 0;
+                            if (streak > 0) {
+                              openShareStreakModal(habit.id);
+                            } else {
+                              toast.error("Complete this habit and build a streak before sharing.");
+                            }
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-colors flex items-center gap-2.5 focus:outline-none focus:bg-amber-500/10"
+                        >
+                          <Share2 size={14} className="text-amber-400 shrink-0" />
+                          <span>Share Your Streak</span>
+                        </button>
+
                         <button
                           type="button"
                           role="menuitem"

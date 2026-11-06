@@ -12,6 +12,7 @@ import { getEquippedTitle } from "../../utils/titleUtils";
 import { calculateLevelProgress } from "../../utils";
 import { perfLogger } from "../../utils/perfLogger";
 import { useFreezeCountdown } from "../../utils/freezeUtils";
+import { DashboardCampaignBanner } from "../DashboardCampaignBanner";
 
 export function DashboardScreen() {
   const { 
@@ -23,6 +24,7 @@ export function DashboardScreen() {
     isAcknowledgingLevelUp,
     levelUpError,
     acknowledgeActiveLevelUpEvent,
+    openShareStreakModal,
   } = useStore();
   const { isFrozen, formattedEndDate, timeRemaining, credits } = useFreezeCountdown(user, () => {
     refreshFromBackend();
@@ -108,6 +110,7 @@ export function DashboardScreen() {
 
   return (
     <div className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-10 pb-28 sm:pb-32 space-y-6 overflow-x-hidden min-h-0 relative">
+      <DashboardCampaignBanner onOpenShareStreak={() => openShareStreakModal()} user={user} />
       
       {/* Subtle icy highlight only when frozen */}
       {isFrozen && (

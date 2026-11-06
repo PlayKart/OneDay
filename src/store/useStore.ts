@@ -58,6 +58,12 @@ interface StoreState {
   isAcknowledgingLevelUp: boolean;
   levelUpError: string | null;
 
+  // Share Streak Modal state
+  isShareStreakOpen: boolean;
+  shareStreakHabitId: string | null;
+  openShareStreakModal: (habitId?: string | null) => void;
+  closeShareStreakModal: () => void;
+
   // Multi-session chat state
   chatSessions: ChatSession[];
   activeChatId: string | null;
@@ -289,6 +295,11 @@ export const useStore = create<StoreState>((set, get) => {
     activeLevelUpEvent: null,
     isAcknowledgingLevelUp: false,
     levelUpError: null,
+
+    isShareStreakOpen: false,
+    shareStreakHabitId: null,
+    openShareStreakModal: (habitId = null) => set({ isShareStreakOpen: true, shareStreakHabitId: habitId }),
+    closeShareStreakModal: () => set({ isShareStreakOpen: false, shareStreakHabitId: null }),
 
 
     chatSessions: [],
