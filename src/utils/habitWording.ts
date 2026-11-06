@@ -11,6 +11,11 @@ export function extractActivityPhrase(habitName: string): string {
   const cleanName = habitName.trim();
   const lower = cleanName.toLowerCase();
 
+  // Guard against generic or placeholder names
+  if (lower === "habit" || lower === "my habit" || lower === "new habit" || lower === "untitled") {
+    return "building consistency";
+  }
+
   // Pattern matching for known high-frequency habit phrasing
   if (lower.startsWith("study ")) {
     const subject = cleanName.slice(6).trim();
@@ -102,7 +107,7 @@ export function extractActivityPhrase(habitName: string): string {
     return rest ? `${gerund} ${rest}` : gerund;
   }
 
-  // Safe fallback using actual habit name without generic "Habit" filler
+  // Safe fallback using actual habit name
   return cleanName;
 }
 

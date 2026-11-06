@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, Share2, Download, Sparkles, ArrowLeft, Flame, 
-  Edit3 
+  Edit3, Layout, Smartphone 
 } from "lucide-react";
 import { useStore } from "../store/useStore";
 import { Habit } from "../types";
-import { ShareCard, ShareTemplateId } from "./ShareCard";
+import { ShareCard, ShareTemplateId, ShareFormatId } from "./ShareCard";
 import { extractActivityPhrase } from "../utils/habitWording";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
@@ -26,6 +26,7 @@ export function ShareStreakModal({
   
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
   const [template, setTemplate] = useState<ShareTemplateId>("minimal");
+  const [format, setFormat] = useState<ShareFormatId>("post"); // 4:5 default primary format
   const [editableActivityPhrase, setEditableActivityPhrase] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.35);
@@ -71,7 +72,10 @@ export function ShareStreakModal({
       if (previewContainerRef.current) {
         const width = previewContainerRef.current.clientWidth;
         if (width > 0) {
-          const scale = Math.min((width - 40) / 1080, 0.42);
+          const targetW = 1080;
+          const targetH = format === "story" ? 1920 : 1350;
+          const scaleX = (width - 40) / targetW;
+          const scale = Math.min(scaleX, 0.45);
           setPreviewScale(Math.max(scale, 0.2));
         }
       }
@@ -79,7 +83,7 @@ export function ShareStreakModal({
     updateScale();
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
-  }, [isOpen, selectedHabit]);
+  }, [isOpen, selectedHabit, format]);
 
   if (!isOpen) return null;
 
@@ -99,18 +103,22 @@ export function ShareStreakModal({
     }
 
     setIsExporting(true);
-    const toastId = toast.loading("Generating high-resolution card (1080x1920)...");
+    const dimensionsLabel = format === "story" ? "1080x1920" : "1080x1350";
+    const toastId = toast.loading(`Generating high-resolution card (${dimensionsLabel})...`);
 
     try {
+      const targetW = 1080;
+      const targetH = format === "story" ? 1920 : 1350;
+
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 1,
-        width: 1080,
-        height: 1920,
+        width: targetW,
+        height: targetH,
       });
 
       const link = document.createElement("a");
-      link.download = `OneDay-Streak-${selectedHabit.name.replace(/\s+/g, "-")}.png`;
+      link.download = `OneDay-Streak-${selectedHabit.name.replace(/\s+/g, "-")}-${format}.png`;
       link.href = dataUrl;
       link.click();
 
@@ -136,11 +144,14 @@ export function ShareStreakModal({
     const toastId = toast.loading("Preparing share package...");
 
     try {
+      const targetW = 1080;
+      const targetH = format === "story" ? 1920 : 1350;
+
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 1,
-        width: 1080,
-        height: 1920,
+        width: targetW,
+        height: targetH,
       });
 
       const res = await fetch(dataUrl);
@@ -296,18 +307,46 @@ export function ShareStreakModal({
           ) : (
             /* PREVIEW & CUSTOMIZATION VIEW */
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              {/* LEFT: Preview & Templates */}
-              <div className="lg:col-span-7 space-y-6">
-                {/* Template Selector */}
-                <div className="flex items-center justify-between bg-white/[0.03] border border-white/10 p-1.5 rounded-2xl">
-                  <div className="text-xs font-bold text-neutral-400 px-3 uppercase tracking-wider">Template:</div>
-                  <div className="flex items-center gap-1.5">
+              {/* LEFT: Preview & Controls */}
+              <div className="lg:col-span-7 space-y-5">
+                {/* Format & Template Switcher */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/[0.03] border border-white/10 p-2 rounded-2xl">
+                  {/* Format Toggle (Post 4:5 vs Story 9:16) */}
+                  <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setFormat("post")}
+                      className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        format === "post"
+                          ? "bg-amber-500 text-black shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      <Layout size={13} />
+                      <span>Post (4:5)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormat("story")}
+                      className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        format === "story"
+                          ? "bg-amber-500 text-black shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      <Smartphone size={13} />
+                      <span>Story (9:16)</span>
+                    </button>
+                  </div>
+
+                  {/* Template Switcher */}
+                  <div className="flex items-center gap-1 w-full sm:w-auto justify-end">
                     {(["minimal", "milestone", "editorial"] as ShareTemplateId[]).map((t) => (
                       <button
                         key={t}
                         type="button"
                         onClick={() => setTemplate(t)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                        className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                           template === t
                             ? "bg-white text-black shadow-md"
                             : "text-neutral-400 hover:text-white hover:bg-white/5"
@@ -322,20 +361,21 @@ export function ShareStreakModal({
                 {/* Scaled Preview Canvas Wrapper */}
                 <div 
                   ref={previewContainerRef}
-                  className="relative w-full aspect-[9/16] bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl"
+                  className={`relative w-full ${format === "story" ? "aspect-[9/16]" : "aspect-[4/5]"} bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300`}
                 >
                   <div 
                     style={{
                       transform: `scale(${previewScale})`,
                       transformOrigin: "center center",
                       width: 1080,
-                      height: 1920,
+                      height: format === "story" ? 1920 : 1350,
                     }}
                     className="absolute shadow-2xl pointer-events-none"
                   >
                     <ShareCard
                       cardRef={cardRef}
                       template={template}
+                      format={format}
                       authoritativeStreak={authoritativeStreak}
                       userName={displayName}
                       activityPhrase={editableActivityPhrase}
@@ -409,7 +449,7 @@ export function ShareStreakModal({
                     className="w-full bg-white/10 text-white font-extrabold py-4 rounded-2xl border border-white/15 hover:bg-white/15 active:scale-[0.98] transition-all cursor-pointer text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Download size={16} />
-                    <span>Download High-Res PNG (1080x1920)</span>
+                    <span>Download High-Res PNG ({format === "story" ? "1080x1920" : "1080x1350"})</span>
                   </button>
                 </div>
               </div>
