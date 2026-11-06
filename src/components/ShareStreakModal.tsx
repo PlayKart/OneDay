@@ -24,21 +24,45 @@ export function ShareStreakModal({
 }: ShareStreakModalProps) {
   const { habits, user } = useStore();
   
-  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
-  const [template, setTemplate] = useState<ShareTemplateId>("signature");
-  const [format, setFormat] = useState<ShareFormatId>("post"); // 4:5 default primary format
-  const [editableActivityPhrase, setEditableActivityPhrase] = useState("");
-  const [isExporting, setIsExporting] = useState(false);
-  const [previewScale, setPreviewScale] = useState(0.35);
-
-  const cardRef = useRef<HTMLDivElement>(null);
-  const previewContainerRef = useRef<HTMLDivElement>(null);
-
   // Filter eligible habits: streak > 0
   const eligibleHabits = habits.filter((h) => {
     const streak = h.currentStreak ?? (h as any).streak ?? 0;
     return streak > 0 && !h.isArchived;
   });
+
+  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(() => {
+    if (preselectedHabitId) {
+      const found = habits.find((h) => h.id === preselectedHabitId);
+      if (found) {
+        const streak = found.currentStreak ?? (found as any).streak ?? 0;
+        if (streak > 0) return found;
+      }
+    }
+    const eligible = habits.filter((h) => {
+      const streak = h.currentStreak ?? (h as any).streak ?? 0;
+      return streak > 0 && !h.isArchived;
+    });
+    return eligible[0] || null;
+  });
+
+  const [template, setTemplate] = useState<ShareTemplateId>("signature");
+  const [format, setFormat] = useState<ShareFormatId>("post"); // 4:5 default primary format
+  const [editableActivityPhrase, setEditableActivityPhrase] = useState(() => {
+    if (preselectedHabitId) {
+      const found = habits.find((h) => h.id === preselectedHabitId);
+      if (found) return extractActivityPhrase(found.name);
+    }
+    const eligible = habits.filter((h) => {
+      const streak = h.currentStreak ?? (h as any).streak ?? 0;
+      return streak > 0 && !h.isArchived;
+    });
+    return eligible[0] ? extractActivityPhrase(eligible[0].name) : "";
+  });
+  const [isExporting, setIsExporting] = useState(false);
+  const [previewScale, setPreviewScale] = useState(0.35);
+
+  const cardRef = useRef<HTMLDivElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle preselected habit on open
   useEffect(() => {
@@ -216,31 +240,31 @@ export function ShareStreakModal({
         className="relative bg-[#0c0c0e] border border-white/10 rounded-3xl max-w-5xl w-full max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden"
       >
         {/* HEADER */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 bg-[#08080a] shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/10 bg-[#08080a] shrink-0 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             {selectedHabit && !preselectedHabitId && (
               <button
                 type="button"
                 onClick={() => setSelectedHabit(null)}
-                className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-neutral-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer mr-1"
+                className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-neutral-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer mr-1 shrink-0"
                 aria-label="Back to habit selection"
               >
                 <ArrowLeft size={16} />
               </button>
             )}
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
               <Sparkles size={20} />
             </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-white">Share Your Streak</h2>
-              <p className="text-xs text-neutral-400 font-medium">Celebrate your consistency. One day at a time.</p>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-white truncate">Share Your Streak</h2>
+              <p className="text-xs text-neutral-400 font-medium truncate">Celebrate your consistency. One day at a time.</p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0 ml-2"
             aria-label="Close modal"
           >
             <X size={18} />
@@ -248,7 +272,7 @@ export function ShareStreakModal({
         </div>
 
         {/* CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 min-w-0">
           {!selectedHabit ? (
             /* HABIT SELECTION VIEW */
             <div className="space-y-6">
@@ -311,41 +335,41 @@ export function ShareStreakModal({
             </div>
           ) : (
             /* PREVIEW & CUSTOMIZATION VIEW */
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start w-full min-w-0">
               {/* LEFT: Preview & Controls */}
-              <div className="lg:col-span-7 space-y-5">
+              <div className="lg:col-span-7 space-y-4 sm:space-y-5 w-full min-w-0">
                 {/* Format & Template Switcher */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/[0.03] border border-white/10 p-2 rounded-2xl">
+                <div className="w-full max-w-full min-w-0 box-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/[0.03] border border-white/10 p-1.5 sm:p-2 rounded-2xl">
                   {/* Format Toggle (Post 4:5 vs Story 9:16) */}
-                  <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                  <div className="grid grid-cols-2 gap-1.5 w-full sm:w-auto sm:flex sm:items-center min-w-0">
                     <button
                       type="button"
                       onClick={() => setFormat("post")}
-                      className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`h-9 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 min-w-0 truncate ${
                         format === "post"
-                          ? "bg-amber-500 text-black shadow-md"
-                          : "text-neutral-400 hover:text-white hover:bg-white/5"
+                          ? "bg-amber-500 text-black shadow-md font-extrabold"
+                          : "bg-white/[0.02] sm:bg-transparent text-neutral-400 hover:text-white hover:bg-white/5"
                       }`}
                     >
-                      <Layout size={13} />
-                      <span>Post (4:5)</span>
+                      <Layout size={13} className="shrink-0" />
+                      <span className="truncate">Post (4:5)</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setFormat("story")}
-                      className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`h-9 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 min-w-0 truncate ${
                         format === "story"
-                          ? "bg-amber-500 text-black shadow-md"
-                          : "text-neutral-400 hover:text-white hover:bg-white/5"
+                          ? "bg-amber-500 text-black shadow-md font-extrabold"
+                          : "bg-white/[0.02] sm:bg-transparent text-neutral-400 hover:text-white hover:bg-white/5"
                       }`}
                     >
-                      <Smartphone size={13} />
-                      <span>Story (9:16)</span>
+                      <Smartphone size={13} className="shrink-0" />
+                      <span className="truncate">Story (9:16)</span>
                     </button>
                   </div>
 
-                  {/* Template Switcher */}
-                  <div className="flex items-center gap-1 w-full sm:w-auto justify-end">
+                  {/* Template Switcher: Three compact, equally sized options in a responsive row */}
+                  <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto sm:flex sm:items-center min-w-0">
                     {([
                       { id: "signature", label: "Signature" },
                       { id: "monochrome", label: "Monochrome" },
@@ -355,13 +379,13 @@ export function ShareStreakModal({
                         key={id}
                         type="button"
                         onClick={() => setTemplate(id)}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                        className={`h-9 px-1.5 sm:px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-tight sm:tracking-wider transition-all cursor-pointer flex items-center justify-center text-center min-w-0 truncate ${
                           template === id
-                            ? "bg-white text-black shadow-md"
-                            : "text-neutral-400 hover:text-white hover:bg-white/5"
+                            ? "bg-white text-black shadow-md font-extrabold"
+                            : "bg-white/[0.03] sm:bg-transparent text-neutral-400 hover:text-white hover:bg-white/10"
                         }`}
                       >
-                        {label}
+                        <span className="truncate">{label}</span>
                       </button>
                     ))}
                   </div>
@@ -370,7 +394,7 @@ export function ShareStreakModal({
                 {/* Scaled Preview Canvas Wrapper */}
                 <div 
                   ref={previewContainerRef}
-                  className={`relative w-full ${format === "story" ? "h-[540px] sm:h-[620px]" : "h-[460px] sm:h-[540px]"} bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300`}
+                  className={`relative w-full max-w-full min-w-0 ${format === "story" ? "h-[540px] sm:h-[620px]" : "h-[460px] sm:h-[540px]"} bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300`}
                 >
                   <div 
                     style={{
@@ -395,8 +419,8 @@ export function ShareStreakModal({
               </div>
 
               {/* RIGHT: Customization & Actions */}
-              <div className="lg:col-span-5 space-y-6">
-                <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 space-y-5">
+              <div className="lg:col-span-5 space-y-5 sm:space-y-6 w-full min-w-0">
+                <div className="p-4 sm:p-6 rounded-3xl bg-white/[0.03] border border-white/10 space-y-4 sm:space-y-5 w-full min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black uppercase tracking-widest text-neutral-400 flex items-center gap-1.5">
                       <Edit3 size={13} className="text-amber-400" />
