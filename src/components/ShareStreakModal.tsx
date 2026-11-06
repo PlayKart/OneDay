@@ -7,7 +7,7 @@ import {
 import { useStore } from "../store/useStore";
 import { Habit } from "../types";
 import { ShareCard, ShareTemplateId, ShareFormatId } from "./ShareCard";
-import { extractActivityPhrase } from "../utils/habitWording";
+import { extractActivityPhrase, formatHabitAchievementPhrase } from "../utils/habitWording";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
 
@@ -167,11 +167,14 @@ export function ShareStreakModal({
       });
 
       const authoritativeStreak = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
-      const finalSentence = `Day ${authoritativeStreak} of ${trimmedPhrase}.`;
+      const isSingular = authoritativeStreak === 1;
+      const daysText = isSingular ? "DAY" : "DAYS";
+      const cleanActivity = formatHabitAchievementPhrase(trimmedPhrase, selectedHabit.name);
+      const headlineSentence = `${authoritativeStreak} ${daysText} OF ${cleanActivity}.`;
 
       const shareData = {
-        title: "OneDay Streak",
-        text: `"${finalSentence}" — Building consistency, one day at a time. #ShareYourStreak`,
+        title: `OneDay — ${authoritativeStreak} Day Streak!`,
+        text: `"${headlineSentence}" — Consistency looks good on you. #ShareYourStreak`,
         files: [file],
       };
 
@@ -180,8 +183,8 @@ export function ShareStreakModal({
         toast.success("Shared successfully!", { id: toastId });
       } else if (navigator.share) {
         await navigator.share({
-          title: "OneDay Streak",
-          text: `"${finalSentence}" — Building consistency, one day at a time. #ShareYourStreak`,
+          title: `OneDay — ${authoritativeStreak} Day Streak!`,
+          text: `"${headlineSentence}" — Consistency looks good on you. #ShareYourStreak`,
           url: window.location.origin,
         });
         toast.success("Shared successfully!", { id: toastId });
@@ -202,10 +205,6 @@ export function ShareStreakModal({
   };
 
   const authoritativeStreak = selectedHabit ? (selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1) : 1;
-  const rawDisplayName = user?.name || "";
-  const displayName = rawDisplayName && rawDisplayName.trim() !== "" && rawDisplayName.toLowerCase() !== "user" 
-    ? rawDisplayName 
-    : "MY PROGRESS";
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xl overflow-y-auto">
@@ -387,7 +386,7 @@ export function ShareStreakModal({
                       template={template}
                       format={format}
                       authoritativeStreak={authoritativeStreak}
-                      userName={displayName}
+                      userName={user?.name || ""}
                       habitName={selectedHabit.name}
                       activityPhrase={editableActivityPhrase}
                     />
@@ -410,8 +409,11 @@ export function ShareStreakModal({
 
                   {/* Dedicated structured sentence builder */}
                   <div className="space-y-3">
-                    <div className="text-xs font-mono font-bold text-neutral-400 tracking-wider">
-                      Day {authoritativeStreak} of...
+                    <div className="flex items-center justify-between text-xs font-mono font-bold tracking-wider">
+                      <span className="text-neutral-400">
+                        {authoritativeStreak} {authoritativeStreak === 1 ? "Day" : "Days"} of...
+                      </span>
+                      <span className="text-[#FBBC05] text-[10px] uppercase">Live Card Preview</span>
                     </div>
                     <input
                       type="text"
@@ -420,6 +422,12 @@ export function ShareStreakModal({
                       className="w-full bg-white/5 border border-white/20 rounded-2xl px-4 py-3.5 text-white text-sm font-semibold outline-none focus:border-white/40 transition-all"
                       placeholder="e.g. studying Mathematics"
                     />
+                    <div className="p-3 rounded-xl bg-black/60 border border-white/10 text-xs font-mono flex flex-col gap-1">
+                      <span className="text-neutral-500 uppercase tracking-wider text-[10px]">Gold Panel Headline:</span>
+                      <span className="text-[#FBBC05] font-extrabold text-xs tracking-tight">
+                        {authoritativeStreak} {authoritativeStreak === 1 ? "DAY" : "DAYS"} OF {formatHabitAchievementPhrase(editableActivityPhrase, selectedHabit.name)}.
+                      </span>
+                    </div>
                     <p className="text-[11px] text-neutral-500 leading-relaxed">
                       The numerical streak is authoritatively secured from your backend record and cannot be altered or contradicted.
                     </p>

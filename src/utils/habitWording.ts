@@ -131,3 +131,29 @@ export function generateHabitActionWording(habitName: string, streak: number = 1
   const phrase = extractActivityPhrase(habitName);
   return `Day ${streak} of ${phrase}.`;
 }
+
+export function formatPossessiveName(name?: string): string {
+  if (!name || typeof name !== "string" || !name.trim()) {
+    return "MY";
+  }
+  const clean = name.trim();
+  const lower = clean.toLowerCase();
+  if (lower === "user" || lower === "my progress" || lower === "profile" || lower === "untitled") {
+    return "MY";
+  }
+  const upper = clean.toUpperCase();
+  if (upper.endsWith("S")) {
+    return `${upper}'`;
+  }
+  return `${upper}'S`;
+}
+
+export function formatHabitAchievementPhrase(activityPhrase: string, habitName?: string): string {
+  let source = (activityPhrase && activityPhrase.trim()) ? activityPhrase.trim() : (habitName || "");
+  if (!source || !source.trim()) {
+    source = "building consistency";
+  }
+  let cleaned = source.trim().replace(/^(day\s+\d+\s+of\s+|of\s+)/i, "").trim();
+  cleaned = cleaned.replace(/[.\s]+$/, "");
+  return cleaned.toUpperCase();
+}
