@@ -117,8 +117,8 @@ export function ShareStreakModal({
         const width = previewContainerRef.current.clientWidth;
         const height = previewContainerRef.current.clientHeight;
         if (width > 0 && height > 0) {
-          const targetW = 1200;
-          const targetH = 960;
+          const targetW = 960;
+          const targetH = 1200;
           const scaleX = (width - 24) / targetW;
           const scaleY = (height - 24) / targetH;
           const scale = Math.min(scaleX, scaleY);
@@ -171,8 +171,8 @@ export function ShareStreakModal({
         } catch (_) {}
       }
 
-      const targetW = 1200;
-      const targetH = 960;
+      const targetW = 960;
+      const targetH = 1200;
 
       let blob = await toBlob(cardRef.current, {
         cacheBust: true,
@@ -236,8 +236,8 @@ export function ShareStreakModal({
         } catch (_) {}
       }
 
-      const targetW = 1200;
-      const targetH = 960;
+      const targetW = 960;
+      const targetH = 1200;
 
       // Generate genuine JPEG dataUrl at quality 0.95
       const dataUrl = await toJpeg(cardRef.current, {
@@ -454,10 +454,10 @@ export function ShareStreakModal({
               <div className="lg:col-span-7 space-y-4 sm:space-y-5 w-full min-w-0">
                 {/* Format Indicator & Template Switcher */}
                 <div className="w-full max-w-full min-w-0 box-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/[0.03] border border-white/10 p-2 rounded-2xl">
-                  {/* Format Indicator: 5:4 Landscape · 1200 × 960 */}
+                  {/* Format Indicator: 4:5 Portrait · 960 × 1200 */}
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-400 font-mono text-[11px] sm:text-xs font-bold tracking-wider uppercase shrink-0">
                     <Layout size={13} className="shrink-0" />
-                    <span>5:4 Canvas · 1200 × 960</span>
+                    <span>4:5 Canvas · 960 × 1200</span>
                   </div>
 
                   {/* Template Switcher: Three compact, equally sized options in a responsive row */}
@@ -483,17 +483,17 @@ export function ShareStreakModal({
                   </div>
                 </div>
 
-                {/* Scaled Preview Canvas Wrapper: Fixed 5:4 Aspect Ratio */}
+                {/* Scaled Preview Canvas Wrapper: Fixed 4:5 Portrait Aspect Ratio */}
                 <div 
                   ref={previewContainerRef}
-                  className="relative w-full max-w-full min-w-0 aspect-[5/4] max-h-[460px] sm:max-h-[520px] bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300"
+                  className="relative w-full max-w-full min-w-0 aspect-[4/5] max-h-[500px] sm:max-h-[580px] bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300"
                 >
                   <div 
                     style={{
                       transform: `scale(${previewScale})`,
                       transformOrigin: "center center",
-                      width: 1200,
-                      height: 960,
+                      width: 960,
+                      height: 1200,
                     }}
                     className="shadow-2xl pointer-events-none shrink-0"
                   >
@@ -593,7 +593,7 @@ export function ShareStreakModal({
                     className="w-full bg-white/10 text-white font-extrabold py-4 rounded-2xl border border-white/15 hover:bg-white/15 active:scale-[0.98] transition-all cursor-pointer text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Download size={16} />
-                    <span>Download High-Res PNG (1200x960)</span>
+                    <span>Download High-Res PNG (960x1200)</span>
                   </button>
                 </div>
               </div>

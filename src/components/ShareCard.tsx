@@ -7,7 +7,7 @@ import {
 import { Check } from "lucide-react";
 
 export type ShareTemplateId = "signature" | "monochrome" | "editorial";
-export type ShareFormatId = "5:4" | "landscape_5_4" | "story" | "post";
+export type ShareFormatId = "portrait_4_5" | "5:4" | "story" | "post";
 
 export interface ShareCardProps {
   template?: ShareTemplateId;
@@ -22,9 +22,9 @@ export interface ShareCardProps {
   cardRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export const SHARE_CARD_WIDTH = 1200;
-export const SHARE_CARD_HEIGHT = 960;
-export const SHARE_CARD_ASPECT_RATIO = "5 / 4";
+export const SHARE_CARD_WIDTH = 960;
+export const SHARE_CARD_HEIGHT = 1200;
+export const SHARE_CARD_ASPECT_RATIO = "4 / 5";
 
 export function ShareCard({
   template = "signature",
@@ -37,7 +37,7 @@ export function ShareCard({
   className = "",
   cardRef,
 }: ShareCardProps) {
-  // Authoritative dimensions: exactly 1200 × 960 px (5:4 aspect ratio)
+  // Authoritative dimensions: exactly 960 × 1200 px (4:5 portrait aspect ratio)
   const width = SHARE_CARD_WIDTH;
   const height = SHARE_CARD_HEIGHT;
 
@@ -50,20 +50,20 @@ export function ShareCard({
     ? habitSentence.trim()
     : formatDeterministicHabitSentence(resolvedHabitName, authoritativeStreak, sanitizedUserName);
 
-  // 3. Dynamic Typography Sizing based on streak digit count
+  // 3. Dynamic Typography Sizing based on streak digit count for portrait 960x1200
   const streakNumSizeClass = authoritativeStreak >= 1000
-    ? "text-[135px]"
+    ? "text-[180px]"
     : authoritativeStreak >= 100
-    ? "text-[165px]"
-    : "text-[200px]";
+    ? "text-[220px]"
+    : "text-[280px]";
 
-  // Sentence sizing adjusted for 5:4 landscape canvas
+  // Sentence sizing adjusted for portrait canvas
   const sentenceLength = resolvedSentence.length;
-  const sentenceSizeClass = sentenceLength > 65
-    ? "text-[26px] leading-[1.32]"
-    : sentenceLength > 42
-    ? "text-[30px] leading-[1.30]"
-    : "text-[34px] leading-[1.28]";
+  const sentenceSizeClass = sentenceLength > 55
+    ? "text-[32px] leading-[1.25]"
+    : sentenceLength > 35
+    ? "text-[36px] leading-[1.22]"
+    : "text-[40px] leading-[1.20]";
 
   // 4. Template Theme Configurations
   const isMonochrome = template === "monochrome";
@@ -75,7 +75,7 @@ export function ShareCard({
       ref={cardRef}
       id="oneday-share-card"
       data-testid="oneday-share-card"
-      className={`relative bg-[#050505] text-white flex flex-col justify-between overflow-hidden select-none font-sans box-border px-[68px] py-[52px] ${className}`}
+      className={`relative bg-[#050505] text-white flex flex-col justify-between overflow-hidden select-none font-sans box-border px-[56px] py-[68px] ${className}`}
       style={{
         width,
         height,
@@ -86,8 +86,8 @@ export function ShareCard({
       {isSignature && (
         <>
           {/* Subtle warm amber radial glow behind streak hero */}
-          <div className="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[780px] h-[640px] bg-amber-500/[0.11] rounded-full blur-[150px] pointer-events-none" />
-          <div className="absolute bottom-[-100px] right-[-100px] w-[450px] h-[450px] bg-amber-500/[0.06] rounded-full blur-[130px] pointer-events-none" />
+          <div className="absolute top-[48%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[680px] bg-amber-500/[0.12] rounded-full blur-[140px] pointer-events-none" />
+          <div className="absolute bottom-[-80px] right-[-80px] w-[400px] h-[400px] bg-amber-500/[0.06] rounded-full blur-[120px] pointer-events-none" />
           {/* Hairline outer boundary */}
           <div className="absolute inset-[20px] border border-white/10 rounded-[36px] pointer-events-none" />
         </>
@@ -101,7 +101,7 @@ export function ShareCard({
 
       {isEditorial && (
         <>
-          <div className="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[580px] bg-amber-500/[0.08] rounded-full blur-[140px] pointer-events-none" />
+          <div className="absolute top-[48%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[640px] bg-amber-500/[0.09] rounded-full blur-[130px] pointer-events-none" />
           <div className="absolute inset-[20px] border border-[#FBBC05]/25 rounded-[36px] pointer-events-none" />
         </>
       )}
@@ -113,13 +113,13 @@ export function ShareCard({
           ========================================================================= */}
       <header className="relative z-10 flex items-center justify-between w-full">
         {/* Left: Brand Identity + Descriptor */}
-        <div className="flex items-center gap-4">
-          <MonolithLogo size={54} aria-hidden="true" />
+        <div className="flex items-center gap-3.5">
+          <MonolithLogo size={52} aria-hidden="true" />
           <div className="flex flex-col text-left">
-            <span className="text-[32px] font-black tracking-wider text-white uppercase font-display leading-none">
+            <span className="text-[30px] font-black tracking-wider text-white uppercase font-display leading-none">
               ONEDAY
             </span>
-            <span className="text-[12px] font-mono font-bold tracking-[0.26em] text-[#FBBC05] uppercase mt-1.5">
+            <span className="text-[11px] font-mono font-bold tracking-[0.24em] text-[#FBBC05] uppercase mt-1">
               BUILD YOUR SYSTEM
             </span>
           </div>
@@ -127,7 +127,7 @@ export function ShareCard({
 
         {/* Right: Authenticated User Display Name Capsule */}
         <div
-          className={`flex items-center gap-3.5 px-6 py-2.5 rounded-full backdrop-blur-md shadow-lg transition-all ${
+          className={`flex items-center gap-3 px-5 py-2.5 rounded-full backdrop-blur-md shadow-lg transition-all ${
             isSignature
               ? "bg-white/[0.08] border border-white/15"
               : isMonochrome
@@ -135,11 +135,11 @@ export function ShareCard({
               : "bg-white/[0.06] border border-amber-500/30"
           }`}
         >
-          <span className="font-mono text-xl font-black tracking-wider text-white uppercase">
+          <span className="font-mono text-lg font-black tracking-wider text-white uppercase">
             {sanitizedUserName}
           </span>
           <div
-            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+            className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
               isSignature
                 ? "bg-amber-400 text-black"
                 : isMonochrome
@@ -147,22 +147,22 @@ export function ShareCard({
                 : "bg-amber-400 text-black"
             }`}
           >
-            <Check size={16} strokeWidth={3.5} />
+            <Check size={14} strokeWidth={3.5} />
           </div>
         </div>
       </header>
 
       {/* =========================================================================
-          MAIN SECTION (Center 5:4 Focal Area)
+          MAIN SECTION (Center Portrait Focal Area)
           1. "MY PROGRESS" achievement label
           2. Flame icon + Massive numerical streak value
           3. "DAY STREAK" uppercase label
           4. Habit Name badge
           5. Habit-specific achievement sentence
           ========================================================================= */}
-      <main className="relative z-10 my-auto flex flex-col items-center justify-center text-center w-full px-4">
+      <main className="relative z-10 my-auto flex flex-col items-center justify-center text-center w-full px-4 py-6">
         {/* 1. Achievement Heading Label */}
-        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.05] border border-white/10 mb-2">
+        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.05] border border-white/10 mb-4">
           <span className="w-2 h-2 rounded-full bg-[#FBBC05] animate-pulse" />
           <span className="text-xs font-mono font-extrabold uppercase tracking-[0.28em] text-[#FBBC05]">
             MY PROGRESS
@@ -170,10 +170,10 @@ export function ShareCard({
         </div>
 
         {/* 2. Hero Streak Group (Flame + Massive Number) */}
-        <div className="flex items-center justify-center gap-4">
-          <span className="text-6xl sm:text-7xl leading-none select-none filter drop-shadow-lg shrink-0">
+        <div className="flex flex-col items-center justify-center mb-2">
+          <div className="text-7xl leading-none select-none filter drop-shadow-lg mb-2">
             🔥
-          </span>
+          </div>
           <div
             className={`${streakNumSizeClass} font-black tracking-tighter leading-none tabular-nums font-display text-white select-none ${
               isSignature
@@ -188,24 +188,24 @@ export function ShareCard({
         </div>
 
         {/* 3. Streak Label: DAY STREAK */}
-        <div className="mt-1 mb-4">
+        <div className="mb-6">
           <span className="text-2xl font-mono font-black uppercase tracking-[0.32em] text-neutral-300 drop-shadow-sm">
             DAY STREAK
           </span>
         </div>
 
         {/* 4. Habit Name Badge */}
-        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-xl bg-white/[0.06] border border-white/10 mb-3 shadow-inner max-w-[850px] truncate">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-white/[0.06] border border-white/10 mb-4 shadow-inner max-w-[700px] truncate">
           <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#FBBC05] shrink-0">
             HABIT:
           </span>
-          <span className="text-sm sm:text-base font-mono font-extrabold text-white uppercase tracking-wider truncate">
+          <span className="text-sm font-mono font-extrabold text-white uppercase tracking-wider truncate">
             {resolvedHabitName}
           </span>
         </div>
 
         {/* 5. Habit Achievement Sentence */}
-        <div className="max-w-[960px] px-4">
+        <div className="max-w-[800px] px-4">
           <p
             className={`${sentenceSizeClass} font-bold tracking-tight text-white/95 font-sans drop-shadow-md break-words`}
           >
@@ -222,15 +222,15 @@ export function ShareCard({
       <footer className="relative z-10 flex items-center justify-between w-full pt-2">
         {/* Bottom Left: Official Hashtag in White */}
         <div className="flex items-center">
-          <span className="text-[26px] font-mono font-black tracking-wide text-white select-none">
+          <span className="text-2xl font-mono font-black tracking-wide text-white select-none">
             #ShareYourStreak
           </span>
         </div>
 
         {/* Bottom Right: OneDay Branding and Website */}
-        <div className="flex items-center gap-3 opacity-90">
-          <MonolithLogo size={28} />
-          <div className="flex items-center gap-2 font-mono text-base font-bold text-neutral-300">
+        <div className="flex items-center gap-2.5 opacity-90">
+          <MonolithLogo size={26} />
+          <div className="flex items-center gap-2 font-mono text-sm font-bold text-neutral-300">
             <span className="text-white font-black uppercase tracking-wider">OneDay</span>
             <span className="text-neutral-500 font-normal">·</span>
             <span className="text-neutral-400 tracking-wide lowercase">oneday.app</span>
