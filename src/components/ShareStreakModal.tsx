@@ -11,7 +11,7 @@ import {
   formatDeterministicHabitSentence,
   getSanitizedDisplayName 
 } from "../utils/habitWording";
-import { toBlob, toPng } from "html-to-image";
+import { toBlob, toPng, toJpeg } from "html-to-image";
 import toast from "react-hot-toast";
 
 interface ShareStreakModalProps {
@@ -222,12 +222,12 @@ export function ShareStreakModal({
     }
 
     setIsExporting(true);
-    const toastId = toast.loading("Preparing 5:4 share card...");
+    const toastId = toast.loading("Preparing JPEG share card...");
 
     const streakVal = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
     const captionText = `"${trimmedSentence}" — Consistency looks good on you. #ShareYourStreak`;
     const safeName = selectedHabit.name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
-    const filename = `oneday-streak-${safeName}-${streakVal}days-5x4.png`;
+    const filename = `oneday-streak-${safeName}-${streakVal}days.jpg`;
 
     try {
       if (document.fonts?.ready) {
@@ -239,31 +239,36 @@ export function ShareStreakModal({
       const targetW = 1200;
       const targetH = 960;
 
-      let blob = await toBlob(cardRef.current, {
+      // Generate genuine JPEG dataUrl at quality 0.95
+      const dataUrl = await toJpeg(cardRef.current, {
         cacheBust: true,
         pixelRatio: 1,
         width: targetW,
         height: targetH,
+        quality: 0.95,
       });
 
-      if (!blob) {
-        const dataUrl = await toPng(cardRef.current, {
-          cacheBust: true,
-          pixelRatio: 1,
-          width: targetW,
-          height: targetH,
-        });
-        const res = await fetch(dataUrl);
-        blob = await res.blob();
+      const res = await fetch(dataUrl);
+      const jpegBlob = await res.blob();
+
+      // Validate JPEG blob
+      if (!jpegBlob || jpegBlob.size === 0) {
+        throw new Error("Generated JPEG image blob is empty.");
       }
 
-      const file = new File([blob], filename, {
-        type: "image/png",
+      const file = new File([jpegBlob], filename, {
+        type: "image/jpeg",
       });
 
+      // Verify file properties
+      console.log("[ShareStreakModal] Generated JPEG File:", {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      });
+
+      // Initially share files only without text/title to maximize Instagram compatibility
       const shareData: ShareData = {
-        title: `OneDay — ${streakVal} Day Streak!`,
-        text: captionText,
         files: [file],
       };
 
@@ -274,11 +279,18 @@ export function ShareStreakModal({
         canShareFiles = false;
       }
 
+      // Automatically copy caption to clipboard for user convenience
+      try {
+        await navigator.clipboard.writeText(captionText);
+      } catch (clipErr) {
+        console.warn("[ShareStreakModal] Clipboard copy notice:", clipErr);
+      }
+
       if (canShareFiles) {
         toast.dismiss(toastId);
         try {
           await navigator.share(shareData);
-          // Shared successfully
+          toast.success("Shared successfully! Caption copied to clipboard.");
           return;
         } catch (shareErr: any) {
           if (shareErr.name === "AbortError") {
@@ -292,7 +304,7 @@ export function ShareStreakModal({
       // Robust Fallback: automatic download + caption copied + modal instruction
       toast.dismiss(toastId);
 
-      const downloadUrl = URL.createObjectURL(blob);
+      const downloadUrl = URL.createObjectURL(jpegBlob);
       const link = document.createElement("a");
       link.download = filename;
       link.href = downloadUrl;
@@ -300,12 +312,6 @@ export function ShareStreakModal({
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
-
-      try {
-        await navigator.clipboard.writeText(captionText);
-      } catch (clipErr) {
-        console.warn("[ShareStreakModal] Clipboard copy failed:", clipErr);
-      }
 
       setFallbackModal({
         isOpen: true,
@@ -316,7 +322,7 @@ export function ShareStreakModal({
       toast.dismiss(toastId);
       if (err.name !== "AbortError") {
         console.error("[ShareStreakModal] Native share export error:", err);
-        toast.error("Could not export share card. Please try downloading the PNG.");
+        toast.error("Could not export JPEG card. Please try downloading the PNG.");
       }
     } finally {
       setIsExporting(false);

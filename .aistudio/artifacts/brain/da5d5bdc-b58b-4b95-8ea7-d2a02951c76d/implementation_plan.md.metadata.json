@@ -1,6 +1,6 @@
 {
-  "summary":  "Updated OneDay Share Your Streak card to exact 5:4 landscape canvas (1200 x 960 px) with balanced composition, responsive preview, and 1200x960 PNG export pipeline for both native sharing and downloads.",
-  "updatedAt":  "2026-11-11T08:15:36.700635432Z",
+  "summary":  "Fixed Instagram file compatibility for OneDay Share Your Streak:\n1. Native Share pipeline now generates a genuine JPEG image (image/jpeg, quality 0.95, 1200x960 px, filename ending in .jpg) using html-to-image toJpeg.\n2. Web Share API invocation shares files only without text/title to maximize Instagram Direct & Stories compatibility.\n3. Automatically copies caption (#ShareYourStreak) to clipboard.\n4. Maintained separate high-resolution PNG download pipeline.\n5. Zero compilation and linting errors.",
+  "updatedAt":  "2026-11-11T08:31:10.762721468Z",
   "requestFeedback":  true,
   "userFacing":  true
 }
