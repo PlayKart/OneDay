@@ -173,6 +173,13 @@ export function ShareStreakModal({
     setIsExporting(true);
     const toastId = toast.loading("Preparing share package...");
 
+    const authoritativeStreak = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
+    const isSingular = authoritativeStreak === 1;
+    const daysText = isSingular ? "DAY" : "DAYS";
+    const cleanActivity = formatHabitAchievementPhrase(trimmedPhrase, selectedHabit.name);
+    const headlineSentence = `${authoritativeStreak} ${daysText} OF ${cleanActivity}.`;
+    const captionText = `"${headlineSentence}" — Consistency looks good on you. #ShareYourStreak`;
+
     try {
       const targetW = 1080;
       const targetH = format === "story" ? 1920 : 1350;
@@ -186,42 +193,40 @@ export function ShareStreakModal({
 
       const res = await fetch(dataUrl);
       const blob = await res.blob();
-      const file = new File([blob], `OneDay-Streak-${selectedHabit.name.replace(/\s+/g, "-")}.png`, {
+      const file = new File([blob], `oneday-streak.png`, {
         type: "image/png",
       });
 
-      const authoritativeStreak = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
-      const isSingular = authoritativeStreak === 1;
-      const daysText = isSingular ? "DAY" : "DAYS";
-      const cleanActivity = formatHabitAchievementPhrase(trimmedPhrase, selectedHabit.name);
-      const headlineSentence = `${authoritativeStreak} ${daysText} OF ${cleanActivity}.`;
-
       const shareData = {
         title: `OneDay — ${authoritativeStreak} Day Streak!`,
-        text: `"${headlineSentence}" — Consistency looks good on you. #ShareYourStreak`,
+        text: captionText,
         files: [file],
       };
 
       if (navigator.canShare && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-        toast.success("Shared successfully!", { id: toastId });
-      } else if (navigator.share) {
-        await navigator.share({
-          title: `OneDay — ${authoritativeStreak} Day Streak!`,
-          text: `"${headlineSentence}" — Consistency looks good on you. #ShareYourStreak`,
-          url: window.location.origin,
-        });
-        toast.success("Shared successfully!", { id: toastId });
-      } else {
-        handleDownloadImage();
         toast.dismiss(toastId);
+        await navigator.share(shareData);
+      } else {
+        toast.dismiss(toastId);
+        try {
+          await navigator.clipboard.writeText(captionText);
+        } catch (e) {}
+        toast.error(
+          "Direct image sharing is unsupported by this browser. Caption copied to clipboard — use 'Download High-Res PNG' to save your card.",
+          { duration: 7000 }
+        );
       }
     } catch (err: any) {
+      toast.dismiss(toastId);
       if (err.name !== "AbortError") {
         console.warn("[ShareStreakModal] Native share notice:", err);
-        handleDownloadImage();
-      } else {
-        toast.dismiss(toastId);
+        try {
+          await navigator.clipboard.writeText(captionText);
+        } catch (e) {}
+        toast.error(
+          "Direct image sharing is unavailable. Caption copied to clipboard — use 'Download High-Res PNG' to save your card.",
+          { duration: 7000 }
+        );
       }
     } finally {
       setIsExporting(false);
