@@ -2,12 +2,15 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, Share2, Download, Sparkles, ArrowLeft, Flame, 
-  Edit3, Layout, Smartphone 
+  Edit3, Layout, Smartphone, RotateCcw, Check
 } from "lucide-react";
 import { useStore } from "../store/useStore";
 import { Habit } from "../types";
 import { ShareCard, ShareTemplateId, ShareFormatId } from "./ShareCard";
-import { extractActivityPhrase, formatHabitAchievementPhrase } from "../utils/habitWording";
+import { 
+  formatDeterministicHabitSentence,
+  getSanitizedDisplayName 
+} from "../utils/habitWording";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
 
@@ -46,18 +49,28 @@ export function ShareStreakModal({
   });
 
   const [template, setTemplate] = useState<ShareTemplateId>("signature");
-  const [format, setFormat] = useState<ShareFormatId>("post"); // 4:5 default primary format
-  const [editableActivityPhrase, setEditableActivityPhrase] = useState(() => {
+  // Default format is 9:16 portrait per official design reference
+  const [format, setFormat] = useState<ShareFormatId>("story");
+  
+  const [editableSentence, setEditableSentence] = useState(() => {
     if (preselectedHabitId) {
       const found = habits.find((h) => h.id === preselectedHabitId);
-      if (found) return extractActivityPhrase(found.name);
+      if (found) {
+        const streak = found.currentStreak ?? (found as any).streak ?? 1;
+        return formatDeterministicHabitSentence(found.name, streak, user?.name);
+      }
     }
     const eligible = habits.filter((h) => {
       const streak = h.currentStreak ?? (h as any).streak ?? 0;
       return streak > 0 && !h.isArchived;
     });
-    return eligible[0] ? extractActivityPhrase(eligible[0].name) : "";
+    if (eligible[0]) {
+      const streak = eligible[0].currentStreak ?? (eligible[0] as any).streak ?? 1;
+      return formatDeterministicHabitSentence(eligible[0].name, streak, user?.name);
+    }
+    return "";
   });
+
   const [isExporting, setIsExporting] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.35);
 
@@ -73,7 +86,7 @@ export function ShareStreakModal({
           const streak = found.currentStreak ?? (found as any).streak ?? 0;
           if (streak > 0) {
             setSelectedHabit(found);
-            setEditableActivityPhrase(extractActivityPhrase(found.name));
+            setEditableSentence(formatDeterministicHabitSentence(found.name, streak, user?.name));
           } else {
             toast.error("This habit does not have an active streak yet.");
             setSelectedHabit(null);
@@ -83,7 +96,7 @@ export function ShareStreakModal({
         const first = eligibleHabits[0];
         const streak = first.currentStreak ?? (first as any).streak ?? 0;
         setSelectedHabit(first);
-        setEditableActivityPhrase(extractActivityPhrase(first.name));
+        setEditableSentence(formatDeterministicHabitSentence(first.name, streak, user?.name));
       }
     } else {
       setSelectedHabit(null);
@@ -118,17 +131,25 @@ export function ShareStreakModal({
   if (!isOpen) return null;
 
   const handleSelectHabit = (habit: Habit) => {
-    const streak = habit.currentStreak ?? (habit as any).streak ?? 0;
+    const streak = habit.currentStreak ?? (habit as any).streak ?? 1;
     setSelectedHabit(habit);
-    setEditableActivityPhrase(extractActivityPhrase(habit.name));
+    setEditableSentence(formatDeterministicHabitSentence(habit.name, streak, user?.name));
+  };
+
+  const handleResetSentence = () => {
+    if (!selectedHabit) return;
+    const streak = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
+    const defaultSentence = formatDeterministicHabitSentence(selectedHabit.name, streak, user?.name);
+    setEditableSentence(defaultSentence);
+    toast.success("Sentence reset to recommended wording.");
   };
 
   const handleDownloadImage = async () => {
     if (!cardRef.current || !selectedHabit) return;
     
-    const trimmedPhrase = editableActivityPhrase.trim();
-    if (!trimmedPhrase) {
-      toast.error("Activity description cannot be empty.");
+    const trimmedSentence = editableSentence.trim();
+    if (!trimmedSentence) {
+      toast.error("Habit sentence cannot be empty.");
       return;
     }
 
@@ -164,9 +185,9 @@ export function ShareStreakModal({
   const handleNativeShare = async () => {
     if (!cardRef.current || !selectedHabit) return;
 
-    const trimmedPhrase = editableActivityPhrase.trim();
-    if (!trimmedPhrase) {
-      toast.error("Activity description cannot be empty.");
+    const trimmedSentence = editableSentence.trim();
+    if (!trimmedSentence) {
+      toast.error("Habit sentence cannot be empty.");
       return;
     }
 
@@ -174,11 +195,7 @@ export function ShareStreakModal({
     const toastId = toast.loading("Preparing share package...");
 
     const authoritativeStreak = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
-    const isSingular = authoritativeStreak === 1;
-    const daysText = isSingular ? "DAY" : "DAYS";
-    const cleanActivity = formatHabitAchievementPhrase(trimmedPhrase, selectedHabit.name);
-    const headlineSentence = `${authoritativeStreak} ${daysText} OF ${cleanActivity}.`;
-    const captionText = `"${headlineSentence}" — Consistency looks good on you. #ShareYourStreak`;
+    const captionText = `"${trimmedSentence}" — Consistency looks good on you. #ShareYourStreak`;
 
     try {
       const targetW = 1080;
@@ -234,6 +251,7 @@ export function ShareStreakModal({
   };
 
   const authoritativeStreak = selectedHabit ? (selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1) : 1;
+  const sanitizedUserName = getSanitizedDisplayName(user?.name, user?.email);
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xl overflow-y-auto">
@@ -262,7 +280,7 @@ export function ShareStreakModal({
             </div>
             <div className="min-w-0">
               <h2 className="text-base sm:text-lg font-bold tracking-tight text-white truncate">Share Your Streak</h2>
-              <p className="text-xs text-neutral-400 font-medium truncate">Celebrate your consistency. One day at a time.</p>
+              <p className="text-xs text-neutral-400 font-medium truncate">Official achievement card. One day at a time.</p>
             </div>
           </div>
 
@@ -345,20 +363,8 @@ export function ShareStreakModal({
               <div className="lg:col-span-7 space-y-4 sm:space-y-5 w-full min-w-0">
                 {/* Format & Template Switcher */}
                 <div className="w-full max-w-full min-w-0 box-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/[0.03] border border-white/10 p-1.5 sm:p-2 rounded-2xl">
-                  {/* Format Toggle (Post 4:5 vs Story 9:16) */}
+                  {/* Format Toggle (Story 9:16 primary vs Post 4:5) */}
                   <div className="grid grid-cols-2 gap-1.5 w-full sm:w-auto sm:flex sm:items-center min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => setFormat("post")}
-                      className={`h-9 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 min-w-0 truncate ${
-                        format === "post"
-                          ? "bg-amber-500 text-black shadow-md font-extrabold"
-                          : "bg-white/[0.02] sm:bg-transparent text-neutral-400 hover:text-white hover:bg-white/5"
-                      }`}
-                    >
-                      <Layout size={13} className="shrink-0" />
-                      <span className="truncate">Post (4:5)</span>
-                    </button>
                     <button
                       type="button"
                       onClick={() => setFormat("story")}
@@ -370,6 +376,18 @@ export function ShareStreakModal({
                     >
                       <Smartphone size={13} className="shrink-0" />
                       <span className="truncate">Story (9:16)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormat("post")}
+                      className={`h-9 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 min-w-0 truncate ${
+                        format === "post"
+                          ? "bg-amber-500 text-black shadow-md font-extrabold"
+                          : "bg-white/[0.02] sm:bg-transparent text-neutral-400 hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      <Layout size={13} className="shrink-0" />
+                      <span className="truncate">Post (4:5)</span>
                     </button>
                   </div>
 
@@ -415,9 +433,10 @@ export function ShareStreakModal({
                       template={template}
                       format={format}
                       authoritativeStreak={authoritativeStreak}
-                      userName={user?.name || ""}
+                      userName={sanitizedUserName}
+                      userEmail={user?.email || ""}
                       habitName={selectedHabit.name}
-                      activityPhrase={editableActivityPhrase}
+                      habitSentence={editableSentence}
                     />
                   </div>
                 </div>
@@ -429,40 +448,49 @@ export function ShareStreakModal({
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black uppercase tracking-widest text-neutral-400 flex items-center gap-1.5">
                       <Edit3 size={13} className="text-amber-400" />
-                      <span>Activity Wording Editor</span>
+                      <span>Habit Sentence Wording</span>
                     </span>
                     <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
                       Streak Locked ({authoritativeStreak} Days)
                     </span>
                   </div>
 
-                  {/* Dedicated structured sentence builder */}
+                  {/* Dedicated sentence editor */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-xs font-mono font-bold tracking-wider">
-                      <span className="text-neutral-400">
-                        {authoritativeStreak} {authoritativeStreak === 1 ? "Day" : "Days"} of...
-                      </span>
-                      <span className="text-[#FBBC05] text-[10px] uppercase">Live Card Preview</span>
+                      <span className="text-neutral-400">Card Achievement Sentence:</span>
+                      <button
+                        type="button"
+                        onClick={handleResetSentence}
+                        className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Reset to recommended wording"
+                      >
+                        <RotateCcw size={11} />
+                        <span>Reset</span>
+                      </button>
                     </div>
-                    <input
-                      type="text"
-                      value={editableActivityPhrase}
-                      onChange={(e) => setEditableActivityPhrase(e.target.value)}
-                      className="w-full bg-white/5 border border-white/20 rounded-2xl px-4 py-3.5 text-white text-sm font-semibold outline-none focus:border-white/40 transition-all"
-                      placeholder="e.g. studying Mathematics"
+                    
+                    <textarea
+                      rows={3}
+                      value={editableSentence}
+                      onChange={(e) => setEditableSentence(e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-2xl px-4 py-3 text-white text-sm font-semibold outline-none focus:border-white/40 transition-all resize-none leading-relaxed"
+                      placeholder="e.g. Day 17 of practising Daily Maths."
                     />
-                    <div className="p-3 rounded-xl bg-black/60 border border-white/10 text-xs font-mono flex flex-col gap-1">
-                      <span className="text-neutral-500 uppercase tracking-wider text-[10px]">Gold Panel Headline:</span>
-                      <span className="text-[#FBBC05] font-extrabold text-xs tracking-tight">
-                        {authoritativeStreak} {authoritativeStreak === 1 ? "DAY" : "DAYS"} OF {formatHabitAchievementPhrase(editableActivityPhrase, selectedHabit.name)}.
-                      </span>
-                    </div>
+
                     <p className="text-[11px] text-neutral-500 leading-relaxed">
-                      The numerical streak is authoritatively secured from your backend record and cannot be altered or contradicted.
+                      The numerical streak value ({authoritativeStreak} Days) is strictly locked to your database record and cannot be changed.
                     </p>
                   </div>
 
                   <div className="pt-3 border-t border-white/10 space-y-2 text-xs text-neutral-400">
+                    <div className="flex justify-between items-center">
+                      <span>Card Recipient:</span>
+                      <span className="font-bold text-white uppercase flex items-center gap-1.5">
+                        <span>{sanitizedUserName}</span>
+                        <Check size={13} className="text-amber-400" />
+                      </span>
+                    </div>
                     <div className="flex justify-between items-center">
                       <span>Habit Source:</span>
                       <span className="font-bold text-white">{selectedHabit.name}</span>
@@ -473,7 +501,7 @@ export function ShareStreakModal({
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Official Hashtag:</span>
-                      <span className="font-mono text-[#FBBC05] font-bold">#ShareYourStreak</span>
+                      <span className="font-mono text-white font-bold">#ShareYourStreak</span>
                     </div>
                   </div>
                 </div>
