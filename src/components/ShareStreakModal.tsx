@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, Share2, Download, Sparkles, ArrowLeft, Flame, 
-  Edit3, Layout, Smartphone, RotateCcw, Check, Copy
+  Edit3, Layout, Smartphone, RotateCcw, Check, Copy, Info
 } from "lucide-react";
 import { useStore } from "../store/useStore";
 import { Habit } from "../types";
@@ -11,7 +11,13 @@ import {
   formatDeterministicHabitSentence,
   getSanitizedDisplayName 
 } from "../utils/habitWording";
-import { toBlob, toPng, toJpeg } from "html-to-image";
+import { 
+  renderHighResCardBlob, 
+  diagnoseExportFile, 
+  ImageDiagnosticResult,
+  EXPORT_WIDTH,
+  EXPORT_HEIGHT
+} from "../utils/imageExport";
 import toast from "react-hot-toast";
 
 interface ShareStreakModalProps {
@@ -49,8 +55,8 @@ export function ShareStreakModal({
   });
 
   const [template, setTemplate] = useState<ShareTemplateId>("signature");
-  // Default format is 5:4 landscape (1200 x 960 px)
-  const [format] = useState<ShareFormatId>("5:4");
+  // Default format is 4:5 portrait (960 x 1200 px base -> 3840 x 4800 px export)
+  const [format] = useState<ShareFormatId>("portrait_4_5");
   
   const [editableSentence, setEditableSentence] = useState(() => {
     if (preselectedHabitId) {
@@ -77,10 +83,16 @@ export function ShareStreakModal({
     isOpen: boolean;
     caption: string;
     filename: string;
+    fileSizeMB?: string;
+    dimensions?: string;
+    format?: string;
   } | null>(null);
   const [copiedAgain, setCopiedAgain] = useState(false);
+  const [latestDiag, setLatestDiag] = useState<ImageDiagnosticResult | null>(null);
+  const [showDiagPanel, setShowDiagPanel] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
+  const exportCardRef = useRef<HTMLDivElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle preselected habit on open
@@ -107,10 +119,11 @@ export function ShareStreakModal({
     } else {
       setSelectedHabit(null);
       setFallbackModal(null);
+      setLatestDiag(null);
     }
   }, [isOpen, preselectedHabitId, habits]);
 
-  // Recalculate preview scale on resize & container dimensions (5:4 aspect ratio, 1200x960 canvas)
+  // Recalculate preview scale on resize & container dimensions (4:5 aspect ratio, 960x1200 canvas)
   useEffect(() => {
     const updateScale = () => {
       if (previewContainerRef.current) {
@@ -152,7 +165,8 @@ export function ShareStreakModal({
   };
 
   const handleDownloadImage = async () => {
-    if (!cardRef.current || !selectedHabit) return;
+    const targetNode = exportCardRef.current || cardRef.current;
+    if (!targetNode || !selectedHabit) return;
     
     const trimmedSentence = editableSentence.trim();
     if (!trimmedSentence) {
@@ -161,59 +175,47 @@ export function ShareStreakModal({
     }
 
     setIsExporting(true);
-    const dimensionsLabel = "1200x960 (5:4)";
-    const toastId = toast.loading(`Generating high-resolution card (${dimensionsLabel})...`);
+    const toastId = toast.loading(`Rendering 3840 × 4800 high-res master image...`);
 
     try {
-      if (document.fonts?.ready) {
-        try {
-          await document.fonts.ready;
-        } catch (_) {}
-      }
+      // Generate genuine 3840 x 4800 PNG Blob from unscaled export node
+      const pngBlob = await renderHighResCardBlob(targetNode, "image/png");
 
-      const targetW = 960;
-      const targetH = 1200;
-
-      let blob = await toBlob(cardRef.current, {
-        cacheBust: true,
-        pixelRatio: 1,
-        width: targetW,
-        height: targetH,
-      });
-
-      if (!blob) {
-        const dataUrl = await toPng(cardRef.current, {
-          cacheBust: true,
-          pixelRatio: 1,
-          width: targetW,
-          height: targetH,
-        });
-        const res = await fetch(dataUrl);
-        blob = await res.blob();
-      }
-
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
       const safeName = selectedHabit.name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
       const streakVal = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
-      link.download = `OneDay-Streak-${safeName}-${streakVal}days-5x4.png`;
+      const filename = `oneday-streak-${safeName}-${streakVal}days-3840x4800.png`;
+
+      const file = new File([pngBlob], filename, {
+        type: "image/png",
+        lastModified: Date.now(),
+      });
+
+      // Diagnostic Verification
+      const diag = await diagnoseExportFile(file, EXPORT_WIDTH, EXPORT_HEIGHT);
+      setLatestDiag(diag);
+
+      // Download via object URL
+      const url = URL.createObjectURL(pngBlob);
+      const link = document.createElement("a");
+      link.download = filename;
       link.href = url;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(url), 5000);
 
-      toast.success("5:4 share card downloaded successfully!", { id: toastId });
+      toast.success(`High-res PNG downloaded (${diag.width}×${diag.height}, ${diag.sizeMB})!`, { id: toastId });
     } catch (err: any) {
-      console.error("[ShareStreakModal] Export error:", err);
-      toast.error("Failed to generate image. Please try again.", { id: toastId });
+      console.error("[ShareStreakModal] Download PNG error:", err);
+      toast.error("Failed to generate high-resolution card. Please try again.", { id: toastId });
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleNativeShare = async () => {
-    if (!cardRef.current || !selectedHabit) return;
+    const targetNode = exportCardRef.current || cardRef.current;
+    if (!targetNode || !selectedHabit) return;
 
     const trimmedSentence = editableSentence.trim();
     if (!trimmedSentence) {
@@ -222,7 +224,7 @@ export function ShareStreakModal({
     }
 
     setIsExporting(true);
-    const toastId = toast.loading("Preparing JPEG share card...");
+    const toastId = toast.loading("Rendering 3840 × 4800 JPEG share card...");
 
     const streakVal = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
     const captionText = `"${trimmedSentence}" — Consistency looks good on you. #ShareYourStreak`;
@@ -230,53 +232,34 @@ export function ShareStreakModal({
     const filename = `oneday-streak-${safeName}-${streakVal}days.jpg`;
 
     try {
-      if (document.fonts?.ready) {
-        try {
-          await document.fonts.ready;
-        } catch (_) {}
-      }
+      // Generate genuine JPEG Blob at 3840 x 4800 (quality 0.95)
+      const jpegBlob = await renderHighResCardBlob(targetNode, "image/jpeg", 0.95);
 
-      const targetW = 960;
-      const targetH = 1200;
-
-      // Generate genuine JPEG dataUrl at quality 0.95
-      const dataUrl = await toJpeg(cardRef.current, {
-        cacheBust: true,
-        pixelRatio: 1,
-        width: targetW,
-        height: targetH,
-        quality: 0.95,
-      });
-
-      const res = await fetch(dataUrl);
-      const jpegBlob = await res.blob();
-
-      // Validate JPEG blob
       if (!jpegBlob || jpegBlob.size === 0) {
-        throw new Error("Generated JPEG image blob is empty.");
+        throw new Error("Generated JPEG Blob is empty.");
       }
 
       const file = new File([jpegBlob], filename, {
         type: "image/jpeg",
+        lastModified: Date.now(),
       });
 
-      // Verify file properties
-      console.log("[ShareStreakModal] Generated JPEG File:", {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-      });
+      // Run full diagnostic pipeline
+      const diag = await diagnoseExportFile(file, EXPORT_WIDTH, EXPORT_HEIGHT);
+      setLatestDiag(diag);
 
-      // Initially share files only without text/title to maximize Instagram compatibility
+      // Initially share files ONLY without text/title payload to maximize Instagram & Android handoff compatibility
       const shareData: ShareData = {
         files: [file],
       };
 
       let canShareFiles = false;
-      try {
-        canShareFiles = Boolean(navigator.canShare && navigator.canShare(shareData));
-      } catch (e) {
-        canShareFiles = false;
+      if (typeof navigator !== "undefined" && navigator.canShare) {
+        try {
+          canShareFiles = navigator.canShare(shareData);
+        } catch (e) {
+          canShareFiles = false;
+        }
       }
 
       // Automatically copy caption to clipboard for user convenience
@@ -286,22 +269,22 @@ export function ShareStreakModal({
         console.warn("[ShareStreakModal] Clipboard copy notice:", clipErr);
       }
 
-      if (canShareFiles) {
+      if (canShareFiles && typeof navigator !== "undefined" && navigator.share) {
         toast.dismiss(toastId);
         try {
           await navigator.share(shareData);
-          toast.success("Shared successfully! Caption copied to clipboard.");
+          toast.success("Share sheet opened! Caption copied to clipboard.");
           return;
         } catch (shareErr: any) {
           if (shareErr.name === "AbortError") {
-            // User cancelled share sheet intentionally — silent exit
+            // User intentionally closed share sheet — silent exit
             return;
           }
-          console.warn("[ShareStreakModal] Native share threw, falling back:", shareErr);
+          console.warn("[ShareStreakModal] Native share rejected, launching fallback:", shareErr);
         }
       }
 
-      // Robust Fallback: automatic download + caption copied + modal instruction
+      // Fallback Flow: Automatic JPEG Download + Caption Copy + Modal Instructions
       toast.dismiss(toastId);
 
       const downloadUrl = URL.createObjectURL(jpegBlob);
@@ -317,12 +300,15 @@ export function ShareStreakModal({
         isOpen: true,
         caption: captionText,
         filename,
+        fileSizeMB: diag.sizeMB,
+        dimensions: `${diag.width} × ${diag.height}`,
+        format: diag.detectedFormat,
       });
     } catch (err: any) {
       toast.dismiss(toastId);
       if (err.name !== "AbortError") {
         console.error("[ShareStreakModal] Native share export error:", err);
-        toast.error("Could not export JPEG card. Please try downloading the PNG.");
+        toast.error("Could not export high-res JPEG card. Please try downloading PNG.");
       }
     } finally {
       setIsExporting(false);
@@ -568,8 +554,8 @@ export function ShareStreakModal({
                       <span className="font-bold text-amber-400">{authoritativeStreak} Days</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>Official Hashtag:</span>
-                      <span className="font-mono text-white font-bold">#ShareYourStreak</span>
+                      <span>Master Resolution:</span>
+                      <span className="font-mono text-amber-400 font-bold">3840 × 4800 px (4:5)</span>
                     </div>
                   </div>
                 </div>
@@ -583,7 +569,7 @@ export function ShareStreakModal({
                     className="w-full bg-white text-black font-extrabold py-4 rounded-2xl hover:bg-neutral-200 active:scale-[0.98] transition-all cursor-pointer text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-white/5 disabled:opacity-50"
                   >
                     <Share2 size={16} />
-                    <span>Share Card (Native)</span>
+                    <span>Share Card (Native JPEG)</span>
                   </button>
 
                   <button
@@ -593,13 +579,67 @@ export function ShareStreakModal({
                     className="w-full bg-white/10 text-white font-extrabold py-4 rounded-2xl border border-white/15 hover:bg-white/15 active:scale-[0.98] transition-all cursor-pointer text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Download size={16} />
-                    <span>Download High-Res PNG (960x1200)</span>
+                    <span>Download High-Res PNG (3840 × 4800)</span>
                   </button>
+
+                  {latestDiag && (
+                    <div className="p-3 bg-white/[0.02] border border-white/10 rounded-2xl space-y-2 text-[11px] font-mono">
+                      <button
+                        type="button"
+                        onClick={() => setShowDiagPanel((prev) => !prev)}
+                        className="w-full flex items-center justify-between text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5 text-amber-400 font-bold">
+                          <Info size={12} />
+                          <span>Last Export Diagnostics</span>
+                        </span>
+                        <span>{showDiagPanel ? "Hide" : "Inspect"}</span>
+                      </button>
+
+                      {showDiagPanel && (
+                        <div className="pt-2 border-t border-white/10 space-y-1 text-neutral-300 leading-relaxed">
+                          <div className="flex justify-between"><span>Dimensions:</span><span className="text-white font-bold">{latestDiag.width} × {latestDiag.height} px</span></div>
+                          <div className="flex justify-between"><span>File Size:</span><span className="text-white font-bold">{latestDiag.sizeMB}</span></div>
+                          <div className="flex justify-between"><span>MIME / Format:</span><span className="text-amber-400 font-bold">{latestDiag.fileType} ({latestDiag.detectedFormat})</span></div>
+                          <div className="flex justify-between"><span>Magic Bytes:</span><span className="text-white font-bold">{latestDiag.magicBytesHex}</span></div>
+                          <div className="flex justify-between"><span>Web Share Valid:</span><span className={latestDiag.canShareFiles ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>{latestDiag.canShareFiles ? "Yes" : "No"}</span></div>
+                          <div className="flex justify-between"><span>Decodable:</span><span className={latestDiag.decodable ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>{latestDiag.decodable ? "Yes" : "No"}</span></div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
         </div>
+
+        {/* DEDICATED HIGH-RESOLUTION EXPORT RENDERER (OFFSCREEN, UNSCALED 960x1200 -> 3840x4800 OUTPUT) */}
+        {selectedHabit && (
+          <div
+            style={{
+              position: "fixed",
+              left: "-9999px",
+              top: "-9999px",
+              width: "960px",
+              height: "1200px",
+              overflow: "hidden",
+              pointerEvents: "none",
+              zIndex: -9999,
+            }}
+            aria-hidden="true"
+          >
+            <ShareCard
+              cardRef={exportCardRef}
+              template={template}
+              authoritativeStreak={authoritativeStreak}
+              userName={sanitizedUserName}
+              userEmail={user?.email || ""}
+              habitName={selectedHabit.name}
+              habitSentence={editableSentence}
+            />
+          </div>
+        )}
 
         {/* NATIVE SHARE FALLBACK MODAL */}
         <AnimatePresence>
@@ -630,13 +670,13 @@ export function ShareStreakModal({
 
                 <div className="space-y-1.5">
                   <span className="text-[10px] font-mono font-black uppercase tracking-widest text-amber-400">
-                    IMAGE SAVED TO DEVICE
+                    HIGH-RES CARD SAVED TO GALLERY
                   </span>
                   <h3 className="text-xl font-bold text-white tracking-tight">
                     Ready to Share
                   </h3>
                   <p className="text-xs text-neutral-300 leading-relaxed font-medium">
-                    Your streak card has been downloaded to your device and your caption was copied to your clipboard.
+                    Your 3840 × 4800 high-resolution streak card has been downloaded to your device and your caption was copied to your clipboard.
                   </p>
                 </div>
 
@@ -644,11 +684,11 @@ export function ShareStreakModal({
                 <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2.5 text-xs text-neutral-300">
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-white/10 font-mono font-bold text-[10px] flex items-center justify-center text-amber-400 shrink-0 mt-0.5">1</span>
-                    <span>Open Instagram Stories, WhatsApp Status or your preferred app.</span>
+                    <span>Open Instagram, WhatsApp Status or your preferred app.</span>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-white/10 font-mono font-bold text-[10px] flex items-center justify-center text-amber-400 shrink-0 mt-0.5">2</span>
-                    <span>Select your saved streak card from your photo gallery.</span>
+                    <span>Select your saved 3840 × 4800 streak card from your photo Gallery.</span>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-white/10 font-mono font-bold text-[10px] flex items-center justify-center text-amber-400 shrink-0 mt-0.5">3</span>
