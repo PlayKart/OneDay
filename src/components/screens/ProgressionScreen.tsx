@@ -20,6 +20,7 @@ import { motion } from "motion/react";
 import { toast } from "react-hot-toast";
 import { userService } from "../../services/userService";
 import { useAchievements } from "../../hooks/useAchievements";
+import { getAchievementProgress } from "../../utils/achievementProgress";
 import {
   KNOWN_TITLES,
   getAllUserTitles,
@@ -34,7 +35,7 @@ interface ProgressionScreenProps {
 }
 
 export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
-  const { user, equipTitle } = useStore();
+  const { user, habits, equipTitle } = useStore();
   const [loadingTitles, setLoadingTitles] = useState(false);
   const [equippingTitle, setEquippingTitle] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "UNLOCKED" | "IN_PROGRESS" | "LOCKED">("ALL");
@@ -665,6 +666,9 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
                   })
                 : null;
 
+              // Authoritative progress calculation for Feature 2
+              const progressInfo = getAchievementProgress(ach, user, habits);
+
               return (
                 <div
                   key={ach.id}
@@ -738,31 +742,33 @@ export function ProgressionScreen({ onBack }: ProgressionScreenProps) {
                         </p>
                       )}
 
-                      {/* Progress indicator when backend provides multi-step target (Requirement 3 & 10) */}
-                      {isMultiStep && (
-                        <div className="space-y-1 pt-1 max-w-xs">
-                          <div className="flex justify-between text-[10px] font-mono text-neutral-400">
-                            <span>
-                              {progress} / {target}
-                            </span>
-                            {percentage !== null && (
-                              <span className={isEarned ? "text-amber-400 font-bold" : "text-neutral-400"}>
-                                Progress: {percentage}%
-                              </span>
-                            )}
-                          </div>
-                          <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                isEarned
-                                  ? "bg-gradient-to-r from-amber-500 to-amber-300"
-                                  : "bg-neutral-500"
-                              }`}
-                              style={{ width: `${Math.min(100, Math.max(0, percentage || 0))}%` }}
-                            />
-                          </div>
+                      {/* Visual Progress Bar (Feature 2) - Mandatory on EVERY achievement card */}
+                      <div className="space-y-1.5 pt-2 w-full max-w-sm">
+                        <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-mono">
+                          <span className="text-neutral-400 font-medium">
+                            {progressInfo.displayText}
+                          </span>
+                          <span
+                            className={`font-bold tracking-wider ${
+                              isEarned ? "text-amber-400" : "text-neutral-400"
+                            }`}
+                          >
+                            {progressInfo.percentageText}
+                          </span>
                         </div>
-                      )}
+                        <div className="h-2 w-full bg-neutral-900 border border-white/5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              isEarned
+                                ? "bg-[#FBBC05]"
+                                : progressInfo.percentage > 0
+                                ? "bg-gradient-to-r from-amber-600 to-[#FBBC05]"
+                                : "bg-neutral-800"
+                            }`}
+                            style={{ width: `${progressInfo.percentage}%` }}
+                          />
+                        </div>
+                      </div>
 
                       {/* Earned date: ONLY show when authoritative earned_at is present from backend (Requirement 7) */}
                       {isEarned && formattedEarnedDate && (

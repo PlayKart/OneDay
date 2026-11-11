@@ -276,13 +276,15 @@ export const AICoach: React.FC = () => {
         </div>
 
         {/* Message Composer */}
-        <CoachComposer
-          onSendMessage={handleSendMessage}
-          loading={chatLoading}
-          habits={habits}
-          hasMessages={hasMessages}
-          suggestions={activeSuggestions}
-        />
+        <div data-tour="coach-input-area" className="w-full">
+          <CoachComposer
+            onSendMessage={handleSendMessage}
+            loading={chatLoading}
+            habits={habits}
+            hasMessages={hasMessages}
+            suggestions={activeSuggestions}
+          />
+        </div>
       </div>
     </div>
   );

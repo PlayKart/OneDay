@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, Share2, Download, Sparkles, ArrowLeft, Flame, 
-  Edit3, Layout, Smartphone, RotateCcw, Check
+  Edit3, Layout, Smartphone, RotateCcw, Check, Copy
 } from "lucide-react";
 import { useStore } from "../store/useStore";
 import { Habit } from "../types";
@@ -11,7 +11,7 @@ import {
   formatDeterministicHabitSentence,
   getSanitizedDisplayName 
 } from "../utils/habitWording";
-import { toPng } from "html-to-image";
+import { toBlob, toPng } from "html-to-image";
 import toast from "react-hot-toast";
 
 interface ShareStreakModalProps {
@@ -49,8 +49,8 @@ export function ShareStreakModal({
   });
 
   const [template, setTemplate] = useState<ShareTemplateId>("signature");
-  // Default format is 9:16 portrait per official design reference
-  const [format, setFormat] = useState<ShareFormatId>("story");
+  // Default format is 5:4 landscape (1200 x 960 px)
+  const [format] = useState<ShareFormatId>("5:4");
   
   const [editableSentence, setEditableSentence] = useState(() => {
     if (preselectedHabitId) {
@@ -73,6 +73,12 @@ export function ShareStreakModal({
 
   const [isExporting, setIsExporting] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.35);
+  const [fallbackModal, setFallbackModal] = useState<{
+    isOpen: boolean;
+    caption: string;
+    filename: string;
+  } | null>(null);
+  const [copiedAgain, setCopiedAgain] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -100,20 +106,21 @@ export function ShareStreakModal({
       }
     } else {
       setSelectedHabit(null);
+      setFallbackModal(null);
     }
   }, [isOpen, preselectedHabitId, habits]);
 
-  // Recalculate preview scale on resize & container dimensions
+  // Recalculate preview scale on resize & container dimensions (5:4 aspect ratio, 1200x960 canvas)
   useEffect(() => {
     const updateScale = () => {
       if (previewContainerRef.current) {
         const width = previewContainerRef.current.clientWidth;
         const height = previewContainerRef.current.clientHeight;
         if (width > 0 && height > 0) {
-          const targetW = 1080;
-          const targetH = format === "story" ? 1920 : 1350;
-          const scaleX = (width - 32) / targetW;
-          const scaleY = (height - 32) / targetH;
+          const targetW = 1200;
+          const targetH = 960;
+          const scaleX = (width - 24) / targetW;
+          const scaleY = (height - 24) / targetH;
           const scale = Math.min(scaleX, scaleY);
           setPreviewScale(Math.max(scale, 0.15));
         }
@@ -126,7 +133,7 @@ export function ShareStreakModal({
       clearTimeout(timeout);
       window.removeEventListener("resize", updateScale);
     };
-  }, [isOpen, selectedHabit, format]);
+  }, [isOpen, selectedHabit]);
 
   if (!isOpen) return null;
 
@@ -154,26 +161,49 @@ export function ShareStreakModal({
     }
 
     setIsExporting(true);
-    const dimensionsLabel = format === "story" ? "1080x1920" : "1080x1350";
+    const dimensionsLabel = "1200x960 (5:4)";
     const toastId = toast.loading(`Generating high-resolution card (${dimensionsLabel})...`);
 
     try {
-      const targetW = 1080;
-      const targetH = format === "story" ? 1920 : 1350;
+      if (document.fonts?.ready) {
+        try {
+          await document.fonts.ready;
+        } catch (_) {}
+      }
 
-      const dataUrl = await toPng(cardRef.current, {
+      const targetW = 1200;
+      const targetH = 960;
+
+      let blob = await toBlob(cardRef.current, {
         cacheBust: true,
         pixelRatio: 1,
         width: targetW,
         height: targetH,
       });
 
-      const link = document.createElement("a");
-      link.download = `OneDay-Streak-${selectedHabit.name.replace(/\s+/g, "-")}-${format}.png`;
-      link.href = dataUrl;
-      link.click();
+      if (!blob) {
+        const dataUrl = await toPng(cardRef.current, {
+          cacheBust: true,
+          pixelRatio: 1,
+          width: targetW,
+          height: targetH,
+        });
+        const res = await fetch(dataUrl);
+        blob = await res.blob();
+      }
 
-      toast.success("Share card downloaded successfully!", { id: toastId });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeName = selectedHabit.name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+      const streakVal = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
+      link.download = `OneDay-Streak-${safeName}-${streakVal}days-5x4.png`;
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      toast.success("5:4 share card downloaded successfully!", { id: toastId });
     } catch (err: any) {
       console.error("[ShareStreakModal] Export error:", err);
       toast.error("Failed to generate image. Please try again.", { id: toastId });
@@ -192,61 +222,116 @@ export function ShareStreakModal({
     }
 
     setIsExporting(true);
-    const toastId = toast.loading("Preparing share package...");
+    const toastId = toast.loading("Preparing 5:4 share card...");
 
-    const authoritativeStreak = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
+    const streakVal = selectedHabit.currentStreak ?? (selectedHabit as any).streak ?? 1;
     const captionText = `"${trimmedSentence}" — Consistency looks good on you. #ShareYourStreak`;
+    const safeName = selectedHabit.name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+    const filename = `oneday-streak-${safeName}-${streakVal}days-5x4.png`;
 
     try {
-      const targetW = 1080;
-      const targetH = format === "story" ? 1920 : 1350;
+      if (document.fonts?.ready) {
+        try {
+          await document.fonts.ready;
+        } catch (_) {}
+      }
 
-      const dataUrl = await toPng(cardRef.current, {
+      const targetW = 1200;
+      const targetH = 960;
+
+      let blob = await toBlob(cardRef.current, {
         cacheBust: true,
         pixelRatio: 1,
         width: targetW,
         height: targetH,
       });
 
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const file = new File([blob], `oneday-streak.png`, {
+      if (!blob) {
+        const dataUrl = await toPng(cardRef.current, {
+          cacheBust: true,
+          pixelRatio: 1,
+          width: targetW,
+          height: targetH,
+        });
+        const res = await fetch(dataUrl);
+        blob = await res.blob();
+      }
+
+      const file = new File([blob], filename, {
         type: "image/png",
       });
 
-      const shareData = {
-        title: `OneDay — ${authoritativeStreak} Day Streak!`,
+      const shareData: ShareData = {
+        title: `OneDay — ${streakVal} Day Streak!`,
         text: captionText,
         files: [file],
       };
 
-      if (navigator.canShare && navigator.canShare(shareData)) {
-        toast.dismiss(toastId);
-        await navigator.share(shareData);
-      } else {
+      let canShareFiles = false;
+      try {
+        canShareFiles = Boolean(navigator.canShare && navigator.canShare(shareData));
+      } catch (e) {
+        canShareFiles = false;
+      }
+
+      if (canShareFiles) {
         toast.dismiss(toastId);
         try {
-          await navigator.clipboard.writeText(captionText);
-        } catch (e) {}
-        toast.error(
-          "Direct image sharing is unsupported by this browser. Caption copied to clipboard — use 'Download High-Res PNG' to save your card.",
-          { duration: 7000 }
-        );
+          await navigator.share(shareData);
+          // Shared successfully
+          return;
+        } catch (shareErr: any) {
+          if (shareErr.name === "AbortError") {
+            // User cancelled share sheet intentionally — silent exit
+            return;
+          }
+          console.warn("[ShareStreakModal] Native share threw, falling back:", shareErr);
+        }
       }
+
+      // Robust Fallback: automatic download + caption copied + modal instruction
+      toast.dismiss(toastId);
+
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = downloadUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
+
+      try {
+        await navigator.clipboard.writeText(captionText);
+      } catch (clipErr) {
+        console.warn("[ShareStreakModal] Clipboard copy failed:", clipErr);
+      }
+
+      setFallbackModal({
+        isOpen: true,
+        caption: captionText,
+        filename,
+      });
     } catch (err: any) {
       toast.dismiss(toastId);
       if (err.name !== "AbortError") {
-        console.warn("[ShareStreakModal] Native share notice:", err);
-        try {
-          await navigator.clipboard.writeText(captionText);
-        } catch (e) {}
-        toast.error(
-          "Direct image sharing is unavailable. Caption copied to clipboard — use 'Download High-Res PNG' to save your card.",
-          { duration: 7000 }
-        );
+        console.error("[ShareStreakModal] Native share export error:", err);
+        toast.error("Could not export share card. Please try downloading the PNG.");
       }
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleCopyCaptionAgain = async () => {
+    if (!fallbackModal) return;
+    try {
+      await navigator.clipboard.writeText(fallbackModal.caption);
+      setCopiedAgain(true);
+      setTimeout(() => setCopiedAgain(false), 2000);
+      toast.success("Caption copied to clipboard!");
+    } catch (e) {
+      toast.error("Failed to copy caption.");
     }
   };
 
@@ -361,34 +446,12 @@ export function ShareStreakModal({
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start w-full min-w-0">
               {/* LEFT: Preview & Controls */}
               <div className="lg:col-span-7 space-y-4 sm:space-y-5 w-full min-w-0">
-                {/* Format & Template Switcher */}
-                <div className="w-full max-w-full min-w-0 box-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/[0.03] border border-white/10 p-1.5 sm:p-2 rounded-2xl">
-                  {/* Format Toggle (Story 9:16 primary vs Post 4:5) */}
-                  <div className="grid grid-cols-2 gap-1.5 w-full sm:w-auto sm:flex sm:items-center min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => setFormat("story")}
-                      className={`h-9 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 min-w-0 truncate ${
-                        format === "story"
-                          ? "bg-amber-500 text-black shadow-md font-extrabold"
-                          : "bg-white/[0.02] sm:bg-transparent text-neutral-400 hover:text-white hover:bg-white/5"
-                      }`}
-                    >
-                      <Smartphone size={13} className="shrink-0" />
-                      <span className="truncate">Story (9:16)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormat("post")}
-                      className={`h-9 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 min-w-0 truncate ${
-                        format === "post"
-                          ? "bg-amber-500 text-black shadow-md font-extrabold"
-                          : "bg-white/[0.02] sm:bg-transparent text-neutral-400 hover:text-white hover:bg-white/5"
-                      }`}
-                    >
-                      <Layout size={13} className="shrink-0" />
-                      <span className="truncate">Post (4:5)</span>
-                    </button>
+                {/* Format Indicator & Template Switcher */}
+                <div className="w-full max-w-full min-w-0 box-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/[0.03] border border-white/10 p-2 rounded-2xl">
+                  {/* Format Indicator: 5:4 Landscape · 1200 × 960 */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-400 font-mono text-[11px] sm:text-xs font-bold tracking-wider uppercase shrink-0">
+                    <Layout size={13} className="shrink-0" />
+                    <span>5:4 Canvas · 1200 × 960</span>
                   </div>
 
                   {/* Template Switcher: Three compact, equally sized options in a responsive row */}
@@ -414,24 +477,23 @@ export function ShareStreakModal({
                   </div>
                 </div>
 
-                {/* Scaled Preview Canvas Wrapper */}
+                {/* Scaled Preview Canvas Wrapper: Fixed 5:4 Aspect Ratio */}
                 <div 
                   ref={previewContainerRef}
-                  className={`relative w-full max-w-full min-w-0 ${format === "story" ? "h-[540px] sm:h-[620px]" : "h-[460px] sm:h-[540px]"} bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300`}
+                  className="relative w-full max-w-full min-w-0 aspect-[5/4] max-h-[460px] sm:max-h-[520px] bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300"
                 >
                   <div 
                     style={{
                       transform: `scale(${previewScale})`,
                       transformOrigin: "center center",
-                      width: 1080,
-                      height: format === "story" ? 1920 : 1350,
+                      width: 1200,
+                      height: 960,
                     }}
                     className="shadow-2xl pointer-events-none shrink-0"
                   >
                     <ShareCard
                       cardRef={cardRef}
                       template={template}
-                      format={format}
                       authoritativeStreak={authoritativeStreak}
                       userName={sanitizedUserName}
                       userEmail={user?.email || ""}
@@ -525,13 +587,108 @@ export function ShareStreakModal({
                     className="w-full bg-white/10 text-white font-extrabold py-4 rounded-2xl border border-white/15 hover:bg-white/15 active:scale-[0.98] transition-all cursor-pointer text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Download size={16} />
-                    <span>Download High-Res PNG ({format === "story" ? "1080x1920" : "1080x1350"})</span>
+                    <span>Download High-Res PNG (1200x960)</span>
                   </button>
                 </div>
               </div>
             </div>
           )}
         </div>
+
+        {/* NATIVE SHARE FALLBACK MODAL */}
+        <AnimatePresence>
+          {fallbackModal && (
+            <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.94, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.94, y: 12 }}
+                transition={{ duration: 0.25 }}
+                className="bg-[#0c0c0e] border border-amber-500/40 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl relative space-y-5 text-left overflow-hidden"
+              >
+                {/* Glow */}
+                <div className="absolute -top-16 -right-16 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <Check size={24} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFallbackModal(null)}
+                    className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-mono font-black uppercase tracking-widest text-amber-400">
+                    IMAGE SAVED TO DEVICE
+                  </span>
+                  <h3 className="text-xl font-bold text-white tracking-tight">
+                    Ready to Share
+                  </h3>
+                  <p className="text-xs text-neutral-300 leading-relaxed font-medium">
+                    Your streak card has been downloaded to your device and your caption was copied to your clipboard.
+                  </p>
+                </div>
+
+                {/* Steps */}
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2.5 text-xs text-neutral-300">
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-white/10 font-mono font-bold text-[10px] flex items-center justify-center text-amber-400 shrink-0 mt-0.5">1</span>
+                    <span>Open Instagram Stories, WhatsApp Status or your preferred app.</span>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-white/10 font-mono font-bold text-[10px] flex items-center justify-center text-amber-400 shrink-0 mt-0.5">2</span>
+                    <span>Select your saved streak card from your photo gallery.</span>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-white/10 font-mono font-bold text-[10px] flex items-center justify-center text-amber-400 shrink-0 mt-0.5">3</span>
+                    <span>Paste your caption to complete your post.</span>
+                  </div>
+                </div>
+
+                {/* Caption Snippet & Copy Action */}
+                <div className="p-3.5 bg-white/5 border border-white/10 rounded-2xl space-y-2.5">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                    <span>Copied Caption:</span>
+                    <span className="text-amber-400 font-bold">#ShareYourStreak</span>
+                  </div>
+                  <p className="text-xs font-mono text-white/90 italic bg-black/40 p-2.5 rounded-xl border border-white/5 line-clamp-3 leading-relaxed">
+                    {fallbackModal.caption}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleCopyCaptionAgain}
+                    className="w-full py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    {copiedAgain ? (
+                      <>
+                        <Check size={14} className="text-emerald-400" />
+                        <span className="text-emerald-400">Caption Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} />
+                        <span>Copy Caption Again</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setFallbackModal(null)}
+                  className="w-full bg-white text-black font-extrabold py-3.5 rounded-xl text-xs uppercase tracking-wider hover:bg-neutral-200 transition-colors cursor-pointer"
+                >
+                  Done
+                </button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );

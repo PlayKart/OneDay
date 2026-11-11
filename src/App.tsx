@@ -28,6 +28,7 @@ const AchievementDetailModal = lazy(() => import('./components/AchievementDetail
 const OnboardingModal = lazy(() => import('./components/OnboardingModal').then(m => ({ default: m.OnboardingModal })));
 const AppIntroFlow = lazy(() => import('./components/AppIntroFlow').then(m => ({ default: m.AppIntroFlow })));
 const ShareStreakModal = lazy(() => import('./components/ShareStreakModal').then(m => ({ default: m.ShareStreakModal })));
+const ProductTour = lazy(() => import('./components/ProductTour').then(m => ({ default: m.ProductTour })));
 
 export type AppState =
   | "INITIALIZING"
@@ -90,10 +91,6 @@ export function getAppState({
       try {
         localStorage.setItem(`oneday_onboarded_${uid}`, "true");
       } catch (_) {}
-    }
-    const seenIntro = hasSeenAppIntro(uid, user);
-    if (!seenIntro) {
-      return "AUTHENTICATED_INTRO";
     }
     return "AUTHENTICATED_READY";
   }
@@ -412,6 +409,11 @@ export default function App() {
             console.log("[ONBOARDING] Completion callback triggered.");
             localStorage.removeItem("oneday_onboarding_step");
             localStorage.removeItem("oneday_onboarding_data");
+            const uid = firebaseUser?.uid || user?.id;
+            if (uid) {
+              sessionStorage.setItem(`oneday_newly_onboarded_${uid}`, "true");
+              localStorage.setItem(`oneday_newly_onboarded_${uid}`, "true");
+            }
             incrementProfileVersion();
           }} 
         />
@@ -474,6 +476,7 @@ export default function App() {
           </ScreenErrorBoundary>
         </MainLayout>
 
+        <ProductTour />
         <TitleUnlockModal />
         <TitleLossModal />
         <LevelUpModal />

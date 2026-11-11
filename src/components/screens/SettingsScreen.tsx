@@ -250,6 +250,7 @@ export function SettingsScreen() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
+      data-tour="settings-menu"
       className="w-full max-w-xl mx-auto px-4 sm:px-6 pt-3 pb-28 space-y-7 sm:space-y-8 select-none"
     >
       {/* HEADER */}

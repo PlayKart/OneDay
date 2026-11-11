@@ -220,12 +220,12 @@ export function DashboardScreen() {
       </header>
 
       {/* MOTIVATIONAL QUOTE */}
-      <div className="w-full">
+      <div data-tour="dashboard-quote" className="w-full">
         <MotivationalQuote />
       </div>
 
       {/* BENTO GRID: STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4 w-full relative z-10">
+      <div data-tour="streak-xp" className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4 w-full relative z-10">
         
         {/* Card 1: Today's Progress */}
         <motion.div 
@@ -404,7 +404,7 @@ export function DashboardScreen() {
       </div>
 
       {/* TODAY'S MISSION (PRIMARY FOCUS) */}
-      <div className="w-full relative z-10">
+      <div data-tour="today-mission" className="w-full relative z-10">
         <motion.div 
           whileHover={{ borderColor: "#2e2e2e" }}
           className="w-full bg-[#111111] border border-[#222222] rounded-2xl p-5 sm:p-7 transition-all duration-200 shadow-sm"

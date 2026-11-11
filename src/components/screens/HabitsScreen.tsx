@@ -117,28 +117,32 @@ export function HabitsScreen() {
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           {/* SubTab Toggle: List vs Trends */}
-          <SegmentedControl
-            ariaLabel="Habits view options"
-            size="sm"
-            options={[
-              { id: "list", label: "List", icon: <ListFilter size={14} aria-hidden="true" /> },
-              { id: "trends", label: "30-Day Trends", icon: <BarChart3 size={14} aria-hidden="true" /> },
-            ]}
-            value={activeSubTab}
-            onChange={(val) => setActiveSubTab(val as "list" | "trends")}
-          />
+          <div data-tour="trends-tab">
+            <SegmentedControl
+              ariaLabel="Habits view options"
+              size="sm"
+              options={[
+                { id: "list", label: "List", icon: <ListFilter size={14} aria-hidden="true" /> },
+                { id: "trends", label: "30-Day Trends", icon: <BarChart3 size={14} aria-hidden="true" /> },
+              ]}
+              value={activeSubTab}
+              onChange={(val) => setActiveSubTab(val as "list" | "trends")}
+            />
+          </div>
 
           {/* New Habit Button */}
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<Plus size={15} aria-hidden="true" />}
-            onClick={() => setIsModalOpen(true)}
-            aria-label="Create New Habit"
-          >
-            <span className="hidden sm:inline">New Habit</span>
-            <span className="sm:hidden">New</span>
-          </Button>
+          <div data-tour="add-habit-btn">
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus size={15} aria-hidden="true" />}
+              onClick={() => setIsModalOpen(true)}
+              aria-label="Create New Habit"
+            >
+              <span className="hidden sm:inline">New Habit</span>
+              <span className="sm:hidden">New</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -146,7 +150,7 @@ export function HabitsScreen() {
          VIEW SELECTION: LIST vs 30-DAY TRENDS
          ======================================================= */}
       {activeSubTab === "list" ? (
-        <section className="mt-2 relative z-10">
+        <section data-tour="habit-cards" className="mt-2 relative z-10">
           <HabitList onCreateClick={() => setIsModalOpen(true)} />
         </section>
       ) : (

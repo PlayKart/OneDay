@@ -19,11 +19,12 @@ import {
 import { useAchievementStore } from "../store/achievementStore";
 import { useStore } from "../store/useStore";
 import { getEquippedTitle, normalizeTitleUpper, markTitleAsSeen } from "../utils/titleUtils";
+import { getAchievementProgress } from "../utils/achievementProgress";
 import { toast } from "react-hot-toast";
 
 export function AchievementDetailModal() {
   const { selectedAchievement, setSelectedAchievement } = useAchievementStore();
-  const { user, equipTitle } = useStore();
+  const { user, habits, equipTitle } = useStore();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [equipping, setEquipping] = useState(false);
 
@@ -62,6 +63,7 @@ export function AchievementDetailModal() {
   const progress = selectedAchievement.progress;
   const target = selectedAchievement.target;
   const percentage = selectedAchievement.progressPercentage;
+  const progressInfo = getAchievementProgress(selectedAchievement, user, habits);
 
   // Title equip state calculations
   const equippedTitle = getEquippedTitle(user);
@@ -253,43 +255,40 @@ export function AchievementDetailModal() {
                 {requirement || `Attain goal target of ${target} protocol executions.`}
               </p>
 
-              {!isUnlocked && remaining > 0 && (
+              {!isUnlocked && progressInfo.remaining > 0 && (
                 <p className="text-[11px] font-mono text-amber-400/90 pt-1">
-                  Remaining to complete: <strong>{remaining}</strong>
+                  Remaining to complete: <strong>{progressInfo.remaining} {progressInfo.unit}</strong>
                 </p>
               )}
             </div>
           )}
 
-          {/* Progress Section (Requirement 10) */}
-          {target > 1 && (
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-neutral-400 font-bold uppercase tracking-wider text-[10px]">
-                  Protocol Execution
-                </span>
-                <span className="text-white font-bold">
-                  {progress} / {target}{" "}
-                  {percentage !== null && (
-                    <span className="text-amber-400 ml-1">({percentage}%)</span>
-                  )}
-                </span>
-              </div>
-
-              <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/10 relative">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, Math.max(0, percentage || 0))}%` }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                  className={`h-full rounded-full ${
-                    isUnlocked
-                      ? "bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
-                      : "bg-gradient-to-r from-neutral-500 to-neutral-300"
-                  }`}
-                />
-              </div>
+          {/* Progress Section (Feature 2) */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-neutral-400 font-bold uppercase tracking-wider text-[10px]">
+                {progressInfo.displayText}
+              </span>
+              <span className={`font-bold ${isUnlocked ? "text-amber-400" : "text-white"}`}>
+                {progressInfo.percentageText}
+              </span>
             </div>
-          )}
+
+            <div className="h-2.5 w-full bg-neutral-900 rounded-full overflow-hidden p-0.5 border border-white/10 relative">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progressInfo.percentage}%` }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className={`h-full rounded-full ${
+                  isUnlocked
+                    ? "bg-[#FBBC05] shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                    : progressInfo.percentage > 0
+                    ? "bg-gradient-to-r from-amber-600 to-[#FBBC05]"
+                    : "bg-neutral-800"
+                }`}
+              />
+            </div>
+          </div>
 
           {/* Unlocked Date Footer (Requirement 6 & 7) */}
           {isUnlocked && formattedEarnedDate && (
