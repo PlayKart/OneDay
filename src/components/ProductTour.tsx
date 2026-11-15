@@ -408,15 +408,15 @@ export function ProductTour({ onComplete }: ProductTourProps) {
       role="dialog"
       aria-label="OneDay Interactive Walkthrough"
     >
-      {/* 1. Backdrop Overlay */}
+      {/* 1. Subtle Backdrop Overlay (No blur, real app fully visible) */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/80 backdrop-blur-[3px] transition-opacity duration-300"
+        className="absolute inset-0 bg-black/35 transition-opacity duration-300 pointer-events-none"
       />
 
-      {/* 2. Spotlight Cutout / Ring around active target element */}
+      {/* 2. Spotlight Ring around active target element */}
       {highlightRect && !step.isWelcome && !step.isOutro && (
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
@@ -429,7 +429,7 @@ export function ProductTour({ onComplete }: ProductTourProps) {
             height: highlightRect.height + 12,
           }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed rounded-2xl pointer-events-none ring-2 ring-[#FBBC05] shadow-[0_0_35px_rgba(251,188,5,0.3)] bg-transparent z-[195]"
+          className="fixed rounded-2xl pointer-events-none ring-2 ring-[#FBBC05] shadow-[0_0_30px_rgba(251,188,5,0.35)] bg-transparent z-[195]"
         />
       )}
 
