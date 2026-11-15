@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useStore, apiRequest } from "../store/useStore";
+import { SkiperGlowCard } from "./ui/SkiperGlowCard";
 
 const FALLBACK_MINDSETS = [
   "Discipline is the choice between what you want now and what you want most.",
@@ -38,6 +39,9 @@ export const MotivationalQuote = () => {
     currentMindsetRef.current = currentMindset;
   }, [currentMindset]);
 
+  const isMountedRef = useRef(true);
+  const isRefreshingRef = useRef(false);
+
   const loadMindsetFromBackend = async (current: string): Promise<string> => {
     try {
       const data = await apiRequest("/api/mindset");
@@ -52,12 +56,11 @@ export const MotivationalQuote = () => {
         }
       }
       fetched = fetched.trim();
-      
+
       if (!fetched) {
         throw new Error("Empty backend mindset");
       }
-      
-      // Ensure we never repeat the same mindset twice in a row
+
       if (fetched === current) {
         const filteredFallbacks = FALLBACK_MINDSETS.filter(m => m !== current);
         return filteredFallbacks[Math.floor(Math.random() * filteredFallbacks.length)];
@@ -65,55 +68,66 @@ export const MotivationalQuote = () => {
 
       return fetched;
     } catch (err) {
-      console.error("Error fetching mindset from backend:", err);
       throw err;
     }
   };
 
   const triggerRefresh = async () => {
-    setLoading(true);
+    if (!useStore.getState().user) return;
+    if (typeof document !== "undefined" && document.hidden) return;
+    if (isRefreshingRef.current) return;
+
+    isRefreshingRef.current = true;
+    if (isMountedRef.current) setLoading(true);
     const prev = currentMindsetRef.current;
 
     try {
       const newMindset = await loadMindsetFromBackend(prev);
-      
+      if (!isMountedRef.current) return;
+
       localStorage.setItem(CACHE_KEY_PREVIOUS, prev);
       localStorage.setItem(CACHE_KEY_CURRENT, newMindset);
       setPreviousMindset(prev);
       setCurrentMindset(newMindset);
-      
+
       const nextRefresh = Date.now() + 10 * 60 * 1000;
       localStorage.setItem(CACHE_KEY_REFRESH_TIME, nextRefresh.toString());
       setTimeLeft(600);
-    } catch (err) {
-      // Backend unavailable or error: Keep showing the previous (current) mindset
-      console.warn("Backend unavailable, keeping current mindset as fallback");
-      const nextRefresh = Date.now() + 10 * 60 * 1000;
-      localStorage.setItem(CACHE_KEY_REFRESH_TIME, nextRefresh.toString());
-      setTimeLeft(600);
+    } catch {
+      if (isMountedRef.current) {
+        const nextRefresh = Date.now() + 10 * 60 * 1000;
+        localStorage.setItem(CACHE_KEY_REFRESH_TIME, nextRefresh.toString());
+        setTimeLeft(600);
+      }
     } finally {
-      setLoading(false);
+      isRefreshingRef.current = false;
+      if (isMountedRef.current) setLoading(false);
     }
   };
 
-  // Setup the Timer and interval
+  // Setup the Timer and visibility-aware interval only when authenticated
   useEffect(() => {
+    isMountedRef.current = true;
+    if (!user) {
+      return () => {
+        isMountedRef.current = false;
+      };
+    }
+
     const nextRefreshStr = localStorage.getItem(CACHE_KEY_REFRESH_TIME);
     let initialTimeLeft = 600;
 
     if (nextRefreshStr) {
-      const nextTime = parseInt(nextRefreshStr);
+      const nextTime = parseInt(nextRefreshStr, 10);
       if (!isNaN(nextTime)) {
         const diff = Math.round((nextTime - Date.now()) / 1000);
         if (diff > 0 && diff <= 600) {
           initialTimeLeft = diff;
-        } else {
-          // If past or invalid, trigger a refresh immediately
+        } else if (typeof document === "undefined" || !document.hidden) {
           triggerRefresh();
         }
       }
     } else {
-      // First run, set refresh time and start countdown
       const nextRefresh = Date.now() + 10 * 60 * 1000;
       localStorage.setItem(CACHE_KEY_REFRESH_TIME, nextRefresh.toString());
     }
@@ -121,9 +135,9 @@ export const MotivationalQuote = () => {
     setTimeLeft(initialTimeLeft);
 
     const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          // Trigger refresh when timer hits 0
           triggerRefresh();
           return 600;
         }
@@ -131,8 +145,26 @@ export const MotivationalQuote = () => {
       });
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, []);
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        const targetStr = localStorage.getItem(CACHE_KEY_REFRESH_TIME);
+        const target = targetStr ? parseInt(targetStr, 10) : 0;
+        if (!target || Date.now() >= target) {
+          triggerRefresh();
+        } else {
+          setTimeLeft(Math.max(1, Math.min(600, Math.round((target - Date.now()) / 1000))));
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [Boolean(user)]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -144,7 +176,7 @@ export const MotivationalQuote = () => {
 
   return (
     <div id="mindset-component-wrapper" className="relative z-10 w-full my-1 sm:my-4">
-      <div className="relative overflow-hidden bg-black text-white rounded-2xl border border-white/10 p-5 sm:p-8 shadow-2xl">
+      <SkiperGlowCard glowColor="amber">
         {/* Subtle decorative glow in background */}
         <div className="absolute -inset-10 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.03),transparent_65%)] pointer-events-none" />
         
@@ -192,7 +224,7 @@ export const MotivationalQuote = () => {
             )}
           </AnimatePresence>
         </div>
-      </div>
+      </SkiperGlowCard>
     </div>
   );
 };

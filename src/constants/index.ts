@@ -2,8 +2,8 @@
 
 const getBackendUrl = (): string => {
   const envUrl =
-    (typeof import.meta !== "undefined" && ((import.meta.env?.VITE_BACKEND_URL as string) || (import.meta.env?.RENDER_BACKEND_URL as string))) ||
-    (typeof process !== "undefined" && ((process.env as any)?.VITE_BACKEND_URL || (process.env as any)?.RENDER_BACKEND_URL)) ||
+    (typeof import.meta !== "undefined" && (import.meta.env?.VITE_BACKEND_URL as string)) ||
+    (typeof process !== "undefined" && (process.env as any)?.VITE_BACKEND_URL) ||
     "https://oneday-backend-xocv.onrender.com";
 
   return (envUrl || "https://oneday-backend-xocv.onrender.com").trim().replace(/\/+$/, "");
@@ -27,7 +27,9 @@ export const DEFAULT_HABIT_COLORS = [
 ];
 
 export const APP_NAME = "OneDay";
-console.log('[CONFIG] Production Backend URL initialized:', BACKEND_URL);
+if (typeof import.meta !== "undefined" && import.meta.env?.DEV) {
+  console.log('[CONFIG] Backend URL initialized:', BACKEND_URL);
+}
 
 export const ONEDAY_CONTACT = {
   instagramHandle: "@onedayapp.co",

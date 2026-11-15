@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useStore } from "../../store/useStore";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
+import { clearClientSessionStorage, getOfflineQueueStorageKey } from "../../utils/sessionCleanup";
+import { quoteService } from "../../services/quoteService";
 import {
   ArrowLeft,
   User as UserIcon,
@@ -144,6 +146,8 @@ export function AccountScreen({
   const handleSignOutConfirm = async () => {
     try {
       await signOut(auth);
+      clearClientSessionStorage();
+      quoteService.clearCache();
       setConfirmSignOut(false);
       toast.success("Successfully signed out.");
     } catch (e: any) {
@@ -165,16 +169,25 @@ export function AccountScreen({
   };
 
   const handleDeleteAccountConfirm = async () => {
+    const deletedUid = firebaseUser?.uid || auth.currentUser?.uid || null;
     try {
       setDeleting(true);
       await deleteAccount();
-      localStorage.clear();
-      sessionStorage.clear();
+      clearClientSessionStorage();
+      quoteService.clearCache();
+      if (deletedUid && typeof localStorage !== "undefined") {
+        localStorage.removeItem(getOfflineQueueStorageKey(deletedUid));
+      }
+      if (typeof sessionStorage !== "undefined") sessionStorage.clear();
       await signOut(auth);
       setConfirmDelete(false);
       toast.success("Account deleted successfully.");
     } catch (e: any) {
-      toast.error(e?.message || "Failed to delete account.");
+      const msg =
+        e?.code === "auth/requires-recent-login"
+          ? "Please sign out and sign in again to confirm permanent account deletion."
+          : e?.message || "Failed to delete account.";
+      toast.error(msg);
     } finally {
       setDeleting(false);
     }

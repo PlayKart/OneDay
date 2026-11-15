@@ -8,9 +8,7 @@ import { safeArray } from "../utils";
 export const chatService = {
   async getSessions(signal?: AbortSignal): Promise<ChatSession[]> {
     try {
-      console.log("[chatService] Requesting GET /api/conversations");
       const res = await apiClient.get<any>("/api/conversations", { signal });
-      console.log("[chatService] GET /api/conversations response:", res.data);
       const rawData = res.data;
       const list = Array.isArray(rawData)
         ? rawData
@@ -50,9 +48,7 @@ export const chatService = {
   async getMessages(sessionId: string, signal?: AbortSignal): Promise<ChatMessage[]> {
     if (!sessionId) return [];
     try {
-      console.log(`[chatService] Requesting GET /api/chats for session ${sessionId}`);
       const res = await apiClient.get(`/api/chats`, { params: { sessionId }, signal });
-      console.log(`[chatService] GET /api/chats response:`, res.data);
       const rawData = res.data;
       const list = Array.isArray(rawData)
         ? rawData
@@ -116,12 +112,8 @@ export const chatService = {
       ...(sessionId ? { sessionId, conversationId: sessionId } : {}),
     };
 
-    console.log("Current session:", sessionId);
-    console.log("Request payload:", payload);
-
     try {
       const res = await apiClient.post(endpoint, payload);
-      console.log("Response:", res.data);
 
       const body = res.data;
       if (body && (body.action === "DUPLICATE_HABIT" || body.data?.action === "DUPLICATE_HABIT")) {
@@ -139,7 +131,6 @@ export const chatService = {
 
       if (body && body.success === false) {
         const errMsg = body.error?.message || (typeof body.error === "string" ? body.error : body.message || "Backend returned an error");
-        console.error("[AI Coach] Backend error response:", body);
         const err = new Error(errMsg);
         if (body.action) (err as any).action = body.action;
         throw err;
@@ -200,8 +191,9 @@ export const chatService = {
         data: body?.data,
       };
     } catch (err: any) {
-      const errorData = err?.response?.data || err.message;
-      console.error("[AI Coach / Chat Error] Endpoint:", fullUrl, "Method:", method, "Status:", err?.response?.status, "Error:", errorData);
+      if (typeof import.meta !== "undefined" && (import.meta as any).env?.DEV) {
+        console.error("[AI Coach / Chat Error] Endpoint:", fullUrl, "Method:", method, "Status:", err?.response?.status);
+      }
 
       const resData = err?.response?.data;
       if (
@@ -251,17 +243,14 @@ export const chatService = {
 
     // 1. Primary endpoint: POST /api/chat/pin
     try {
-      console.log(`[chatService] Requesting POST /api/chat/pin for session ${conversationId}`, payload);
       await apiClient.post(`/api/chat/pin`, payload);
       return;
     } catch (e: any) {
-      console.warn("[chatService] POST /api/chat/pin failed, attempting fallback endpoints:", e?.response?.status || e?.message);
       lastError = e;
     }
 
     // 2. Fallback: PUT /api/conversation/:id
     try {
-      console.log(`[chatService] Requesting PUT /api/conversation/${conversationId}`);
       await apiClient.put(`/api/conversation/${conversationId}`, {
         pinned: isPinned,
         isPinned,
@@ -269,17 +258,14 @@ export const chatService = {
       });
       return;
     } catch (e: any) {
-      console.warn("[chatService] PUT /api/conversation/:id failed:", e?.response?.status || e?.message);
       lastError = e;
     }
 
     // 3. Fallback: POST /api/conversations/:id/pin
     try {
-      console.log(`[chatService] Requesting POST /api/conversations/${conversationId}/pin`);
       await apiClient.post(`/api/conversations/${conversationId}/pin`, payload);
       return;
     } catch (e: any) {
-      console.warn("[chatService] POST /api/conversations/:id/pin failed:", e?.response?.status || e?.message);
       lastError = e;
     }
 

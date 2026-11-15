@@ -12,12 +12,13 @@ export const habitService = {
     const fbUser = auth.currentUser || useStore.getState().firebaseUser;
     if (!fbUser) return [];
 
-    console.log(`[HABIT SERVICE] Fetching habits from backend API for userId: ${fbUser.uid}`);
     try {
       const habitsStart = performance.now();
       const response = await apiClient.get("/api/habits");
       const duration = Math.round(performance.now() - habitsStart);
-      console.log(`[PERF] backend getHabits: ${duration}ms`);
+      if (typeof import.meta !== "undefined" && (import.meta as any).env?.DEV) {
+        console.log(`[PERF] backend getHabits: ${duration}ms`);
+      }
 
       const rawData = response.data || {};
       const habitsList = Array.isArray(rawData)
@@ -208,18 +209,9 @@ export const habitService = {
     };
 
     const targetUrl = "/api/habit";
-    const method = "POST";
-
-    console.log("[HABIT CREATE] Starting");
-    console.log("[HABIT CREATE] URL:", targetUrl);
-    console.log("[HABIT CREATE] METHOD:", method);
-    console.log("[HABIT CREATE] PAYLOAD:", payload);
 
     try {
       const response = await apiClient.post(targetUrl, payload);
-
-      console.log("[HABIT CREATE] RESPONSE STATUS:", response.status);
-      console.log("[HABIT CREATE] RESPONSE:", response.data);
 
       const rawData = response.data || {};
 
@@ -280,7 +272,6 @@ export const habitService = {
     if (habitData.color) payload.color = habitData.color;
     if (habitData.reminderTime !== undefined) payload.reminderTime = habitData.reminderTime;
 
-    console.log(`[HABIT SERVICE] Updating habit ${targetId} via PUT /api/habit...`, payload);
     try {
       const response = await apiClient.put(`/api/habit`, payload);
       if (response.data && response.data.success === false) {
@@ -296,7 +287,7 @@ export const habitService = {
         notes: updated?.notes ?? updated?.description ?? payload.notes,
       });
     } catch (err: any) {
-      console.error(`[HABIT SERVICE] Backend updateHabit failed:`, err?.response?.data || err?.message || err);
+      console.error(`[HABIT SERVICE] Backend updateHabit failed:`, err?.message || "Request failed");
       const errMsg =
         err?.response?.data?.error?.message ||
         err?.response?.data?.error ||

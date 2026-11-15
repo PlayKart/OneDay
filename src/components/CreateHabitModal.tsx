@@ -76,8 +76,6 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
       color: selectedColor
     };
 
-    console.log("Create Habit Request Payload:", payload);
-
     setIsSubmitting(true);
 
     try {

@@ -21,32 +21,40 @@ class PerfLogger {
     this.checkAndReport();
   }
 
+  private isDev(): boolean {
+    return typeof import.meta !== "undefined" && Boolean((import.meta as any).env?.DEV);
+  }
+
   public markHabitTap(habitId: string, durationMs: number) {
-    console.log(`[PERF FRONTEND] habitTapToVisual: ${Math.round(durationMs)}ms (habit: ${habitId})`);
+    if (this.isDev()) {
+      console.log(`[PERF FRONTEND] habitTapToVisual: ${Math.round(durationMs)}ms (habit: ${habitId})`);
+    }
   }
 
   private checkAndReport() {
-    // Report when essential milestones are logged
     const { authReady, syncStart, syncEnd, dashboardReady, habitsReady, quoteReady } = this.milestones;
-    
-    // Log individual milestone when it arrives
-    const latestKeys = Object.keys(this.milestones) as (keyof PerfMilestones)[];
-    const latestKey = latestKeys[latestKeys.length - 1];
-    if (latestKey) {
-      console.log(`[PERF FRONTEND] ${latestKey}: ${this.milestones[latestKey]}ms`);
+
+    if (this.isDev()) {
+      const latestKeys = Object.keys(this.milestones) as (keyof PerfMilestones)[];
+      const latestKey = latestKeys[latestKeys.length - 1];
+      if (latestKey) {
+        console.log(`[PERF FRONTEND] ${latestKey}: ${this.milestones[latestKey]}ms`);
+      }
     }
 
     if (authReady !== undefined && dashboardReady !== undefined && habitsReady !== undefined && !this.hasReported) {
       this.hasReported = true;
-      console.log(
-        `[PERF FRONTEND SUMMARY]\n` +
-        `authReady: ${authReady}ms\n` +
-        `syncStart: ${syncStart ?? 0}ms\n` +
-        `syncEnd: ${syncEnd ?? 0}ms\n` +
-        `dashboardReady: ${dashboardReady}ms\n` +
-        `habitsReady: ${habitsReady}ms\n` +
-        `quoteReady: ${quoteReady ?? "async"}ms`
-      );
+      if (this.isDev()) {
+        console.log(
+          `[PERF FRONTEND SUMMARY]\n` +
+          `authReady: ${authReady}ms\n` +
+          `syncStart: ${syncStart ?? 0}ms\n` +
+          `syncEnd: ${syncEnd ?? 0}ms\n` +
+          `dashboardReady: ${dashboardReady}ms\n` +
+          `habitsReady: ${habitsReady}ms\n` +
+          `quoteReady: ${quoteReady ?? "async"}ms`
+        );
+      }
     }
   }
 

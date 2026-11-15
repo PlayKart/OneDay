@@ -9,6 +9,7 @@ import { CoachMessageActions } from "./CoachMessageActions";
 import { parseCoachActionFromMessage } from "./actions/actionParser";
 import { CoachActionCard } from "./actions/CoachActionCard";
 import { useStore } from "../../store/useStore";
+import { sanitizeExternalUrl } from "../../utils/urlSafety";
 
 interface ItemErrorBoundaryProps {
   children: ReactNode;
@@ -189,7 +190,43 @@ export const CoachMessageItem: React.FC<CoachMessageItemProps> = ({
               <div className="p-3.5 sm:p-4 rounded-2xl rounded-tl-xs bg-[#111116] border border-white/[0.08] text-slate-200 text-xs sm:text-[13px] leading-relaxed shadow-[0_4px_24px_rgba(0,0,0,0.5)] break-words [overflow-wrap:anywhere]">
                 <div className="markdown-content space-y-3">
                   <Markdown
+                    urlTransform={(url) => sanitizeExternalUrl(url) ?? ""}
                     components={{
+                      a: ({ href, children }) => {
+                        const safeHref = sanitizeExternalUrl(href);
+                        if (!safeHref) {
+                          return (
+                            <span className="text-slate-300 underline decoration-dotted">
+                              {children}
+                            </span>
+                          );
+                        }
+                        return (
+                          <a
+                            href={safeHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-white underline underline-offset-2 hover:text-zinc-300 transition-colors"
+                          >
+                            {children}
+                          </a>
+                        );
+                      },
+                      img: ({ src, alt }) => {
+                        const safeSrc = sanitizeExternalUrl(src);
+                        if (!safeSrc) {
+                          return alt ? <span className="text-xs text-slate-400">{alt}</span> : null;
+                        }
+                        return (
+                          <img
+                            src={safeSrc}
+                            alt={alt || ""}
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            className="max-w-full rounded-xl border border-white/10 my-2"
+                          />
+                        );
+                      },
                       h1: ({ children }) => (
                         <h1 className="text-sm font-black uppercase tracking-[0.16em] text-white pt-2 pb-1 border-b border-white/10 font-mono">
                           {children}

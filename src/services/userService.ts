@@ -19,7 +19,9 @@ export const userService = {
     try {
       const response = await apiClient.get("/api/users");
       const profileDuration = Math.round(performance.now() - profileStart);
-      console.log(`[PERF] backend getUserProfile via GET /api/users: ${profileDuration}ms`);
+      if (typeof import.meta !== "undefined" && (import.meta as any).env?.DEV) {
+        console.log(`[PERF] backend getUserProfile via GET /api/users: ${profileDuration}ms`);
+      }
 
       const rawData = response.data || {};
       const userData =
@@ -232,14 +234,12 @@ export const userService = {
    */
   async deleteAccount(): Promise<void> {
     const fbUser = auth.currentUser;
-    if (!fbUser) return;
-
-    try {
-      await apiClient.delete("/api/user");
-      await fbUser.delete();
-    } catch (err: any) {
-      console.warn(`[USER SERVICE] deleteAccount failed:`, err?.message || err);
+    if (!fbUser) {
+      throw new Error("Not authenticated");
     }
+
+    await apiClient.delete("/api/user");
+    await fbUser.delete();
   },
 
   /**

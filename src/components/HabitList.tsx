@@ -132,11 +132,6 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
   };
 
   const safeHabits = Array.isArray(habits) ? habits : [];
-  if (!Array.isArray(habits)) {
-    console.log("habits in HabitList:", habits);
-    console.log("typeof habits:", typeof habits);
-    console.log("Array.isArray:", Array.isArray(habits));
-  }
   const displayHabits = previewMode 
     ? safeHabits
         .filter(h => h && isHabitScheduledForToday(h))

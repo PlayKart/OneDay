@@ -59,11 +59,8 @@ export function AboutMeSection() {
     }
     setFetchError(null);
     try {
-      console.log("[PROFILE] Fetching latest profile from backend...");
       const data = await userService.getUserProfile();
-      console.log("[PROFILE] Successfully fetched profile from backend:", data);
       setProfileData(data);
-      // Synchronize with store
       useStore.setState({ user: data });
     } catch (err: any) {
       console.error("[PROFILE] Error fetching profile from backend:", err);

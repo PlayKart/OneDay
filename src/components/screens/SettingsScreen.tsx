@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useStore } from "../../store/useStore";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
+import { clearClientSessionStorage } from "../../utils/sessionCleanup";
+import { quoteService } from "../../services/quoteService";
 import {
   User as UserIcon,
   ShieldCheck,
@@ -128,6 +130,8 @@ export function SettingsScreen() {
   const handleSignOutConfirm = async () => {
     try {
       await signOut(auth);
+      clearClientSessionStorage();
+      quoteService.clearCache();
       setConfirmSignOut(false);
       toast.success("Successfully signed out.");
     } catch (e: any) {

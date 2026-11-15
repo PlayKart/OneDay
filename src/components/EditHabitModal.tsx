@@ -65,11 +65,9 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
     async function loadAuthoritativeHabit() {
       try {
         setIsLoadingBackendHabit(true);
-        console.log("[EditHabitModal] Fetching authoritative habit record from backend for ID:", targetId);
         const dbHabit = await habitService.getHabit(targetId);
         if (!isMounted || !dbHabit) return;
 
-        console.log("[EditHabitModal] Database habit retrieved:", dbHabit);
         setName(dbHabit.name || "");
         setRepeatType(dbHabit.repeatType || "every_day");
         setCustomDays(Array.isArray(dbHabit.customDays) ? dbHabit.customDays : []);
@@ -164,7 +162,6 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
       color: selectedColor
     };
 
-    console.log("Update Habit Request Payload:", payload);
     setIsSubmitting(true);
 
     try {

@@ -134,10 +134,7 @@ export default function App() {
     backendError,
   });
 
-  // Log App mounted
-  useEffect(() => {
-    console.log("[BOOT] initialization started");
-  }, []);
+  const isDev = Boolean((import.meta as any).env?.DEV);
 
   // Performance measurement: measure transition between calibration complete and Protocol Alpha visible
   useEffect(() => {
@@ -152,48 +149,23 @@ export default function App() {
               "calibrationComplete",
               "protocolAlphaAppVisible"
             );
-            console.log(
-              `[PERF] Calibration complete -> Protocol Alpha UI transition latency: ${measure.duration.toFixed(2)}ms (target: ~1ms)`
-            );
+            if (isDev) {
+              console.log(
+                `[PERF] Calibration complete -> Protocol Alpha UI transition latency: ${measure.duration.toFixed(2)}ms`
+              );
+            }
           }
         }
       } catch (_) {}
     }
-  }, [appState]);
+  }, [appState, isDev]);
 
-  // Detailed Route State Logging & URL History Synchronization
+  // URL History Synchronization (telemetry logs gated to DEV)
   useEffect(() => {
-    const onboardingLogical: OnboardingLogicalStatus = user ? resolveOnboardingStatus(user) : "unknown";
-    const syncStatus = loading ? "syncing" : backendError ? "error" : profileSynced ? "success" : "idle";
-    const authStatus = !initialized ? "initializing" : firebaseUser ? "authenticated" : "unauthenticated";
-    const profileStatus = profileSynced ? "loaded" : loading ? "pending" : backendError ? "error" : "idle";
-
-    const decision = 
-      appState === "INITIALIZING" || appState === "AUTHENTICATED_LOADING"
-        ? "render OneDay loader"
-        : appState === "UNAUTHENTICATED"
-        ? "render landing"
-        : appState === "AUTHENTICATED_SYNC_ERROR"
-        ? "render sync error"
-        : appState === "AUTHENTICATED_ONBOARDING_INCOMPLETE"
-        ? "render onboarding"
-        : appState === "AUTHENTICATED_INTRO"
-        ? "render app intro"
-        : "render dashboard";
-
-    console.log(`[ONBOARDING STATUS] resolved = ${onboardingLogical}`);
-    console.log(`[APP STATE] ${appState}`);
-
-    console.log("[ROUTE STATE]", {
-      authStatus,
-      firebaseUser: firebaseUser ? firebaseUser.uid : null,
-      syncStatus,
-      profileStatus,
-      onboardingStatus: onboardingLogical,
-      currentPath: window.location.pathname,
-      appState,
-      decision,
-    });
+    if (isDev) {
+      const onboardingLogical: OnboardingLogicalStatus = user ? resolveOnboardingStatus(user) : "unknown";
+      console.log(`[ONBOARDING STATUS] resolved = ${onboardingLogical} | state = ${appState}`);
+    }
 
     // Synchronize browser URL bar without unrequested redirects
     if (appState === "UNAUTHENTICATED") {
@@ -260,6 +232,7 @@ export default function App() {
     let lastCheckedDate = new Date().toISOString().split("T")[0];
 
     const checkNewDayAndRefresh = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
       const currentDate = new Date().toISOString().split("T")[0];
       if (currentDate !== lastCheckedDate) {
         lastCheckedDate = currentDate;
@@ -270,6 +243,7 @@ export default function App() {
     const interval = setInterval(checkNewDayAndRefresh, 60000);
 
     const handleFocus = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
       checkNewDayAndRefresh();
     };
 

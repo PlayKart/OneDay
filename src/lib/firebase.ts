@@ -12,14 +12,18 @@ const firebaseConfig = {
   appId: env.VITE_FIREBASE_APP_ID || "1:852822909526:web:b55776015e3fe2cfc551f7",
 };
 
-console.log("[FIREBASE INIT] Initializing Firebase Auth with Project ID:", firebaseConfig.projectId);
+if (env.DEV) {
+  console.log("[FIREBASE INIT] Initializing Firebase Auth with Project ID:", firebaseConfig.projectId);
+}
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = null as any;
 
 // Configure explicit browserLocalPersistence
 setPersistence(auth, browserLocalPersistence).catch((err) => {
-  console.warn("[AUTH] Failed to set Firebase persistence:", err);
+  if (env.DEV) {
+    console.warn("[AUTH] Failed to set Firebase persistence:", err);
+  }
 });
 
 

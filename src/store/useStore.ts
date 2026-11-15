@@ -16,6 +16,7 @@ import { isTitleNew, markTitleAsSeen, getTitleDescription, setEquippedTitle, get
 import { isUserFrozen, getFreezeUntil, formatFreezeDate } from '../utils/freezeUtils';
 import { apiRequest } from '../api/client';
 import { perfLogger } from '../utils/perfLogger';
+import { clearClientSessionStorage } from '../utils/sessionCleanup';
 import { 
   User as BackendUser, 
   Habit, 
@@ -35,6 +36,8 @@ export { apiRequest, normalizeCompletedDates };
 export type { ChatSession, ChatMessage, Habit, TabState, BackendUser as User };
 
 let inFlightFetchPendingLevelUpEvents: Promise<void> | null = null;
+const IS_DEV = typeof import.meta !== "undefined" && Boolean((import.meta as any).env?.DEV);
+const TAB_REFRESH_COOLDOWN_MS = 15000;
 
 
 interface StoreState {
@@ -134,6 +137,8 @@ let inFlightFetchSessionsPromise: Promise<void> | null = null;
 let selectSessionAbortController: AbortController | null = null;
 let selectSessionSequence = 0;
 let isSendChatMessageInFlight = false;
+let lastAuthenticatedUid: string | null = null;
+let lastTabRefreshAt = 0;
 
 const getInitialActiveTab = (): TabState => {
   if (typeof window !== "undefined") {
@@ -159,9 +164,10 @@ export const useStore = create<StoreState>((set, get) => {
     performance.mark("calibrationStart");
   } catch (_) {}
 
-  // Diagnostic log for boot
-  console.log("[BOOT] initialization started");
-  console.log("[BOOT] auth initialization started");
+  if (IS_DEV) {
+    console.log("[BOOT] initialization started");
+    console.log("[BOOT] auth initialization started");
+  }
 
   let authListenerFired = false;
   let calibrationHandled = false;
@@ -171,16 +177,18 @@ export const useStore = create<StoreState>((set, get) => {
     getRedirectResult(auth)
       .then((result) => {
         if (result && result.user) {
-          console.log("[AUTH] Successful redirect login. User UID:", result.user.uid);
+          if (IS_DEV) console.log("[AUTH] Successful redirect login.");
           set({ firebaseUser: result.user, initialized: true });
-          get().refreshFromBackend().catch((e) => console.warn("[AUTH] post-redirect refresh:", e));
+          get().refreshFromBackend().catch((e) => {
+            if (IS_DEV) console.warn("[AUTH] post-redirect refresh:", e);
+          });
         }
       })
       .catch((err) => {
-        console.warn("[AUTH] Error handling redirect result:", err);
+        if (IS_DEV) console.warn("[AUTH] Error handling redirect result:", err);
       });
   } catch (err) {
-    console.warn("[AUTH] getRedirectResult error:", err);
+    if (IS_DEV) console.warn("[AUTH] getRedirectResult error:", err);
   }
 
   // Fallback safety timer in case Firebase Auth listener is stalled (2000ms timeout)
@@ -188,11 +196,10 @@ export const useStore = create<StoreState>((set, get) => {
     if (!authListenerFired) {
       authListenerFired = true;
       calibrationHandled = true;
-      console.warn("[BOOT] auth initialization fallback timeout reached");
-      console.log(`[PERF] auth: ${Math.round(performance.now() - authStartTime)}ms (timeout)`);
-      console.log("[BOOT] auth initialization completed");
-      console.log("[BOOT] authenticated user: none (fallback)");
-      console.log("[BOOT] session available: false");
+      if (IS_DEV) {
+        console.warn("[BOOT] auth initialization fallback timeout reached");
+        console.log(`[PERF] auth: ${Math.round(performance.now() - authStartTime)}ms (timeout)`);
+      }
       try {
         performance.mark("calibrationComplete");
         performance.mark("protocolAlphaInit");
@@ -210,9 +217,8 @@ export const useStore = create<StoreState>((set, get) => {
     }
 
     const authDuration = Math.round(performance.now() - authStartTime);
-    console.log(`[PERF] auth: ${authDuration}ms`);
+    if (IS_DEV) console.log(`[PERF] auth: ${authDuration}ms`);
     perfLogger.mark("authReady", authDuration);
-    console.log("[BOOT] auth initialization completed");
 
     // Exact calibration completion event timestamp
     try {
@@ -221,47 +227,68 @@ export const useStore = create<StoreState>((set, get) => {
     } catch (_) {}
 
     if (fbUser) {
-      console.log(`[AUTH] authenticated user: ${fbUser.uid} ${fbUser.email ? `(${fbUser.email})` : ""}`);
-      console.log("[BOOT] session available: true");
+      const accountSwitched = Boolean(lastAuthenticatedUid && lastAuthenticatedUid !== fbUser.uid);
+      if (accountSwitched) {
+        clearClientSessionStorage();
+        quoteService.clearCache();
+        useAchievementStore.getState().resetAchievementState();
+        syncService.refreshSyncState();
+        lastTabRefreshAt = 0;
+        set({
+          user: null,
+          habits: [],
+          chatSessions: [],
+          activeChatId: null,
+          chatMessages: [],
+          pendingHabitAction: null,
+          pendingActions: {},
+          pendingLevelUpEvents: [],
+          activeLevelUpEvent: null,
+          profileSynced: false,
+          backendError: null,
+        });
+      }
+      lastAuthenticatedUid = fbUser.uid;
 
-      // Prevent duplicate calibration restarts if token refreshes
-      if (!calibrationHandled) {
+      // Prevent duplicate calibration restarts if token refreshes on the same UID
+      if (!calibrationHandled || accountSwitched) {
         calibrationHandled = true;
         useAchievementStore.getState().resetAchievementState();
 
-        // Immediate transition to Protocol Alpha (approx 1 ms target):
-        // Set user and initialized state synchronously so Protocol Alpha renders immediately without blocking
         set({
           firebaseUser: fbUser,
           initialized: true,
           loading: true,
         });
 
-        // Non-blocking asynchronous background sync: does NOT delay Protocol Alpha
         get().refreshFromBackend().catch((e) => {
-          console.warn("[BACKGROUND SYNC] refreshFromBackend background notice:", e);
+          if (IS_DEV) console.warn("[BACKGROUND SYNC] refreshFromBackend background notice:", e);
         });
 
-        // Requirement 3: Fetch pending level-up events from the backend after authentication
         get().fetchPendingLevelUpEvents().catch((e) => {
-          console.warn("[PROGRESSION] Initial pending level-up fetch notice:", e);
+          if (IS_DEV) console.warn("[PROGRESSION] Initial pending level-up fetch notice:", e);
         });
       } else {
-        // Subsequent auth state update (e.g. token refresh)
         set({ firebaseUser: fbUser, initialized: true });
         get().fetchPendingLevelUpEvents().catch(() => {});
       }
     } else {
-      console.log("[AUTH] authenticated user: none");
-      console.log("[BOOT] session available: false");
+      lastAuthenticatedUid = null;
+      lastTabRefreshAt = 0;
       calibrationHandled = true;
+      clearClientSessionStorage();
+      quoteService.clearCache();
       useAchievementStore.getState().resetAchievementState();
+      syncService.refreshSyncState();
       set({
         firebaseUser: null,
         user: null,
         habits: [],
         chatSessions: [],
+        activeChatId: null,
         chatMessages: [],
+        pendingHabitAction: null,
+        pendingActions: {},
         pendingLevelUpEvents: [],
         activeLevelUpEvent: null,
         isAcknowledgingLevelUp: false,
@@ -317,7 +344,7 @@ export const useStore = create<StoreState>((set, get) => {
     clearCoachError: () => set({ coachError: null }),
 
     setFirebaseUser: (fbUser) => {
-      console.log("[AUTH] setFirebaseUser called:", fbUser ? `authenticated (UID: ${fbUser.uid})` : "unauthenticated");
+      if (IS_DEV) console.log("[AUTH] setFirebaseUser:", fbUser ? "authenticated" : "unauthenticated");
       set({ firebaseUser: fbUser, initialized: true });
     },
 
@@ -348,7 +375,13 @@ export const useStore = create<StoreState>((set, get) => {
         }
       }
       if (tab === "habits" || tab === "dashboard" || tab === "coach") {
-        get().refreshFromBackend().catch((e) => console.warn("[TAB SWITCH] refresh error:", e));
+        const now = Date.now();
+        if (now - lastTabRefreshAt >= TAB_REFRESH_COOLDOWN_MS) {
+          lastTabRefreshAt = now;
+          get().refreshFromBackend().catch((e) => {
+            if (IS_DEV) console.warn("[TAB SWITCH] refresh error:", e);
+          });
+        }
       }
     },
     setTitleUnlockData: (data) => {
@@ -461,20 +494,19 @@ export const useStore = create<StoreState>((set, get) => {
       const activeFbUser = auth.currentUser || get().firebaseUser;
 
       if (!activeFbUser) {
-        console.warn("[AUTH] No authenticated Firebase user present, skipping backend sync.");
         set({ loading: false, profileSynced: false });
         return;
       }
 
+      lastTabRefreshAt = Date.now();
       set({ loading: true, backendError: null });
 
       try {
-        // Requirement 4: Prevent duplicate API calls by reusing active in-flight sync promise
         await syncService.syncUserData(false);
-        get().fetchSessions().catch((sErr) => console.warn("Failed to fetch chat sessions:", sErr));
-        get().fetchPendingLevelUpEvents().catch((pErr) => console.warn("Failed to fetch pending level-up events:", pErr));
+        get().fetchSessions().catch(() => {});
+        get().fetchPendingLevelUpEvents().catch(() => {});
       } catch (err: any) {
-        console.error("[SYNC ERROR] refreshFromBackend failed:", err?.message || err);
+        if (IS_DEV) console.error("[SYNC ERROR] refreshFromBackend failed:", err?.message || err);
       }
     },
 
@@ -1254,7 +1286,7 @@ export const useStore = create<StoreState>((set, get) => {
         
         // Guard against race conditions: only apply if this request is still the newest one
         if (sequence === selectSessionSequence) {
-          console.log(`[useStore] Loaded ${msgs.length} messages for session ${id}:`, msgs);
+          if (IS_DEV) console.log(`[useStore] Loaded ${msgs.length} messages for session ${id}`);
           set({ chatMessages: safeArray(msgs), chatLoading: false, coachError: null });
         }
       } catch (e: any) {
@@ -1366,7 +1398,7 @@ export const useStore = create<StoreState>((set, get) => {
       isSendChatMessageInFlight = true;
 
       let activeId = get().activeChatId;
-      console.log(`[COACH UI] user message sent: ${messageText}`);
+      if (IS_DEV) console.log(`[COACH UI] user message dispatched`);
 
       const userMsg: ChatMessage = {
         id: `user_${Date.now()}`,
