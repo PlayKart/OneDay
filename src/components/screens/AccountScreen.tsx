@@ -52,6 +52,10 @@ export function AccountScreen({
 
   const userDisplayName = user?.name || firebaseUser?.displayName || "Account User";
   const userEmail = firebaseUser?.email || user?.email || "No email connected";
+  // Only genuine email addresses become mailto: links (guests have no email).
+  const userEmailMailto = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)
+    ? `mailto:${userEmail}`
+    : null;
   const userId = firebaseUser?.uid || user?.id || user?.userId || "—";
 
   // Provider detection
@@ -238,7 +242,17 @@ export function AccountScreen({
             <h2 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">
               {userDisplayName}
             </h2>
-            <p className="text-xs text-neutral-400 font-mono truncate">{userEmail}</p>
+            {userEmailMailto ? (
+              <a
+                href={userEmailMailto}
+                aria-label={`Email ${userEmail}`}
+                className="inline-block max-w-full text-xs text-neutral-400 hover:text-white transition-colors font-mono truncate underline decoration-white/20 underline-offset-4 hover:decoration-white/60 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+              >
+                {userEmail}
+              </a>
+            ) : (
+              <p className="text-xs text-neutral-400 font-mono truncate">{userEmail}</p>
+            )}
             <div className="pt-1 flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-wider">
                 <ShieldCheck size={11} aria-hidden="true" />
@@ -256,9 +270,19 @@ export function AccountScreen({
               <Mail size={15} aria-hidden="true" />
               <span className="font-medium">Primary Email</span>
             </div>
-            <span className="text-neutral-200 font-mono font-bold truncate max-w-[200px] sm:max-w-xs">
-              {userEmail}
-            </span>
+            {userEmailMailto ? (
+              <a
+                href={userEmailMailto}
+                aria-label={`Email ${userEmail}`}
+                className="text-neutral-200 font-mono font-bold truncate max-w-[200px] sm:max-w-xs underline decoration-white/25 underline-offset-4 hover:text-white hover:decoration-white/70 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+              >
+                {userEmail}
+              </a>
+            ) : (
+              <span className="text-neutral-200 font-mono font-bold truncate max-w-[200px] sm:max-w-xs">
+                {userEmail}
+              </span>
+            )}
           </div>
 
           {/* Provider */}

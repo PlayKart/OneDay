@@ -362,7 +362,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                     }
 
                     if (!isToday && !habit.completedToday) {
-                      toast.error(`Dude, do it on ${getScheduledDaysMessage(habit)}. Chill !!!`);
+                      toast.error(`This habit is scheduled for ${getScheduledDaysMessage(habit)}.`);
                       return;
                     }
                     
@@ -370,7 +370,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                       const habitXp = extractXpAwarded(null, habit.difficulty);
                       setConfirmModal({
                         isOpen: true,
-                        title: "Lied to Yourself ?",
+                        title: "Undo this completion?",
                         habitName: habit.name,
                         actionText: "Undo Completion",
                         cancelText: "Keep Completed",
@@ -482,7 +482,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -4 }}
                         transition={{ duration: 0.12 }}
-                        className="absolute right-0 top-11 z-50 min-w-[170px] bg-[#121212] border border-white/10 rounded-xl p-1.5 shadow-2xl backdrop-blur-xl"
+                        className="absolute right-0 top-11 z-50 w-[min(78vw,190px)] max-w-[calc(100vw-2rem)] bg-[#121212] border border-white/10 rounded-xl p-1.5 shadow-2xl backdrop-blur-xl"
                         role="menu"
                         aria-label="Habit options"
                       >
@@ -740,7 +740,7 @@ export const HabitList = ({ previewMode = false, onCreateClick }: { previewMode?
 
               <div className="text-center space-y-1.5 px-2">
                 <h3 id="undo-completion-title" className="text-lg font-bold text-white tracking-tight leading-snug">
-                  {confirmModal.title || "Lied to Yourself ?"}
+                  {confirmModal.title || "Undo this completion?"}
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
                   {confirmModal.description ||

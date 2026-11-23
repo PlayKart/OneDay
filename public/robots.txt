@@ -1,3 +1,15 @@
 User-agent: *
 Allow: /
+
+# Authenticated application screens are private and must not be indexed.
+Disallow: /dashboard
+Disallow: /habits
+Disallow: /coach
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /intro
+
+# Unreferenced uploaded debris that must not be indexed.
+Disallow: /assets/aistudio/
+
 Sitemap: https://onee-day.vercel.app/sitemap.xml

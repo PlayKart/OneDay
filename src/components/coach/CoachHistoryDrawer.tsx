@@ -92,12 +92,26 @@ export const CoachHistoryDrawer: React.FC<CoachHistoryDrawerProps> = ({
     setEditingSessionId(null);
   };
 
+  // Keyboard access: Escape closes the mobile history drawer.
+  useEffect(() => {
+    if (!isOpenMobile) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onCloseMobile();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpenMobile, onCloseMobile]);
+
   const renderSessionItem = (session: ChatSession) => {
     const isActive = activeChatId === session.id;
     const isEditing = editingSessionId === session.id;
     const isMenuOpen = activeMenuSessionId === session.id;
     const isPinned = Boolean(session.isPinned || session.is_pinned);
-    const displayTitle = cleanCoachTitle(session.title);
+  
+  const displayTitle = cleanCoachTitle(session.title);
     const timeLabel = formatRelativeTime(
       session.updatedAt || session.updated_at || session.createdAt || session.created_at
     );
@@ -281,10 +295,10 @@ export const CoachHistoryDrawer: React.FC<CoachHistoryDrawerProps> = ({
         <button
           type="button"
           onClick={onCloseMobile}
-          className="md:hidden w-8 h-8 rounded-xl text-slate-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] flex items-center justify-center transition-all active:scale-95 cursor-pointer"
-          aria-label="Close history"
+          className="md:hidden w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl text-slate-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] flex items-center justify-center transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+          aria-label="Close chat history"
         >
-          <X size={15} />
+          <X size={18} aria-hidden="true" />
         </button>
       </div>
 
@@ -420,6 +434,9 @@ export const CoachHistoryDrawer: React.FC<CoachHistoryDrawerProps> = ({
 
             {/* Slide-out Drawer Panel */}
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Chat history"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}

@@ -59,7 +59,7 @@ export const CoachHeader: React.FC<CoachHeaderProps> = ({
         {/* Mobile Hamburger Toggle */}
         <button
           onClick={onToggleMobileDrawer}
-          className="md:hidden w-8.5 h-8.5 rounded-xl text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] flex items-center justify-center transition-all active:scale-95 shrink-0 cursor-pointer"
+          className="md:hidden w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] flex items-center justify-center transition-all active:scale-95 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
           aria-label="Open chat history"
           title="Chat History"
         >
@@ -69,7 +69,7 @@ export const CoachHeader: React.FC<CoachHeaderProps> = ({
         {/* Desktop Sidebar Toggle Button */}
         <button
           onClick={onToggleDesktopSidebar}
-          className="hidden md:flex w-8.5 h-8.5 rounded-xl text-slate-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.07] items-center justify-center transition-all active:scale-95 shrink-0 cursor-pointer"
+          className="hidden md:flex w-11 h-11 rounded-xl text-slate-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.07] items-center justify-center transition-all active:scale-95 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
           aria-label={isDesktopSidebarOpen ? "Hide sidebar" : "Show sidebar"}
           title={isDesktopSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >

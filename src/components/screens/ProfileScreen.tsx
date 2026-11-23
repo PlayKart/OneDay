@@ -188,9 +188,21 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
                 {activeUser.name || "Athlete"}
               </h2>
               <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                <span className="text-xs text-neutral-400 font-mono">
-                  {firebaseUser?.email || activeUser.email || "Active User"}
-                </span>
+                {(() => {
+                  const email = firebaseUser?.email || activeUser.email;
+                  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    return <span className="text-xs text-neutral-400 font-mono">Active User</span>;
+                  }
+                  return (
+                    <a
+                      href={`mailto:${email}`}
+                      aria-label={`Email ${email}`}
+                      className="text-xs text-neutral-400 hover:text-white transition-colors font-mono underline decoration-white/20 underline-offset-4 hover:decoration-white/60 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                    >
+                      {email}
+                    </a>
+                  );
+                })()}
                 {equippedTitle && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[10px] font-black uppercase tracking-wider rounded-lg">
                     <Shield size={10} className="text-amber-400" />

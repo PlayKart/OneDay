@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { signInWithPopup, GoogleAuthProvider, signInAnonymously } from "firebase/auth";
 import { auth } from "../../lib/firebase";
@@ -77,6 +77,8 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
   const [authLoading, setAuthLoading] = useState(false);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Interactive demo states for hero product preview card
   const [demoDone1, setDemoDone1] = useState(true);
@@ -137,8 +139,41 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
     window.scrollTo({ top: 0 });
   };
 
+  // Mobile menu: Escape closes, outside tap/click closes, and it always
+  // closes when the viewport grows to the desktop breakpoint.
   useEffect(() => {
-    document.title = "OneDay — Become Better";
+    if (!mobileMenuOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileMenuOpen(false);
+        mobileMenuButtonRef.current?.focus();
+      }
+    };
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (mobileMenuRef.current?.contains(target)) return;
+      if (mobileMenuButtonRef.current?.contains(target)) return;
+      setMobileMenuOpen(false);
+    };
+    const mql = window.matchMedia("(min-width: 768px)");
+    const handleBreakpoint = () => {
+      if (mql.matches) setMobileMenuOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    mql.addEventListener("change", handleBreakpoint);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
+      mql.removeEventListener("change", handleBreakpoint);
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    document.title = "OneDay — AI Habit Tracker";
 
     const handleScroll = () => {
       const scrollPos = window.scrollY + 250;
@@ -159,7 +194,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
       } else if (systemEl && scrollPos >= systemEl.offsetTop) {
         document.title = "System — OneDay";
       } else {
-        document.title = "OneDay — Become Better";
+        document.title = "OneDay — AI Habit Tracker";
       }
     };
 
@@ -277,8 +312,10 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
               
               {/* Brand Wordmark */}
               <button 
+                type="button"
                 onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="flex items-center gap-2.5 cursor-pointer group shrink-0 select-none text-left focus:outline-none"
+                aria-label="OneDay — back to top of page"
+                className="flex items-center gap-2.5 cursor-pointer group shrink-0 select-none text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded-xl"
               >
                 <MonolithLogo size={26} aria-hidden="true" />
                 <span className="text-base sm:text-lg font-bold tracking-tight text-white">
@@ -305,11 +342,15 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 </button>
 
                 <button
+                  ref={mobileMenuButtonRef}
+                  type="button"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  aria-label="Toggle navigation menu"
-                  className="md:hidden p-2 rounded-xl bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                  aria-expanded={mobileMenuOpen}
+                  aria-controls="landing-mobile-menu"
+                  className="md:hidden p-2 rounded-xl bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
                 >
-                  {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+                  {mobileMenuOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
                 </button>
               </div>
             </div>
@@ -318,26 +359,40 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
             <AnimatePresence>
               {mobileMenuOpen && (
                 <motion.div
+                  id="landing-mobile-menu"
+                  ref={mobileMenuRef}
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="md:hidden absolute top-full left-0 right-0 bg-[#070709]/95 backdrop-blur-2xl border-b border-white/10 overflow-hidden shadow-2xl z-50"
+                  className="md:hidden absolute top-full left-0 right-0 bg-[#070709]/95 backdrop-blur-2xl border-b border-white/10 overflow-hidden shadow-2xl z-50 max-h-[calc(100dvh-4rem)] overflow-y-auto"
                 >
-                  <div className="px-6 py-6 flex flex-col space-y-4 text-sm font-medium text-zinc-300">
-                    <button onClick={() => scrollToSection("system")} className="text-left py-2 border-b border-white/5">System</button>
-                    <button onClick={() => scrollToSection("progress")} className="text-left py-2 border-b border-white/5">Analytics</button>
-                    <button onClick={() => scrollToSection("coaching")} className="text-left py-2 border-b border-white/5">AI Coach</button>
-                    <button onClick={() => scrollToSection("team")} className="text-left py-2 border-b border-white/5">Creators</button>
-                    <button onClick={() => scrollToSection("faq")} className="text-left py-2 border-b border-white/5">FAQ</button>
-                    <div className="pt-2">
+                  <nav aria-label="Mobile navigation" className="px-6 py-5 flex flex-col text-sm font-medium text-zinc-300">
+                    {[
+                      { id: "system", label: "System" },
+                      { id: "progress", label: "Analytics" },
+                      { id: "coaching", label: "AI Coach" },
+                      { id: "team", label: "Creators" },
+                      { id: "faq", label: "FAQ" },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => scrollToSection(item.id)}
+                        className="text-left py-3.5 min-h-[48px] border-b border-white/5 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                    <div className="pt-4">
                       <button 
+                        type="button"
                         onClick={() => { setMobileMenuOpen(false); openAuthModal(); }}
-                        className="w-full bg-white text-black py-3 rounded-full text-xs font-semibold uppercase tracking-wider text-center"
+                        className="w-full min-h-[48px] bg-white text-black py-3 rounded-full text-xs font-semibold uppercase tracking-wider text-center"
                       >
                         Start Your Journey
                       </button>
                     </div>
-                  </div>
+                  </nav>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -920,7 +975,7 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 <div className="pt-4">
                   <button 
                     onClick={openAuthModal}
-                    className="bg-white text-black px-9 py-4 rounded-full text-sm font-semibold tracking-tight hover:bg-zinc-200 active:scale-98 transition-all cursor-pointer shadow-xl shadow-white/5 inline-flex items-center gap-2.5"
+                    className="bg-white text-black px-9 py-4 rounded-full text-sm font-semibold tracking-tight hover:bg-zinc-200 active:scale-[0.98] transition-all cursor-pointer shadow-xl shadow-white/5 inline-flex items-center gap-2.5"
                   >
                     <span>Start Your Journey</span>
                     <ArrowRight size={16} />
@@ -933,7 +988,10 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
 
           {/* FOOTER */}
           <footer className="py-12 border-t border-white/[0.08] bg-black text-xs text-zinc-500">
-            <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-6">
+            <nav
+              aria-label="Footer"
+              className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left"
+            >
               
               <div className="flex items-center gap-2.5">
                 <MonolithLogo size={22} aria-hidden="true" />
@@ -942,41 +1000,45 @@ export function LandingScreen({ onLoginSuccess }: LandingScreenProps) {
                 <span>Become Better</span>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-6 text-zinc-400">
+              <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-zinc-400">
                 <a
                   href={ONEDAY_CONTACT.instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+                  aria-label={`OneDay on Instagram, ${ONEDAY_CONTACT.instagramHandle} (opens in a new tab)`}
+                  className="min-h-[44px] inline-flex items-center gap-1.5 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded-md px-1"
                 >
-                  <Instagram size={14} />
+                  <Instagram size={14} aria-hidden="true" />
                   <span>{ONEDAY_CONTACT.instagramHandle}</span>
                 </a>
                 <a
                   href={ONEDAY_CONTACT.emailMailto}
-                  className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+                  aria-label={`Email OneDay at ${ONEDAY_CONTACT.email}`}
+                  className="min-h-[44px] inline-flex items-center gap-1.5 hover:text-white transition-colors underline decoration-white/20 underline-offset-4 hover:decoration-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded-md px-1"
                 >
-                  <Mail size={14} />
+                  <Mail size={14} aria-hidden="true" />
                   <span>{ONEDAY_CONTACT.email}</span>
                 </a>
                 <button 
+                  type="button"
                   onClick={() => { setView("privacy"); window.scrollTo({ top: 0 }); }} 
-                  className="hover:text-white transition-colors cursor-pointer"
+                  className="min-h-[44px] inline-flex items-center hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded-md px-1"
                 >
                   Privacy Policy
                 </button>
                 <button 
+                  type="button"
                   onClick={() => { setView("terms"); window.scrollTo({ top: 0 }); }} 
-                  className="hover:text-white transition-colors cursor-pointer"
+                  className="min-h-[44px] inline-flex items-center hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded-md px-1"
                 >
                   Terms & Conditions
                 </button>
               </div>
 
               <div className="text-zinc-600 font-mono text-[11px]">
-                © 2026 OneDay. All rights reserved.
+                © {new Date().getFullYear()} OneDay. All rights reserved.
               </div>
-            </div>
+            </nav>
           </footer>
 
           {/* AUTH MODAL */}

@@ -148,6 +148,24 @@ export function ShareStreakModal({
     };
   }, [isOpen, selectedHabit]);
 
+  // Modal accessibility: Escape closes, and background scroll is locked while open.
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSelectHabit = (habit: Habit) => {
@@ -333,6 +351,9 @@ export function ShareStreakModal({
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xl overflow-y-auto">
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Share your streak"
         initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -402,8 +423,7 @@ export function ShareStreakModal({
                         key={habit.id}
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.99 }}
-                        onClick={() => handleSelectHabit(habit)}
-                        className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/25 transition-all cursor-pointer flex items-center justify-between gap-4 group"
+                        className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/25 transition-all flex items-center justify-between gap-3 sm:gap-4 group"
                       >
                         <div className="flex items-center gap-4 min-w-0">
                           <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-400 shrink-0 font-black text-base shadow-inner">
@@ -423,7 +443,9 @@ export function ShareStreakModal({
 
                         <button
                           type="button"
-                          className="bg-white text-black text-xs font-extrabold px-4 py-2.5 rounded-xl group-hover:bg-amber-400 transition-colors shrink-0"
+                          onClick={() => handleSelectHabit(habit)}
+                          aria-label={`Share the ${streak} day streak for ${habit.name}`}
+                          className="bg-white text-black text-xs font-extrabold px-4 py-2.5 min-h-[44px] rounded-xl group-hover:bg-amber-400 transition-colors shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
                         >
                           Share
                         </button>
@@ -470,9 +492,12 @@ export function ShareStreakModal({
                 </div>
 
                 {/* Scaled Preview Canvas Wrapper: Fixed 4:5 Portrait Aspect Ratio */}
+                {/* The 960x1200 export canvas is transform-scaled to fit this
+                    container; overflow-hidden + min-w-0 guarantee the unscaled
+                    intrinsic width can never create horizontal page scroll. */}
                 <div 
                   ref={previewContainerRef}
-                  className="relative w-full max-w-full min-w-0 aspect-[4/5] max-h-[500px] sm:max-h-[580px] bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300"
+                  className="relative w-full max-w-full min-w-0 aspect-[4/5] max-h-[500px] sm:max-h-[580px] bg-[#030303] rounded-3xl border border-white/15 overflow-hidden flex items-center justify-center shadow-2xl transition-all duration-300 isolate"
                 >
                   <div 
                     style={{

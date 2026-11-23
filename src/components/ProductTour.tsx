@@ -264,6 +264,19 @@ export function ProductTour({ onComplete }: ProductTourProps) {
     if (onComplete) onComplete();
   }, [userId, setActiveTab, onComplete]);
 
+  // Keyboard access: Escape exits the walkthrough (same as Skip Tour).
+  useEffect(() => {
+    if (!isEligible) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        handleFinishTour();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isEligible, handleFinishTour]);
+
   // Navigate to target tab and measure target DOM element
   useEffect(() => {
     if (!isEligible) return;

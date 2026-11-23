@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useStore } from "../../store/useStore";
+import { notifyRouteChange } from "../../utils/routes";
 import { User } from "../../types";
 import { MotivationalQuote } from "../MotivationalQuote";
 import { HabitList } from "../HabitList";
@@ -13,6 +14,7 @@ import { calculateLevelProgress } from "../../utils";
 import { perfLogger } from "../../utils/perfLogger";
 import { useFreezeCountdown } from "../../utils/freezeUtils";
 import { DashboardCampaignBanner } from "../DashboardCampaignBanner";
+import { MonolithLogo } from "../MonolithLogo";
 
 export function DashboardScreen() {
   const { 
@@ -35,7 +37,9 @@ export function DashboardScreen() {
 
   useEffect(() => {
     const elapsed = Math.round(performance.now());
-    console.log(`[PERF] dashboard-ready: ${elapsed}ms`);
+    if ((import.meta as any).env?.DEV) {
+      console.log(`[PERF] dashboard-ready: ${elapsed}ms`);
+    }
     perfLogger.mark("dashboardReady", elapsed);
 
     // Requirement 1 & 6: Measure exact calibration completion -> Protocol Alpha visible transition latency
@@ -49,7 +53,9 @@ export function DashboardScreen() {
             "calibrationComplete",
             "protocolAlphaVisible"
           );
-          console.log(`[PERF] Calibration -> Protocol Alpha transition: ${measure.duration.toFixed(2)}ms (target: ~1ms)`);
+          if ((import.meta as any).env?.DEV) {
+            console.log(`[PERF] Calibration -> Protocol Alpha transition: ${measure.duration.toFixed(2)}ms (target: ~1ms)`);
+          }
         }
       }
     } catch (_) {}
@@ -192,7 +198,13 @@ export function DashboardScreen() {
 
       {/* HEADER ROW */}
       <header className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-2">
-        <div>
+        <div className="min-w-0">
+          {/* Brand lockup doubles as the app's home control: tapping the
+              OneDay mark always returns to the dashboard. */}
+          <div className="flex items-center gap-2.5 mb-3">
+            <MonolithLogo size={26} onClick={() => setActiveTab("dashboard")} aria-label="OneDay — back to dashboard" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">OneDay</span>
+          </div>
           <motion.h1 
             key={greeting}
             initial={{ opacity: 0, y: 3 }}
@@ -313,6 +325,7 @@ export function DashboardScreen() {
           onClick={() => {
             if (typeof window !== "undefined") {
               window.history.pushState({}, "", "/settings/progress");
+              notifyRouteChange();
               window.dispatchEvent(new PopStateEvent("popstate"));
             }
             setActiveTab("settings");
@@ -322,6 +335,7 @@ export function DashboardScreen() {
               e.preventDefault();
               if (typeof window !== "undefined") {
                 window.history.pushState({}, "", "/settings/progress");
+                notifyRouteChange();
                 window.dispatchEvent(new PopStateEvent("popstate"));
               }
               setActiveTab("settings");
