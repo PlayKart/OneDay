@@ -32,6 +32,24 @@ export function CreateHabitModal({ onClose }: CreateHabitModalProps) {
     return () => setMounted(false);
   }, []);
 
+  // Mobile/keyboard ergonomics: Escape closes the sheet and background scroll is
+  // locked while it is open (prevents the page moving behind the sheet on iOS).
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
   const daysOfWeek = [
     { id: "Mon", label: "M" },
     { id: "Tue", label: "T" },

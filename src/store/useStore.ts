@@ -1,6 +1,7 @@
 // src/store/useStore.ts
 
 import { create } from 'zustand';
+import { notifyRouteChange } from "../utils/routes";
 import toast from 'react-hot-toast';
 import { auth } from '../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser, getRedirectResult } from 'firebase/auth';
@@ -371,6 +372,7 @@ export const useStore = create<StoreState>((set, get) => {
         ) {
           if (window.location.pathname !== targetPath) {
             window.history.pushState({ tab }, "", targetPath);
+            notifyRouteChange();
           }
         }
       }

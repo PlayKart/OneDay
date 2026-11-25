@@ -19,7 +19,13 @@
       "src": "/icon-512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     },
     {
       "src": "/apple-touch-icon.png",
@@ -31,5 +37,7 @@
   "start_url": "/",
   "background_color": "#050505",
   "display": "standalone",
-  "theme_color": "#050505"
+  "theme_color": "#050505",
+  "id": "/",
+  "scope": "/"
 }

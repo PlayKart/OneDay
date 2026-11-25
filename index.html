@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <meta name="theme-color" content="#050505" />
+    <meta name="color-scheme" content="dark" />
 
     <!-- Cache Control Meta Tags -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
@@ -35,6 +36,11 @@
     <meta property="og:title" content="OneDay — AI Habit Tracker" />
     <meta property="og:description" content="Premium AI-powered habit tracker focused on discipline, consistency, streaks, and self-improvement." />
     <meta property="og:image" content="https://onee-day.vercel.app/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The OneDay monolith logo on a black background" />
+    <meta property="og:site_name" content="OneDay" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
@@ -42,16 +48,32 @@
     <meta property="twitter:title" content="OneDay — AI Habit Tracker" />
     <meta property="twitter:description" content="Premium AI-powered habit tracker focused on discipline, consistency, streaks, and self-improvement." />
     <meta property="twitter:image" content="https://onee-day.vercel.app/og-image.png" />
+    <meta property="twitter:image:alt" content="The OneDay monolith logo on a black background" />
 
-    <!-- Favicons & App Icons -->
+    <!-- Favicons & App Icons (generated from the OneDay monolith mark) -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="canonical" href="https://onee-day.vercel.app/" />
 
-    <!-- Performance: Font Preconnecting -->
+    <!-- Performance: Font Preconnecting + stylesheet (display=swap, non-blocking) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap"
+      />
+    </noscript>
 
     <!-- Google Search Console Verification -->
     <meta name="google-site-verification" content="7fuz0x5SUlnXF0FAUaevAr6DfeuhfvzFRd4835_I1Hg" />
@@ -73,8 +95,7 @@
           "priceCurrency": "USD"
         },
         "description": "Premium AI-powered habit tracker focused on discipline, consistency, streaks, and self-improvement.",
-        "ratingValue": "4.9",
-        "reviewCount": "104"
+        "url": "https://onee-day.vercel.app/"
       }
     </script>
     
@@ -86,7 +107,7 @@
         "url": "https://onee-day.vercel.app/",
         "logo": "https://onee-day.vercel.app/apple-touch-icon.png",
         "sameAs": [
-          "https://twitter.com/oneedayapp"
+          "https://www.instagram.com/onedayapp.co/"
         ]
       }
     </script>

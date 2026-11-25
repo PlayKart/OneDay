@@ -31,6 +31,7 @@ import { StreakProtectionSection } from "../settings/StreakProtectionSection";
 import { ONEDAY_CONTACT } from "../../constants";
 import { Button } from "../ui";
 import { MonolithLogo } from "../MonolithLogo";
+import { notifyRouteChange } from "../../utils/routes";
 
 export type SettingsSubView =
   | "main"
@@ -75,6 +76,7 @@ export function SettingsScreen() {
     const targetPath = pathMap[view] || "/settings";
     if (window.location.pathname !== targetPath) {
       window.history.pushState({ tab: "settings", settingsView: view }, "", targetPath);
+      notifyRouteChange();
     }
   };
 
@@ -87,6 +89,7 @@ export function SettingsScreen() {
       window.history.back();
     } else {
       window.history.pushState({ tab: "settings", settingsView: "main" }, "", "/settings");
+      notifyRouteChange();
     }
   };
 
@@ -629,7 +632,12 @@ export function SettingsScreen() {
 
       {/* FOOTER */}
       <footer className="pt-6 pb-2 text-center flex flex-col items-center space-y-1.5">
-        <MonolithLogo size={24} aria-hidden="true" className="opacity-70 mb-1" />
+        <MonolithLogo
+          size={24}
+          onClick={() => setActiveTab("dashboard")}
+          aria-label="OneDay — back to dashboard"
+          className="opacity-80 mb-1"
+        />
         <p className="text-xs font-bold tracking-widest text-neutral-400 uppercase">
           OneDay
         </p>

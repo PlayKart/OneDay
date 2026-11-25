@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { X, Calendar, Flag, AlignLeft, Check, Trash } from "lucide-react";
@@ -132,6 +132,29 @@ export function EditHabitModal({ habit, onClose }: EditHabitModalProps) {
     resetHabitEditorState();
     onClose();
   };
+
+  // Stable reference so the Escape listener is registered exactly once.
+  const handleCloseRef = useRef(handleClose);
+  handleCloseRef.current = handleClose;
+
+  // Mobile/keyboard ergonomics: Escape closes the sheet and background scroll is
+  // locked while it is open (prevents the page moving behind the sheet on iOS).
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        handleCloseRef.current();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
 
   const handleSave = async (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault();

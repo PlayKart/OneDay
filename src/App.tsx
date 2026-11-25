@@ -1,5 +1,5 @@
-import { useEffect, lazy, Suspense } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useEffect, useState, lazy, Suspense } from 'react';
+import { motion, AnimatePresence, MotionConfig } from 'motion/react';
 import { 
   AlertTriangle,
   RefreshCw
@@ -10,6 +10,16 @@ import { MonolithLogo } from './components/MonolithLogo';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { ScreenErrorBoundary } from './components/ScreenErrorBoundary';
 import { resolveOnboardingStatus, OnboardingLogicalStatus } from './utils';
+import { NotFoundScreen } from './components/screens/NotFoundScreen';
+import {
+  ROUTE_CHANGE_EVENT,
+  getCurrentPath,
+  getTabForPath,
+  isUnknownPath,
+  TAB_PATHS,
+  notifyRouteChange,
+} from './utils/routes';
+import { applyPageMeta, resolvePageMeta } from './utils/pageMeta';
 
 // Lazy loading screen components with resilient retry logic
 const DashboardScreen = lazyWithRetry(() => import('./components/screens/DashboardScreen'), 'DashboardScreen');
@@ -109,7 +119,7 @@ export function getAppState({
   return "AUTHENTICATED_LOADING";
 }
 
-export default function App() {
+function AppContent() {
   const { 
     user, 
     firebaseUser, 
@@ -119,6 +129,7 @@ export default function App() {
     profileSynced, 
     refreshFromBackend, 
     activeTab, 
+    setActiveTab,
     incrementProfileVersion,
     isShareStreakOpen,
     shareStreakHabitId,
@@ -135,6 +146,19 @@ export default function App() {
   });
 
   const isDev = Boolean((import.meta as any).env?.DEV);
+
+  // Current pathname (kept in state so 404 detection re-renders on navigation)
+  const [currentPath, setCurrentPath] = useState<string>(() => getCurrentPath());
+
+  useEffect(() => {
+    const syncPath = () => setCurrentPath(getCurrentPath());
+    window.addEventListener('popstate', syncPath);
+    window.addEventListener(ROUTE_CHANGE_EVENT, syncPath);
+    return () => {
+      window.removeEventListener('popstate', syncPath);
+      window.removeEventListener(ROUTE_CHANGE_EVENT, syncPath);
+    };
+  }, []);
 
   // Performance measurement: measure transition between calibration complete and Protocol Alpha visible
   useEffect(() => {
@@ -167,10 +191,19 @@ export default function App() {
       console.log(`[ONBOARDING STATUS] resolved = ${onboardingLogical} | state = ${appState}`);
     }
 
-    // Synchronize browser URL bar without unrequested redirects
+    // Synchronize browser URL bar without unrequested redirects.
+    // Unknown paths are preserved so the custom 404 screen can render instead
+    // of silently rewriting the URL to the landing page.
     if (appState === "UNAUTHENTICATED") {
-      if (window.location.pathname !== "/landing" && window.location.pathname !== "/terms" && window.location.pathname !== "/privacy") {
+      const path = window.location.pathname;
+      const keepPath =
+        path === "/landing" ||
+        path === "/terms" ||
+        path === "/privacy" ||
+        isUnknownPath(path);
+      if (!keepPath) {
         window.history.replaceState({}, "", "/landing");
+        notifyRouteChange();
       }
     } else if (appState === "AUTHENTICATED_ONBOARDING_INCOMPLETE") {
       if (window.location.pathname !== "/onboarding") {
@@ -181,41 +214,32 @@ export default function App() {
         window.history.replaceState({}, "", "/intro");
       }
     } else if (appState === "AUTHENTICATED_READY") {
-      if (window.location.pathname === "/onboarding" || window.location.pathname === "/intro" || window.location.pathname === "/landing") {
+      const path = window.location.pathname;
+      if (path === "/onboarding" || path === "/intro" || path === "/landing") {
         window.history.replaceState({}, "", "/dashboard");
+        notifyRouteChange();
       }
     }
   }, [appState, initialized, firebaseUser, user, loading, profileSynced, backendError]);
 
-  // Log Navigation/Route Changes and sync browser navigation
+  // Log Navigation/Route Changes (DEV only — never noisy in production consoles)
   useEffect(() => {
+    if (!isDev) return;
     console.log(`[STARTUP SEQUENCE - Navigation] Tab/Route changed to: ${activeTab}`);
-  }, [activeTab]);
+  }, [activeTab, isDev]);
 
+  // Browser navigation sync (back/forward). Unknown paths fall back to the dashboard
+  // and are rendered as the custom 404 screen by the branch below.
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
-      if (
-        path.startsWith("/settings") ||
-        path === "/profile" ||
-        path === "/progress" ||
-        path === "/account"
-      ) {
-        if (useStore.getState().activeTab !== "settings") {
-          useStore.getState().setActiveTab("settings");
-        }
-      } else if (path === "/habits") {
-        if (useStore.getState().activeTab !== "habits") {
-          useStore.getState().setActiveTab("habits");
-        }
-      } else if (path === "/coach") {
-        if (useStore.getState().activeTab !== "coach") {
-          useStore.getState().setActiveTab("coach");
-        }
-      } else if (path === "/dashboard") {
-        if (useStore.getState().activeTab !== "dashboard") {
-          useStore.getState().setActiveTab("dashboard");
-        }
+      if (isUnknownPath(path)) {
+        // Leave the tab as-is; the 404 branch renders instead of a screen.
+        return;
+      }
+      const nextTab = getTabForPath(path);
+      if (useStore.getState().activeTab !== nextTab) {
+        useStore.getState().setActiveTab(nextTab);
       }
     };
 
@@ -257,29 +281,29 @@ export default function App() {
     };
   }, [firebaseUser, refreshFromBackend]);
 
-  // Document Title
+  // Document title, meta description and robots directives.
+  // Public pages stay indexable; every authenticated screen is noindex.
   useEffect(() => {
-    if (!firebaseUser) {
-      document.title = "OneDay — AI Habit Tracker";
+    const appStateGroup: "UNAUTHENTICATED" | "READY" | "OTHER" =
+      appState === "UNAUTHENTICATED" ? "UNAUTHENTICATED" : appState === "AUTHENTICATED_READY" ? "READY" : "OTHER";
+
+    const unknownRoute =
+      isUnknownPath(currentPath) &&
+      (appState === "AUTHENTICATED_READY" || appState === "UNAUTHENTICATED");
+
+    // Signed-in users get a dashboard-level title while auth/sync screens are
+    // resolving, so no screen is ever left with the raw marketing title.
+    if (appStateGroup === "OTHER") {
+      if (appState === "INITIALIZING") {
+        document.title = "Initializing — OneDay";
+      } else {
+        document.title = "Syncing — OneDay";
+      }
       return;
     }
-    switch (activeTab) {
-      case "dashboard":
-        document.title = "Dashboard — OneDay";
-        break;
-      case "habits":
-        document.title = "Habits — OneDay";
-        break;
-      case "coach":
-        document.title = "AI Coach — OneDay";
-        break;
-      case "settings":
-        document.title = "Settings — OneDay";
-        break;
-      default:
-        document.title = "OneDay — AI Habit Tracker";
-    }
-  }, [firebaseUser, activeTab]);
+
+    applyPageMeta(resolvePageMeta(currentPath, appStateGroup, activeTab, { unknownRoute }));
+  }, [currentPath, appState, activeTab, firebaseUser]);
 
   // ── BRANCH 1: INITIALIZING -> Splash Screen ──────────────────────────────
   if (appState === "INITIALIZING") {
@@ -294,8 +318,21 @@ export default function App() {
     );
   }
 
-  // ── BRANCH 2: UNAUTHENTICATED -> Landing Screen ──────────────────────────
+  // ── BRANCH 2: UNAUTHENTICATED -> Landing Screen (or 404 for unknown URLs) ─
   if (appState === "UNAUTHENTICATED") {
+    if (isUnknownPath(currentPath)) {
+      return (
+        <NotFoundScreen
+          destinationLabel="Back to OneDay"
+          onReturn={() => {
+            window.history.pushState({}, "", "/landing");
+            notifyRouteChange();
+          }}
+          secondaryHref="/landing"
+          secondaryLabel="Open the OneDay homepage"
+        />
+      );
+    }
     return (
       <ScreenErrorBoundary name="LandingScreen">
         <Suspense fallback={
@@ -413,6 +450,41 @@ export default function App() {
     );
   }
 
+  // ── BRANCH 6.5: AUTHENTICATED_READY + unknown path -> Custom 404 ─────────
+  // Rendered inside MainLayout so the user keeps their session AND the bottom
+  // navigation stays reachable — picking a tab simply leaves the 404 state.
+  if (isUnknownPath(currentPath)) {
+    return (
+      <div className="min-h-screen relative overflow-hidden bg-[#050505]">
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            style: {
+              background: 'rgba(5, 5, 5, 0.9)',
+              color: '#fff',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              borderRadius: '12px',
+            }
+          }}
+        />
+        <MainLayout>
+          <NotFoundScreen
+            embedded
+            destinationLabel="Back to dashboard"
+            onReturn={() => {
+              window.history.pushState({}, "", TAB_PATHS.dashboard);
+              notifyRouteChange();
+              setActiveTab("dashboard");
+            }}
+          />
+        </MainLayout>
+      </div>
+    );
+  }
+
   // ── BRANCH 7: AUTHENTICATED_READY -> Main Protected App ──────────────────
   return (
     <div className="min-h-screen relative overflow-hidden bg-[#050505]">
@@ -459,5 +531,20 @@ export default function App() {
         <ShareStreakModal isOpen={isShareStreakOpen} onClose={closeShareStreakModal} preselectedHabitId={shareStreakHabitId} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Root application shell.
+ *
+ * MotionConfig honors the OS-level "reduce motion" preference for every
+ * animation in the tree (issue 20: reduced-motion support), without having to
+ * touch each individual component.
+ */
+export default function App() {
+  return (
+    <MotionConfig reducedMotion="user">
+      <AppContent />
+    </MotionConfig>
   );
 }

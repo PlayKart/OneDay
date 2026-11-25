@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
+/* Font stylesheet is linked from index.html (preconnected + display=swap) instead
+   of being @import-ed here: @import inside CSS blocks rendering behind an
+   external round-trip on slow connections. */
 @import "tailwindcss";
 
 @theme {
@@ -20,9 +22,45 @@
   --text-muted: #71717a;
 }
 
+html,
 body {
-  @apply bg-[#050505] text-white antialiased font-sans overflow-x-hidden;
+  /* Horizontal overflow guard: the app must never scroll sideways on phones.
+     Height is left to the dvh-based layout children. */
+  @apply overflow-x-hidden;
+  max-width: 100%;
+}
+
+body {
+  @apply bg-[#050505] text-white antialiased font-sans;
   min-height: 100vh;
+}
+
+/* Long unbroken strings (habit names, emails, ids, URLs) wrap instead of
+   pushing containers past the viewport. */
+.break-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Media never overflows its container by default. */
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+/* Respect the OS reduced-motion preference for CSS-driven motion
+   (JS animations are handled globally by MotionConfig in App.tsx). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Master Design System Surfaces & Controls */
